@@ -52,20 +52,17 @@ Temporary Items
 
 *.lock
 
-\.vs/LitePlacer/v15/sqlite3/
-
-\.vs/LitePlacer/v16/Server/sqlite3/
-
+# Visual Studio caches (any level)
+.vs/
+*.vsidx
 *.ide
-
-
-LitePlacer/MainForm\.prog
-
-
-.vs/LitePlacer/v16/Server/sqlite3/
-
+*.user
+LitePlacer/MainForm.prog
 LitePlacer/Needle.cs
 
-*.vsidx
-/.vs/LitePlacer/CopilotIndices
-/.vs
+# Machine settings and job data — never commit
+LitePlacer/LitePlacer.*
+!LitePlacer/LitePlacer.csproj
+LitePlacer/*.lpj
+LitePlacer/CadDataSave.csv
+LitePlacer/JobDataSave.csv
