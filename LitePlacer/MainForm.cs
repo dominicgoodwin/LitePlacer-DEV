@@ -11046,19 +11046,23 @@ namespace LitePlacer
         {
             if (!CheckPositionConfidence()) return;
 
-            if (Tapes_dataGridView.SelectedCells.Count != 1)
-            {
-                return;
-            };
-            double X;
-            double Y;
-            int row = Tapes_dataGridView.CurrentCell.RowIndex;
-            if (!double.TryParse(Tapes_dataGridView.Rows[row].Cells["FirstX_Column"].Value.ToString().Replace(',', '.'), out X))
+            int row = TapesGrid_CommitAndGetRow();
+            if (row < 0)
             {
                 return;
             }
-            if (!double.TryParse(Tapes_dataGridView.Rows[row].Cells["FirstY_Column"].Value.ToString().Replace(',', '.'), out Y))
+            double X;
+            double Y;
+            if ((Tapes_dataGridView.Rows[row].Cells["FirstX_Column"].Value == null) ||
+                !double.TryParse(Tapes_dataGridView.Rows[row].Cells["FirstX_Column"].Value.ToString().Replace(',', '.'), out X))
             {
+                DisplayText("First hole X is not a valid coordinate", KnownColor.DarkRed);
+                return;
+            }
+            if ((Tapes_dataGridView.Rows[row].Cells["FirstY_Column"].Value == null) ||
+                !double.TryParse(Tapes_dataGridView.Rows[row].Cells["FirstY_Column"].Value.ToString().Replace(',', '.'), out Y))
+            {
+                DisplayText("First hole Y is not a valid coordinate", KnownColor.DarkRed);
                 return;
             }
             CNC_XYA_m(X, Y, Cnc.CurrentA);
@@ -11068,11 +11072,11 @@ namespace LitePlacer
         {
             if (!CheckPositionConfidence()) return;
 
-            if (Tapes_dataGridView.SelectedCells.Count != 1)
+            int row = TapesGrid_CommitAndGetRow();
+            if (row < 0)
             {
                 return;
-            };
-            int row = Tapes_dataGridView.CurrentCell.RowIndex;
+            }
             Tapes_dataGridView.Rows[row].Cells["FirstX_Column"].Value = Cnc.CurrentX.ToString("0.000", CultureInfo.InvariantCulture);
             Tapes_dataGridView.Rows[row].Cells["FirstY_Column"].Value = Cnc.CurrentY.ToString("0.000", CultureInfo.InvariantCulture);
             // fix #22 update next coordinates when setting hole 1
@@ -11174,9 +11178,16 @@ namespace LitePlacer
         {
             if (!CheckPositionConfidence()) return;
 
-            DataGridViewRow Row = Tapes_dataGridView.Rows[Tapes_dataGridView.CurrentCell.RowIndex];
-            if (!int.TryParse(Row.Cells["NextPart_Column"].Value.ToString(), out _))
+            int row = TapesGrid_CommitAndGetRow();
+            if (row < 0)
             {
+                return;
+            }
+            DataGridViewRow Row = Tapes_dataGridView.Rows[row];
+            if ((Row.Cells["NextPart_Column"].Value == null) ||
+                !int.TryParse(Row.Cells["NextPart_Column"].Value.ToString(), out _))
+            {
+                DisplayText("Next is not a valid part number", KnownColor.DarkRed);
                 return;
             }
             Row.Cells["Next_X_Column"].Value = Cnc.CurrentX.ToString(CultureInfo.InvariantCulture);
@@ -11187,19 +11198,23 @@ namespace LitePlacer
         {
             if (!CheckPositionConfidence()) return;
 
-            if (Tapes_dataGridView.SelectedCells.Count != 1)
-            {
-                return;
-            };
-            double X;
-            double Y;
-            int row = Tapes_dataGridView.CurrentCell.RowIndex;
-            if (!double.TryParse(Tapes_dataGridView.Rows[row].Cells["Next_X_Column"].Value.ToString().Replace(',', '.'), out X))
+            int row = TapesGrid_CommitAndGetRow();
+            if (row < 0)
             {
                 return;
             }
-            if (!double.TryParse(Tapes_dataGridView.Rows[row].Cells["Next_Y_Column"].Value.ToString().Replace(',', '.'), out Y))
+            double X;
+            double Y;
+            if ((Tapes_dataGridView.Rows[row].Cells["Next_X_Column"].Value == null) ||
+                !double.TryParse(Tapes_dataGridView.Rows[row].Cells["Next_X_Column"].Value.ToString().Replace(',', '.'), out X))
             {
+                DisplayText("Next X is not a valid coordinate", KnownColor.DarkRed);
+                return;
+            }
+            if ((Tapes_dataGridView.Rows[row].Cells["Next_Y_Column"].Value == null) ||
+                !double.TryParse(Tapes_dataGridView.Rows[row].Cells["Next_Y_Column"].Value.ToString().Replace(',', '.'), out Y))
+            {
+                DisplayText("Next Y is not a valid coordinate", KnownColor.DarkRed);
                 return;
             }
             CNC_XYA_m(X, Y, Cnc.CurrentA);
@@ -11497,32 +11512,67 @@ namespace LitePlacer
 
             if ((Tapes_dataGridView.Columns[e.ColumnIndex].HeaderText == "Next") && (e.RowIndex >= 0))
             {
-                int NextNo = 1;
-
-                if (Tapes_dataGridView.Rows[row].Cells["NextPart_Column"].Value == null)
-                {
-                    ShowMessageBox(
-                        "Bad data in Next",
-                        "Data error",
-                        MessageBoxButtons.OK);
-                    return;
-                }
-
-                if (!int.TryParse(Tapes_dataGridView.Rows[row].Cells["NextPart_Column"].Value.ToString(), out NextNo))
-                {
-                    ShowMessageBox(
-                        "Bad data in Next",
-                        "Data error",
-                        MessageBoxButtons.OK);
-                    return;
-                }
-
-                if (Tapes != null)
-                {
-                    Tapes.UpdateNextCoordinates(row, NextNo);
-                }
+                TapesGrid_RecalculateNext(row);
                 return;
             }
+        }
+
+        // Recalculates Next X/Y for a tape row from its "Next" part number.
+        // Returns false (and tells the operator) if the Next cell doesn't hold an integer.
+        private bool TapesGrid_RecalculateNext(int row)
+        {
+            int NextNo = 1;
+
+            if ((Tapes_dataGridView.Rows[row].Cells["NextPart_Column"].Value == null) ||
+                !int.TryParse(Tapes_dataGridView.Rows[row].Cells["NextPart_Column"].Value.ToString(), out NextNo))
+            {
+                ShowMessageBox(
+                    "Bad data in Next",
+                    "Data error",
+                    MessageBoxButtons.OK);
+                return false;
+            }
+
+            if (Tapes != null)
+            {
+                Tapes.UpdateNextCoordinates(row, NextNo);
+            }
+            return true;
+        }
+
+        // Called at the top of the tape buttons that read the grid: commits any edit in progress
+        // (clicking a button does not raise CellLeave, so a value typed into "Next" was otherwise
+        // still uncommitted and Next X/Y still stale), and returns the row to act on, or -1 if
+        // there is no current cell.
+        private int TapesGrid_CommitAndGetRow()
+        {
+            bool WasEditing = Tapes_dataGridView.IsCurrentCellInEditMode;
+            if (WasEditing)
+            {
+                Tapes_dataGridView.EndEdit();
+            }
+            if (Tapes_dataGridView.CurrentCell == null)
+            {
+                DisplayText("No tape selected", KnownColor.DarkRed);
+                return -1;
+            }
+            int row = Tapes_dataGridView.CurrentCell.RowIndex;
+            if (row < 0)
+            {
+                DisplayText("No tape selected", KnownColor.DarkRed);
+                return -1;
+            }
+            // Only recalculate when the edit just committed was in "Next"; Next X/Y can also be
+            // set directly from the machine position ("Set part no." button) and must not be
+            // overwritten otherwise.
+            if (WasEditing && (Tapes_dataGridView.CurrentCell.OwningColumn.HeaderText == "Next"))
+            {
+                if (!TapesGrid_RecalculateNext(row))
+                {
+                    return -1;
+                }
+            }
+            return row;
         }
 
         // =================================================================================
