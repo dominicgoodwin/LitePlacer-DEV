@@ -232,10 +232,9 @@ namespace LitePlacer
             LabelTestButtons();
             AttachHelpHandlers(this.Controls);
 
-            if (!CreateDataBackups())
-            {
-                Environment.Exit(0);
-            }
+            // A failed backup used to Environment.Exit(0) silently. The reason is now logged above;
+            // the operator can still see it and decide, so carry on starting up.
+            CreateDataBackups();
 
             BasicSetupTab_Begin();      // Form comes up with basic setup tab, but the tab change event doesn't fire
 
@@ -435,16 +434,17 @@ namespace LitePlacer
                 foreach (var fName in DataFiles)
                 {
                     // On first runs, not all data files exist. that is not an error
-                    if (File.Exists(fName))
+                    string Source = System.IO.Path.Combine(FilesPath, fName);
+                    if (File.Exists(Source))
                     {
-                        File.Copy(System.IO.Path.Combine(FilesPath, fName), System.IO.Path.Combine(BackupsPath, fName), true);
+                        File.Copy(Source, System.IO.Path.Combine(BackupsPath, fName), true);
                     }
                 }
                 return true;
             }
             catch (System.Exception excep)
             {
-                DisplayText(excep.Message);
+                DisplayText("Data file backup failed: " + excep.Message, KnownColor.DarkRed, true);
                 return false;
             }
 

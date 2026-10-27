@@ -327,18 +327,13 @@ namespace LitePlacer
                 }
                 else
                 {
-                    DialogResult dialogResult = MainForm.ShowMessageBox(
-                       "SAVED SETTINGS FILE NOT FOUND. \n\n" +
-                       "If this is the first time you are running this program, this is expected. " +
-                       "Click OK, startup continues and the program uses built-in default values.\n\n" +
-                       "If you are updating from an earlier version, click cancel now, " +
-                       "then run the settings transfer program." +
-                       "Please see https://www.liteplacer.com/downloads/ for instructions and download link.",
-                       "Settings file not found", MessageBoxButtons.OKCancel);
-                    if (dialogResult == DialogResult.Cancel)
-                    {
-                        Environment.Exit(0);
-                    }
+                    // No settings file: expected on a fresh install. Just say so and continue with defaults.
+                    // (Previously this asked OK/Cancel via ShowMessageBox, which returns Cancel without
+                    // showing anything while MainForm.StartingUp is set, so a fresh install exited silently.)
+                    MainForm.DisplayText("Settings file " + FileName + " not found, using built-in default values.",
+                        KnownColor.DarkRed, true);
+                    MainForm.DisplayText("If you are updating from an earlier version, " +
+                        "see https://www.liteplacer.com/downloads/ for the settings transfer procedure.");
                     settings.MainForm = MainForm;
                     return settings;
                 }
@@ -348,7 +343,10 @@ namespace LitePlacer
                 MySettings s = new MySettings();
                 s.MainForm = MainForm;
 
-
+                // ShowMessageBox is suppressed while StartingUp (returns Cancel); this dialog must be seen,
+                // so lift the guard around it, as the nozzle-count check in MainForm does.
+                bool SaveStarting = MainForm.StartingUp;
+                MainForm.StartingUp = false;
                 DialogResult dialogResult = MainForm.ShowMessageBox(
                     "Problem loading application settings:\n" + excep.Message +
                     " \n\rExit program without saving any data? \n\r" +
@@ -356,6 +354,7 @@ namespace LitePlacer
                    "If \"No\", continue with default settings. ** Your old settings will be\n\r" +
                    "overwritten at program end. **",
                    "Data save problem", MessageBoxButtons.YesNo);
+                MainForm.StartingUp = SaveStarting;
                 if (dialogResult == DialogResult.No)
                 {
                     return s;
