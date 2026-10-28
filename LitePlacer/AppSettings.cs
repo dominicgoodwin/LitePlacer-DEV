@@ -293,6 +293,8 @@ namespace LitePlacer
         }
 
 
+        // Returns the loaded settings, built-in defaults if the file is missing or the operator chose
+        // to continue after a load problem, or null if the operator chose to exit without saving.
         public MySettings Load(string FileName)
         {
             try
@@ -359,9 +361,10 @@ namespace LitePlacer
                 {
                     return s;
                 }
-                s.General_SaveFilesAtClosing = false;
-                Application.Exit();
-                return s;    // to avoid compile error
+                // "Yes": the caller exits without saving. Don't call Application.Exit() from here:
+                // during Form1_Load that runs FormMain_FormClosing before Cnc, cameras and Nozzle
+                // exist, and the save-at-close code then crashes on a null reference.
+                return null;
             }
         }
 

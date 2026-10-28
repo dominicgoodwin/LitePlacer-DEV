@@ -163,6 +163,12 @@ namespace LitePlacer
             Setting = new MySettings();
             Setting.MainForm = this;
             Setting = Setting.Load(path + APPLICATIONSETTINGS_DATAFILE);
+            if (Setting == null)
+            {
+                // Operator chose to exit without saving after a settings load problem.
+                // Nothing else is set up yet, so leave straight away without running the close handler.
+                Environment.Exit(0);
+            }
             Setting.General_SaveFilesAtClosing = true;
 
             Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-us");
@@ -367,6 +373,13 @@ namespace LitePlacer
             Setting.CNC_EnableNumPadJog = NumPadJog_checkBox.Checked;
             Setting.General_CheckForUpdates = CheckForUpdate_checkBox.Checked;
             Setting.General_MuteLogging = DisableLog_checkBox.Checked;
+
+            // If we are closing during startup (before Form1_Load got as far as creating these),
+            // there is nothing to save or shut down.
+            if ((Cnc == null) || (Nozzle == null) || (DownCamera == null) || (UpCamera == null))
+            {
+                Environment.Exit(0);
+            }
 
             if (!SaveAllData())
             {
@@ -13819,7 +13832,13 @@ namespace LitePlacer
 
             if (AppSettings_openFileDialog.ShowDialog() == DialogResult.OK)
             {
-                Setting = Setting.Load(AppSettings_openFileDialog.FileName);
+                MySettings Loaded = Setting.Load(AppSettings_openFileDialog.FileName);
+                if (Loaded == null)
+                {
+                    // load problem, operator chose not to continue: keep current settings
+                    return;
+                }
+                Setting = Loaded;
                 Application.Restart();
             }
         }
