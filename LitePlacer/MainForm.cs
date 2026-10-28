@@ -6966,7 +6966,7 @@ namespace LitePlacer
             }
         }
 
-        private void FillDefaultJobValues()
+        public void FillDefaultJobValues()
         {
             foreach (DataGridViewRow JobRow in JobData_GridView.Rows)
             {

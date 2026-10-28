@@ -450,6 +450,69 @@ namespace LitePlacer
             }
         }
 
+        // =================================================================================
+        // Job settings across the rebuild: FillJobData_GridView() rebuilds the job grid from the CAD
+        // data and resets every row to "?". Rows are keyed by value + footprint, which panelizing
+        // doesn't change, so we snapshot the per-row settings first and put them back afterwards.
+        private static readonly string[] JobSettingColumns = {
+            "JobdataMethodColumn", "JobdataMethodParametersColumn", "JobDataNozzleColumn",
+            "PlacementMethodColumn", "PlacementParameterColumn" };
+
+        private static string JobRowKey(DataGridViewRow Row)
+        {
+            object v = Row.Cells["JobDataValueColumn"].Value;
+            object f = Row.Cells["JobDataFootprintColumn"].Value;
+            return ((v == null) ? "" : v.ToString()) + "|" + ((f == null) ? "" : f.ToString());
+        }
+
+        private Dictionary<string, object[]> SnapshotJobSettings()
+        {
+            Dictionary<string, object[]> Snap = new Dictionary<string, object[]>(StringComparer.Ordinal);
+            foreach (DataGridViewRow Row in JobData.Rows)
+            {
+                if (Row.IsNewRow)
+                {
+                    continue;
+                }
+                object[] Values = new object[JobSettingColumns.Length];
+                for (int i = 0; i < JobSettingColumns.Length; i++)
+                {
+                    Values[i] = Row.Cells[JobSettingColumns[i]].Value;
+                }
+                Snap[JobRowKey(Row)] = Values;
+            }
+            return Snap;
+        }
+
+        // Rebuild the job grid, default everything to Place Fast as a fresh CAD load does, then restore
+        // whatever the operator had set before. Rows that are fiducials by content are marked so.
+        private void RebuildJobData(Dictionary<string, object[]> Snap)
+        {
+            MainForm.FillJobData_GridView();
+            MainForm.FillDefaultJobValues();
+            foreach (DataGridViewRow Row in JobData.Rows)
+            {
+                object[] Values;
+                if (Snap.TryGetValue(JobRowKey(Row), out Values))
+                {
+                    for (int i = 0; i < JobSettingColumns.Length; i++)
+                    {
+                        if (Values[i] != null)
+                        {
+                            Row.Cells[JobSettingColumns[i]].Value = Values[i];
+                        }
+                    }
+                }
+                // Panel fiducials added by this form:
+                object v = Row.Cells["JobDataValueColumn"].Value;
+                object f = Row.Cells["JobDataFootprintColumn"].Value;
+                if ((v != null) && (f != null) && (v.ToString() == "Fiducial") && (f.ToString() == "On panel"))
+                {
+                    Row.Cells["JobdataMethodColumn"].Value = "Fiducials";
+                }
+            }
+        }
+
         private bool PanelizeRows(string OriginalFidList)
         {
             // Fill CAD data with panelized values:
@@ -535,6 +598,7 @@ namespace LitePlacer
             // OriginalFidList holds the single-board fiducial designators (from the job grid on the first
             // run, retained on MainForm for later runs, when the job grid already holds panel copies).
             string[] OriginalFids = string.IsNullOrWhiteSpace(OriginalFidList) ? new string[0] : OriginalFidList.Split(',');
+            Dictionary<string, object[]> JobSnap = SnapshotJobSettings();
             if (!UseBoardFids_checkBox.Checked)  // if using user defined fiducials:
             {
                 // Remove existing:
@@ -570,7 +634,7 @@ namespace LitePlacer
                     CadData.Rows[Last].Cells["CADdataRotationMachineColumn"].Value = "Nan";
                 }
                 // Build Job data
-                MainForm.FillJobData_GridView();
+                RebuildJobData(JobSnap);
                 int FidRow;
                 if (!MainForm.FindFiducials_m(out FidRow)) 
                 {
@@ -592,7 +656,7 @@ namespace LitePlacer
                 return false;
             }
             // Build the job:
-            MainForm.FillJobData_GridView();
+            RebuildJobData(JobSnap);
             // FillJobData_GridView rebuilt the job grid; find the row that now holds the fiducial copies
             // (don't rely on the old row index).
             int FiducialIndex = -1;
