@@ -363,21 +363,40 @@ namespace LitePlacer
                 return false;
             };
 
-            // Panelizing replaces the CAD data with the multiplied copy. Doing that twice multiplies
-            // the already multiplied data (thousands of rows, minutes of grid updates, out of memory).
-            foreach (DataGridViewRow Row in CadData.Rows)
+            // Panelizing replaces the CAD data with the multiplied copy, so a second run would multiply
+            // the already multiplied data. Instead, the single-board rows and the original fiducial
+            // designators are kept on MainForm the first time, and later runs start from those.
+            string OriginalFidList;
+            if (MainForm.SingleBoardCadRows != null)
             {
-                if ((Row.Cells["CADdataComponentColumn"].Value != null) &&
-                    LooksPanelized(Row.Cells["CADdataComponentColumn"].Value.ToString()))
+                MainForm.DisplayText("Panelize: starting from the retained single-board CAD data (" +
+                    MainForm.SingleBoardCadRows.Count.ToString(CultureInfo.InvariantCulture) + " rows)");
+                RestoreSingleBoardCadData();
+                OriginalFidList = MainForm.SingleBoardFiducials;
+            }
+            else
+            {
+                // No retained copy (first panelize since the CAD file was loaded). If the data nevertheless
+                // looks panelized (job restored from a previous session), we can't get the single board back.
+                foreach (DataGridViewRow Row in CadData.Rows)
                 {
-                    MainForm.ShowMessageBox(
-                        "The CAD data already looks panelized (component " +
-                        Row.Cells["CADdataComponentColumn"].Value.ToString() + ").\n" +
-                        "Reload the single-board CAD file before panelizing again.",
-                        "Already panelized",
-                        MessageBoxButtons.OK);
-                    return false;
+                    if ((Row.Cells["CADdataComponentColumn"].Value != null) &&
+                        LooksPanelized(Row.Cells["CADdataComponentColumn"].Value.ToString()))
+                    {
+                        MainForm.ShowMessageBox(
+                            "The CAD data already looks panelized (component " +
+                            Row.Cells["CADdataComponentColumn"].Value.ToString() + ")\n" +
+                            "and the single-board data is not available from this session.\n" +
+                            "Reload the single-board CAD file before panelizing again.",
+                            "Already panelized",
+                            MessageBoxButtons.OK);
+                        return false;
+                    }
                 }
+                KeepSingleBoardCadData();
+                int FidRow = FindExistingFiducials();
+                OriginalFidList = (FidRow >= 0) ? JobData.Rows[FidRow].Cells["JobdataComponentsColumn"].Value.ToString() : "";
+                MainForm.SingleBoardFiducials = OriginalFidList;
             }
 
             // Thousands of row inserts/removes on a visible grid redraw on every change; suspend
@@ -385,7 +404,7 @@ namespace LitePlacer
             CadData.SuspendLayout();
             try
             {
-                return PanelizeRows();
+                return PanelizeRows(OriginalFidList);
             }
             finally
             {
@@ -393,7 +412,45 @@ namespace LitePlacer
             }
         }
 
-        private bool PanelizeRows()
+        // Keep a copy of the (single-board) CAD rows on MainForm, as plain values.
+        private void KeepSingleBoardCadData()
+        {
+            List<object[]> Rows = new List<object[]>();
+            foreach (DataGridViewRow Row in CadData.Rows)
+            {
+                if (Row.IsNewRow)
+                {
+                    continue;
+                }
+                object[] Values = new object[CadData.Columns.Count];
+                for (int c = 0; c < CadData.Columns.Count; c++)
+                {
+                    Values[c] = Row.Cells[c].Value;
+                }
+                Rows.Add(Values);
+            }
+            MainForm.SingleBoardCadRows = Rows;
+        }
+
+        // Put the retained single-board rows back into the CAD data grid.
+        private void RestoreSingleBoardCadData()
+        {
+            CadData.SuspendLayout();
+            try
+            {
+                CadData.Rows.Clear();
+                foreach (object[] Values in MainForm.SingleBoardCadRows)
+                {
+                    CadData.Rows.Add((object[])Values.Clone());
+                }
+            }
+            finally
+            {
+                CadData.ResumeLayout();
+            }
+        }
+
+        private bool PanelizeRows(string OriginalFidList)
         {
             // Fill CAD data with panelized values:
             // Take a copy of current CAD data grid...
@@ -475,13 +532,14 @@ namespace LitePlacer
 
 
             // Build Job data:
-            int FiducialIndex = FindExistingFiducials();
+            // OriginalFidList holds the single-board fiducial designators (from the job grid on the first
+            // run, retained on MainForm for later runs, when the job grid already holds panel copies).
+            string[] OriginalFids = string.IsNullOrWhiteSpace(OriginalFidList) ? new string[0] : OriginalFidList.Split(',');
             if (!UseBoardFids_checkBox.Checked)  // if using user defined fiducials:
             {
                 // Remove existing:
-                if (FiducialIndex >= 0)
+                if (OriginalFids.Length > 0)
                 {
-                    string[] OriginalFids = JobData.Rows[FiducialIndex].Cells["JobdataComponentsColumn"].Value.ToString().Split(',');
                     foreach (string CurrentFiducial in OriginalFids)
                     {
                         // loop from bottom, so we can modify the collection we are looping through:
@@ -524,9 +582,37 @@ namespace LitePlacer
 
             // Here, we are using the fiducials data from the individual subboards.
             // (We know they are indicated already)
-            string[] OriginalFiducials = JobData.Rows[FiducialIndex].Cells["JobdataComponentsColumn"].Value.ToString().Split(',');
+            string[] OriginalFiducials = OriginalFids;
+            if (OriginalFiducials.Length == 0)
+            {
+                MainForm.ShowMessageBox(
+                    "Board fiducials not found or indicated",
+                    "No fiducials",
+                    MessageBoxButtons.OK);
+                return false;
+            }
             // Build the job:
             MainForm.FillJobData_GridView();
+            // FillJobData_GridView rebuilt the job grid; find the row that now holds the fiducial copies
+            // (don't rely on the old row index).
+            int FiducialIndex = -1;
+            for (int r = 0; r < JobData.RowCount; r++)
+            {
+                string[] Members = JobData.Rows[r].Cells["JobdataComponentsColumn"].Value.ToString().Split(',');
+                if (Members.Any(m => IsPanelCopyOf(m, OriginalFiducials[0])))
+                {
+                    FiducialIndex = r;
+                    break;
+                }
+            }
+            if (FiducialIndex < 0)
+            {
+                MainForm.ShowMessageBox(
+                    "Fiducial " + OriginalFiducials[0] + " not found in the panelized job data.",
+                    "Fiducials data error",
+                    MessageBoxButtons.OK);
+                return false;
+            }
 
             // Our job now has multiples of each board fiducials, we only want to use four that are furthest apart
             string LowLeft = "_";
@@ -660,6 +746,7 @@ namespace LitePlacer
             }
             JobData.Rows[FiducialIndex].Cells["JobdataComponentsColumn"].Value = LowLeft + "," + HighLeft + "," + LowRight + "," + HighRight;
             JobData.Rows[FiducialIndex].Cells["JobdataCountColumn"].Value = "4";
+            JobData.Rows[FiducialIndex].Cells["JobdataMethodColumn"].Value = "Fiducials";   // keep the indication; FillJobData_GridView reset it to "?"
             return true;
         }
 

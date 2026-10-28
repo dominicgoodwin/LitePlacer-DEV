@@ -10060,6 +10060,15 @@ namespace LitePlacer
         // =================================================================================
         // Panelizing
         // =================================================================================
+
+        // Panelizing replaces the CAD data with the multiplied copy. So that the operator can
+        // panelize again with different settings without reloading the CAD file (and losing the
+        // fiducial indication), PanelizeForm keeps the single-board rows and the original fiducial
+        // designators here the first time, and starts from them on later runs.
+        // Cleared whenever new CAD data is parsed.
+        public List<object[]> SingleBoardCadRows { get; set; } = null;
+        public string SingleBoardFiducials { get; set; } = null;
+
         private void Panelize_button_Click(object sender, EventArgs e)
         {
             PanelizeForm PanelizeDialog = new PanelizeForm(this);
@@ -10409,6 +10418,8 @@ namespace LitePlacer
 
             // clear and rebuild the data tables
             CadData_GridView.Rows.Clear();
+            SingleBoardCadRows = null;      // new CAD data: any retained pre-panelize copy is stale
+            SingleBoardFiducials = null;
             Update_GridView(CadData_GridView);
             CadDataDelay_label.Text = "Loading...";
             CadDataDelay_label.Visible = true;
