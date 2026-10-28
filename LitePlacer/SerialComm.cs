@@ -70,6 +70,13 @@ namespace LitePlacer
                     Thread.Sleep(2);
                     Application.DoEvents();
                 }
+                // Make sure the close has actually finished before we return: Open() calls Close() first
+                // and then re-opens the same SerialPort object, which fails or hangs if the close thread
+                // is still running. (From JonathanNorton/BugFixesJN.)
+                if (!t.Join(2000))
+                {
+                    MainForm.DisplayText("Serial port close did not complete in 2 s", KnownColor.DarkRed);
+                }
                 MainForm.DisplayText("Done.");
             }
             catch

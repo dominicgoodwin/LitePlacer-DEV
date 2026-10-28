@@ -41,6 +41,10 @@ namespace LitePlacer
         {
             string path = MainForm.GetPath();
             MainForm.LoadDataGrid(path + PANELFIDUCIALS_DATAFILE, PanelFiducials_dataGridView, FormMain.DataTableType.PanelFiducials);
+            // Row headers are hidden and selection is per cell, so there was no way to delete a row.
+            // Delete key (when not editing a cell) removes the current row.
+            PanelFiducials_dataGridView.AllowUserToDeleteRows = true;
+            PanelFiducials_dataGridView.KeyDown += PanelFiducials_dataGridView_KeyDown;
 
             XFirstOffset = MainForm.Setting.Panel_XFirstOffset;
             XFirstOffset_textBox.Text = XFirstOffset.ToString("0.00", CultureInfo.InvariantCulture);
@@ -55,6 +59,44 @@ namespace LitePlacer
             YIncrement = MainForm.Setting.Panel_YIncrement;
             YIncrement_textBox.Text = YIncrement.ToString("0.00", CultureInfo.InvariantCulture);
             UseBoardFids_checkBox.Checked = MainForm.Setting.Panel_UseBoardFids;
+        }
+
+        private void PanelFiducials_dataGridView_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Delete || PanelFiducials_dataGridView.IsCurrentCellInEditMode)
+            {
+                return;
+            }
+            DataGridViewRow Row = PanelFiducials_dataGridView.CurrentRow;
+            if (Row == null || Row.IsNewRow)
+            {
+                return;
+            }
+            PanelFiducials_dataGridView.Rows.Remove(Row);
+            e.Handled = true;
+        }
+
+        // =================================================================================
+        // Helper: IsPanelCopyOf:
+        // Panelize names copies "<designator>_<row>_<column>". Returns true if Name is the
+        // original designator or one of its panel copies. (A plain Contains() test also matched
+        // FID1 against FID10, FID11, ...)
+        private static bool IsPanelCopyOf(string Name, string Designator)
+        {
+            Name = Name.Trim();
+            Designator = Designator.Trim();
+            if (String.Equals(Name, Designator, StringComparison.Ordinal))
+            {
+                return true;
+            }
+            if (!Name.StartsWith(Designator + "_", StringComparison.Ordinal))
+            {
+                return false;
+            }
+            // remainder must be "<int>_<int>"
+            string[] Parts = Name.Substring(Designator.Length + 1).Split('_');
+            int dummy;
+            return (Parts.Length == 2) && int.TryParse(Parts[0], out dummy) && int.TryParse(Parts[1], out dummy);
         }
 
         public bool OK { get; set; } = false;
@@ -304,6 +346,16 @@ namespace LitePlacer
             return Math.Sqrt((X1 - X2) * (X1 - X2) + (Y1 - Y2) * (Y1 - Y2));
         }
 
+        // Returns true if Name looks like a panel copy made by Panelize ("<designator>_<row>_<column>").
+        private static bool LooksPanelized(string Name)
+        {
+            string[] Parts = Name.Trim().Split('_');
+            int dummy;
+            return (Parts.Length >= 3) &&
+                int.TryParse(Parts[Parts.Length - 2], out dummy) &&
+                int.TryParse(Parts[Parts.Length - 1], out dummy);
+        }
+
         private bool Panelize()
         {
             if (!ValidateData())
@@ -311,6 +363,38 @@ namespace LitePlacer
                 return false;
             };
 
+            // Panelizing replaces the CAD data with the multiplied copy. Doing that twice multiplies
+            // the already multiplied data (thousands of rows, minutes of grid updates, out of memory).
+            foreach (DataGridViewRow Row in CadData.Rows)
+            {
+                if ((Row.Cells["CADdataComponentColumn"].Value != null) &&
+                    LooksPanelized(Row.Cells["CADdataComponentColumn"].Value.ToString()))
+                {
+                    MainForm.ShowMessageBox(
+                        "The CAD data already looks panelized (component " +
+                        Row.Cells["CADdataComponentColumn"].Value.ToString() + ").\n" +
+                        "Reload the single-board CAD file before panelizing again.",
+                        "Already panelized",
+                        MessageBoxButtons.OK);
+                    return false;
+                }
+            }
+
+            // Thousands of row inserts/removes on a visible grid redraw on every change; suspend
+            // layout for the duration.
+            CadData.SuspendLayout();
+            try
+            {
+                return PanelizeRows();
+            }
+            finally
+            {
+                CadData.ResumeLayout();
+            }
+        }
+
+        private bool PanelizeRows()
+        {
             // Fill CAD data with panelized values:
             // Take a copy of current CAD data grid...
             DataGridView CadData_copy = new DataGridView();
@@ -403,7 +487,7 @@ namespace LitePlacer
                         // loop from bottom, so we can modify the collection we are looping through:
                         for (int i = CadData.RowCount - 1; i >= 0; i--)
                         {
-                            if (CadData.Rows[i].Cells["CADdataComponentColumn"].Value.ToString().Contains(CurrentFiducial))
+                            if (IsPanelCopyOf(CadData.Rows[i].Cells["CADdataComponentColumn"].Value.ToString(), CurrentFiducial))
                             {
                                 CadData.Rows.RemoveAt(i);
                             }
@@ -463,8 +547,6 @@ namespace LitePlacer
             double m10 = 10000;
             double CurrDist;
             double ThisDist;
-            double tempX;
-            double tempY;
 
 
             // For each fiducial in the list,
@@ -474,18 +556,19 @@ namespace LitePlacer
                 // find the fiducial in CAD data.
                 foreach (DataGridViewRow Row in CadData.Rows)
                 {
-                    if (Row.Cells["CADdataComponentColumn"].Value.ToString().Contains(CurrentFiducial))
+                    if (IsPanelCopyOf(Row.Cells["CADdataComponentColumn"].Value.ToString(), CurrentFiducial))
                     {
                         // Get its nominal position (value already checked, but need to check again for compiler).
-                        tempX = 0.0;
-                        if (double.TryParse(Row.Cells["CADdataXnominalColumn"].Value.ToString().Replace(',', '.'), out tempX))
+                        // (Previously the Y parse wrote to Y and then overwrote it with an unset temporary,
+                        // so every Y was 0 and "low right"/"high right" collapsed to the same fiducial,
+                        // giving a degenerate set to the transform estimation.)
+                        if (!double.TryParse(Row.Cells["CADdataXnominalColumn"].Value.ToString().Replace(',', '.'), out X))
                         {
-                            X = tempX;
+                            X = 0.0;
                         }
-                        tempY = 0.0;
-                        if (double.TryParse(Row.Cells["CADdataYnominalColumn"].Value.ToString().Replace(',', '.'), out Y))
+                        if (!double.TryParse(Row.Cells["CADdataYnominalColumn"].Value.ToString().Replace(',', '.'), out Y))
                         {
-                            Y = tempY;
+                            Y = 0.0;
                         }
                         // We don't want to be fooled by negative coordinates. Therefore, we'll place the fid 10m up and right
                         X = X + m10;
@@ -503,18 +586,9 @@ namespace LitePlacer
                         }
 
                         // First fid that we find is the lowest and rightest, highest and lowest, for now:
+                        // (uses the same offset coordinates as every other fid, so the comparisons below are valid)
                         if (first)
                         {
-                            tempX = 0.0;
-                            if (double.TryParse(Row.Cells["CADdataXnominalColumn"].Value.ToString().Replace(',', '.'), out tempX))
-                            {
-                                X = tempX;
-                            }
-                            tempY = 0.0;
-                            if (double.TryParse(Row.Cells["CADdataYnominalColumn"].Value.ToString().Replace(',', '.'), out Y))
-                            {
-                                Y = tempY;
-                            }
                             LowLeft = Row.Cells["CADdataComponentColumn"].Value.ToString();
                             LowLeftX = X;
                             LowLeftY = Y;
@@ -570,12 +644,13 @@ namespace LitePlacer
                 }
             }
 
-            // Are all four updated? If not, placement is not going to work
+            // Are all four updated, and are they four different fiducials? If not, placement is not going to work
             // Likely, one fiducial on board, one dimensional panel
             if (String.Equals(LowLeft, "_", StringComparison.Ordinal) ||
                 String.Equals(HighLeft, "_", StringComparison.Ordinal) ||
                 String.Equals(LowRight, "_", StringComparison.Ordinal) ||
-                String.Equals(HighRight, "_", StringComparison.Ordinal))
+                String.Equals(HighRight, "_", StringComparison.Ordinal) ||
+                (new HashSet<string>(new[] { LowLeft, HighLeft, LowRight, HighRight }, StringComparer.Ordinal).Count < 4))
             {
                 MainForm.ShowMessageBox(
                     "Current fiducials don't spread out.",

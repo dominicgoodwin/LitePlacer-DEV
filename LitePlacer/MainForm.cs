@@ -163,6 +163,12 @@ namespace LitePlacer
             Setting = new MySettings();
             Setting.MainForm = this;
             Setting = Setting.Load(path + APPLICATIONSETTINGS_DATAFILE);
+            if (Setting == null)
+            {
+                // Operator chose to exit without saving after a settings load problem.
+                // Nothing else is set up yet, so leave straight away without running the close handler.
+                Environment.Exit(0);
+            }
             Setting.General_SaveFilesAtClosing = true;
 
             Thread.CurrentThread.CurrentUICulture = new CultureInfo("en-us");
@@ -232,10 +238,9 @@ namespace LitePlacer
             LabelTestButtons();
             AttachHelpHandlers(this.Controls);
 
-            if (!CreateDataBackups())
-            {
-                Environment.Exit(0);
-            }
+            // A failed backup used to Environment.Exit(0) silently. The reason is now logged above;
+            // the operator can still see it and decide, so carry on starting up.
+            CreateDataBackups();
 
             BasicSetupTab_Begin();      // Form comes up with basic setup tab, but the tab change event doesn't fire
 
@@ -369,6 +374,13 @@ namespace LitePlacer
             Setting.General_CheckForUpdates = CheckForUpdate_checkBox.Checked;
             Setting.General_MuteLogging = DisableLog_checkBox.Checked;
 
+            // If we are closing during startup (before Form1_Load got as far as creating these),
+            // there is nothing to save or shut down.
+            if ((Cnc == null) || (Nozzle == null) || (DownCamera == null) || (UpCamera == null))
+            {
+                Environment.Exit(0);
+            }
+
             if (!SaveAllData())
             {
                 e.Cancel = true;
@@ -435,16 +447,17 @@ namespace LitePlacer
                 foreach (var fName in DataFiles)
                 {
                     // On first runs, not all data files exist. that is not an error
-                    if (File.Exists(fName))
+                    string Source = System.IO.Path.Combine(FilesPath, fName);
+                    if (File.Exists(Source))
                     {
-                        File.Copy(System.IO.Path.Combine(FilesPath, fName), System.IO.Path.Combine(BackupsPath, fName), true);
+                        File.Copy(Source, System.IO.Path.Combine(BackupsPath, fName), true);
                     }
                 }
                 return true;
             }
             catch (System.Exception excep)
             {
-                DisplayText(excep.Message);
+                DisplayText("Data file backup failed: " + excep.Message, KnownColor.DarkRed, true);
                 return false;
             }
 
@@ -11046,19 +11059,23 @@ namespace LitePlacer
         {
             if (!CheckPositionConfidence()) return;
 
-            if (Tapes_dataGridView.SelectedCells.Count != 1)
-            {
-                return;
-            };
-            double X;
-            double Y;
-            int row = Tapes_dataGridView.CurrentCell.RowIndex;
-            if (!double.TryParse(Tapes_dataGridView.Rows[row].Cells["FirstX_Column"].Value.ToString().Replace(',', '.'), out X))
+            int row = TapesGrid_CommitAndGetRow();
+            if (row < 0)
             {
                 return;
             }
-            if (!double.TryParse(Tapes_dataGridView.Rows[row].Cells["FirstY_Column"].Value.ToString().Replace(',', '.'), out Y))
+            double X;
+            double Y;
+            if ((Tapes_dataGridView.Rows[row].Cells["FirstX_Column"].Value == null) ||
+                !double.TryParse(Tapes_dataGridView.Rows[row].Cells["FirstX_Column"].Value.ToString().Replace(',', '.'), out X))
             {
+                DisplayText("First hole X is not a valid coordinate", KnownColor.DarkRed);
+                return;
+            }
+            if ((Tapes_dataGridView.Rows[row].Cells["FirstY_Column"].Value == null) ||
+                !double.TryParse(Tapes_dataGridView.Rows[row].Cells["FirstY_Column"].Value.ToString().Replace(',', '.'), out Y))
+            {
+                DisplayText("First hole Y is not a valid coordinate", KnownColor.DarkRed);
                 return;
             }
             CNC_XYA_m(X, Y, Cnc.CurrentA);
@@ -11068,11 +11085,11 @@ namespace LitePlacer
         {
             if (!CheckPositionConfidence()) return;
 
-            if (Tapes_dataGridView.SelectedCells.Count != 1)
+            int row = TapesGrid_CommitAndGetRow();
+            if (row < 0)
             {
                 return;
-            };
-            int row = Tapes_dataGridView.CurrentCell.RowIndex;
+            }
             Tapes_dataGridView.Rows[row].Cells["FirstX_Column"].Value = Cnc.CurrentX.ToString("0.000", CultureInfo.InvariantCulture);
             Tapes_dataGridView.Rows[row].Cells["FirstY_Column"].Value = Cnc.CurrentY.ToString("0.000", CultureInfo.InvariantCulture);
             // fix #22 update next coordinates when setting hole 1
@@ -11174,9 +11191,16 @@ namespace LitePlacer
         {
             if (!CheckPositionConfidence()) return;
 
-            DataGridViewRow Row = Tapes_dataGridView.Rows[Tapes_dataGridView.CurrentCell.RowIndex];
-            if (!int.TryParse(Row.Cells["NextPart_Column"].Value.ToString(), out _))
+            int row = TapesGrid_CommitAndGetRow();
+            if (row < 0)
             {
+                return;
+            }
+            DataGridViewRow Row = Tapes_dataGridView.Rows[row];
+            if ((Row.Cells["NextPart_Column"].Value == null) ||
+                !int.TryParse(Row.Cells["NextPart_Column"].Value.ToString(), out _))
+            {
+                DisplayText("Next is not a valid part number", KnownColor.DarkRed);
                 return;
             }
             Row.Cells["Next_X_Column"].Value = Cnc.CurrentX.ToString(CultureInfo.InvariantCulture);
@@ -11187,19 +11211,23 @@ namespace LitePlacer
         {
             if (!CheckPositionConfidence()) return;
 
-            if (Tapes_dataGridView.SelectedCells.Count != 1)
-            {
-                return;
-            };
-            double X;
-            double Y;
-            int row = Tapes_dataGridView.CurrentCell.RowIndex;
-            if (!double.TryParse(Tapes_dataGridView.Rows[row].Cells["Next_X_Column"].Value.ToString().Replace(',', '.'), out X))
+            int row = TapesGrid_CommitAndGetRow();
+            if (row < 0)
             {
                 return;
             }
-            if (!double.TryParse(Tapes_dataGridView.Rows[row].Cells["Next_Y_Column"].Value.ToString().Replace(',', '.'), out Y))
+            double X;
+            double Y;
+            if ((Tapes_dataGridView.Rows[row].Cells["Next_X_Column"].Value == null) ||
+                !double.TryParse(Tapes_dataGridView.Rows[row].Cells["Next_X_Column"].Value.ToString().Replace(',', '.'), out X))
             {
+                DisplayText("Next X is not a valid coordinate", KnownColor.DarkRed);
+                return;
+            }
+            if ((Tapes_dataGridView.Rows[row].Cells["Next_Y_Column"].Value == null) ||
+                !double.TryParse(Tapes_dataGridView.Rows[row].Cells["Next_Y_Column"].Value.ToString().Replace(',', '.'), out Y))
+            {
+                DisplayText("Next Y is not a valid coordinate", KnownColor.DarkRed);
                 return;
             }
             CNC_XYA_m(X, Y, Cnc.CurrentA);
@@ -11495,34 +11523,84 @@ namespace LitePlacer
                 return;
             }
 
-            if ((Tapes_dataGridView.Columns[e.ColumnIndex].HeaderText == "Next") && (e.RowIndex >= 0))
+            // Recalculation of Next X/Y now happens in Tapes_dataGridView_CellEndEdit, which fires on every
+            // user edit commit (Enter, click elsewhere, focus to a button) but not on programmatic writes.
+        }
+
+        // Value of the cell when the user started editing it, so CellEndEdit can tell whether it changed.
+        private string TapesGridEditStartValue = null;
+
+        private void Tapes_dataGridView_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
+        {
+            object v = Tapes_dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value;
+            TapesGridEditStartValue = (v == null) ? null : v.ToString();
+        }
+
+        private void Tapes_dataGridView_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            if (StartingUp || LoadingDataGrid || (e.RowIndex < 0) || (e.ColumnIndex < 0))
             {
-                int NextNo = 1;
-
-                if (Tapes_dataGridView.Rows[row].Cells["NextPart_Column"].Value == null)
-                {
-                    ShowMessageBox(
-                        "Bad data in Next",
-                        "Data error",
-                        MessageBoxButtons.OK);
-                    return;
-                }
-
-                if (!int.TryParse(Tapes_dataGridView.Rows[row].Cells["NextPart_Column"].Value.ToString(), out NextNo))
-                {
-                    ShowMessageBox(
-                        "Bad data in Next",
-                        "Data error",
-                        MessageBoxButtons.OK);
-                    return;
-                }
-
-                if (Tapes != null)
-                {
-                    Tapes.UpdateNextCoordinates(row, NextNo);
-                }
                 return;
             }
+            if (Tapes_dataGridView.Columns[e.ColumnIndex].HeaderText != "Next")
+            {
+                return;
+            }
+            object v = Tapes_dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value;
+            string NewValue = (v == null) ? null : v.ToString();
+            if (NewValue == TapesGridEditStartValue)
+            {
+                // Clicked in and out without changing: leave Next X/Y alone (they may be measured
+                // hole positions from Place Fast, which a recalculation would overwrite).
+                return;
+            }
+            TapesGrid_RecalculateNext(e.RowIndex);
+        }
+
+        // Recalculates Next X/Y for a tape row from its "Next" part number.
+        // Returns false (and tells the operator) if the Next cell doesn't hold an integer.
+        private bool TapesGrid_RecalculateNext(int row)
+        {
+            int NextNo = 1;
+
+            if ((Tapes_dataGridView.Rows[row].Cells["NextPart_Column"].Value == null) ||
+                !int.TryParse(Tapes_dataGridView.Rows[row].Cells["NextPart_Column"].Value.ToString(), out NextNo))
+            {
+                ShowMessageBox(
+                    "Bad data in Next",
+                    "Data error",
+                    MessageBoxButtons.OK);
+                return false;
+            }
+
+            if (Tapes != null)
+            {
+                Tapes.UpdateNextCoordinates(row, NextNo);
+            }
+            return true;
+        }
+
+        // Called at the top of the tape buttons that read the grid: commits any edit still in progress
+        // (which raises CellEndEdit, so a changed "Next" value gets Next X/Y recalculated before the
+        // button reads them), and returns the row to act on, or -1 if there is no current cell.
+        private int TapesGrid_CommitAndGetRow()
+        {
+            if (Tapes_dataGridView.IsCurrentCellInEditMode)
+            {
+                Tapes_dataGridView.EndEdit();
+            }
+            if (Tapes_dataGridView.CurrentCell == null)
+            {
+                DisplayText("No tape selected", KnownColor.DarkRed);
+                return -1;
+            }
+            int row = Tapes_dataGridView.CurrentCell.RowIndex;
+            if (row < 0)
+            {
+                DisplayText("No tape selected", KnownColor.DarkRed);
+                return -1;
+            }
+            return row;
         }
 
         // =================================================================================
@@ -13769,7 +13847,13 @@ namespace LitePlacer
 
             if (AppSettings_openFileDialog.ShowDialog() == DialogResult.OK)
             {
-                Setting = Setting.Load(AppSettings_openFileDialog.FileName);
+                MySettings Loaded = Setting.Load(AppSettings_openFileDialog.FileName);
+                if (Loaded == null)
+                {
+                    // load problem, operator chose not to continue: keep current settings
+                    return;
+                }
+                Setting = Loaded;
                 Application.Restart();
             }
         }
