@@ -11523,11 +11523,38 @@ namespace LitePlacer
                 return;
             }
 
-            if ((Tapes_dataGridView.Columns[e.ColumnIndex].HeaderText == "Next") && (e.RowIndex >= 0))
+            // Recalculation of Next X/Y now happens in Tapes_dataGridView_CellEndEdit, which fires on every
+            // user edit commit (Enter, click elsewhere, focus to a button) but not on programmatic writes.
+        }
+
+        // Value of the cell when the user started editing it, so CellEndEdit can tell whether it changed.
+        private string TapesGridEditStartValue = null;
+
+        private void Tapes_dataGridView_CellBeginEdit(object sender, DataGridViewCellCancelEventArgs e)
+        {
+            object v = Tapes_dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value;
+            TapesGridEditStartValue = (v == null) ? null : v.ToString();
+        }
+
+        private void Tapes_dataGridView_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            if (StartingUp || LoadingDataGrid || (e.RowIndex < 0) || (e.ColumnIndex < 0))
             {
-                TapesGrid_RecalculateNext(row);
                 return;
             }
+            if (Tapes_dataGridView.Columns[e.ColumnIndex].HeaderText != "Next")
+            {
+                return;
+            }
+            object v = Tapes_dataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex].Value;
+            string NewValue = (v == null) ? null : v.ToString();
+            if (NewValue == TapesGridEditStartValue)
+            {
+                // Clicked in and out without changing: leave Next X/Y alone (they may be measured
+                // hole positions from Place Fast, which a recalculation would overwrite).
+                return;
+            }
+            TapesGrid_RecalculateNext(e.RowIndex);
         }
 
         // Recalculates Next X/Y for a tape row from its "Next" part number.
@@ -11553,14 +11580,12 @@ namespace LitePlacer
             return true;
         }
 
-        // Called at the top of the tape buttons that read the grid: commits any edit in progress
-        // (clicking a button does not raise CellLeave, so a value typed into "Next" was otherwise
-        // still uncommitted and Next X/Y still stale), and returns the row to act on, or -1 if
-        // there is no current cell.
+        // Called at the top of the tape buttons that read the grid: commits any edit still in progress
+        // (which raises CellEndEdit, so a changed "Next" value gets Next X/Y recalculated before the
+        // button reads them), and returns the row to act on, or -1 if there is no current cell.
         private int TapesGrid_CommitAndGetRow()
         {
-            bool WasEditing = Tapes_dataGridView.IsCurrentCellInEditMode;
-            if (WasEditing)
+            if (Tapes_dataGridView.IsCurrentCellInEditMode)
             {
                 Tapes_dataGridView.EndEdit();
             }
@@ -11574,16 +11599,6 @@ namespace LitePlacer
             {
                 DisplayText("No tape selected", KnownColor.DarkRed);
                 return -1;
-            }
-            // Only recalculate when the edit just committed was in "Next"; Next X/Y can also be
-            // set directly from the machine position ("Set part no." button) and must not be
-            // overwritten otherwise.
-            if (WasEditing && (Tapes_dataGridView.CurrentCell.OwningColumn.HeaderText == "Next"))
-            {
-                if (!TapesGrid_RecalculateNext(row))
-                {
-                    return -1;
-                }
             }
             return row;
         }
