@@ -346,6 +346,16 @@ namespace LitePlacer
             return Math.Sqrt((X1 - X2) * (X1 - X2) + (Y1 - Y2) * (Y1 - Y2));
         }
 
+        // Returns true if Name looks like a panel copy made by Panelize ("<designator>_<row>_<column>").
+        private static bool LooksPanelized(string Name)
+        {
+            string[] Parts = Name.Trim().Split('_');
+            int dummy;
+            return (Parts.Length >= 3) &&
+                int.TryParse(Parts[Parts.Length - 2], out dummy) &&
+                int.TryParse(Parts[Parts.Length - 1], out dummy);
+        }
+
         private bool Panelize()
         {
             if (!ValidateData())
@@ -353,6 +363,38 @@ namespace LitePlacer
                 return false;
             };
 
+            // Panelizing replaces the CAD data with the multiplied copy. Doing that twice multiplies
+            // the already multiplied data (thousands of rows, minutes of grid updates, out of memory).
+            foreach (DataGridViewRow Row in CadData.Rows)
+            {
+                if ((Row.Cells["CADdataComponentColumn"].Value != null) &&
+                    LooksPanelized(Row.Cells["CADdataComponentColumn"].Value.ToString()))
+                {
+                    MainForm.ShowMessageBox(
+                        "The CAD data already looks panelized (component " +
+                        Row.Cells["CADdataComponentColumn"].Value.ToString() + ").\n" +
+                        "Reload the single-board CAD file before panelizing again.",
+                        "Already panelized",
+                        MessageBoxButtons.OK);
+                    return false;
+                }
+            }
+
+            // Thousands of row inserts/removes on a visible grid redraw on every change; suspend
+            // layout for the duration.
+            CadData.SuspendLayout();
+            try
+            {
+                return PanelizeRows();
+            }
+            finally
+            {
+                CadData.ResumeLayout();
+            }
+        }
+
+        private bool PanelizeRows()
+        {
             // Fill CAD data with panelized values:
             // Take a copy of current CAD data grid...
             DataGridView CadData_copy = new DataGridView();
