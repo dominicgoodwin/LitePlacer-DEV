@@ -34,6 +34,8 @@
             this.PlacementMethod_toolTip = new System.Windows.Forms.ToolTip(this.components);
             this.label2 = new System.Windows.Forms.Label();
             this.UpCamAssist_button = new System.Windows.Forms.Button();
+            this.FromTape_button = new System.Windows.Forms.Button();
+            this.label3 = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // NoMethod_button
@@ -80,11 +82,33 @@
             this.UpCamAssist_button.UseVisualStyleBackColor = true;
             this.UpCamAssist_button.Click += new System.EventHandler(this.UpCamAssist_button_Click);
             // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(37, 96);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(241, 16);
+            this.label3.TabIndex = 5;
+            this.label3.Text = "Use the default set on the tape (follows tape edits)";
+            // 
+            // FromTape_button
+            // 
+            this.FromTape_button.Location = new System.Drawing.Point(296, 90);
+            this.FromTape_button.Name = "FromTape_button";
+            this.FromTape_button.Size = new System.Drawing.Size(169, 28);
+            this.FromTape_button.TabIndex = 4;
+            this.FromTape_button.Text = "From tape";
+            this.PlacementMethod_toolTip.SetToolTip(this.FromTape_button, "Placement method and up camera algorithm come from the tape\r\nassigned to this row, and change when the tape is edited.");
+            this.FromTape_button.UseVisualStyleBackColor = true;
+            this.FromTape_button.Click += new System.EventHandler(this.FromTape_button_Click);
+            // 
             // PlacementMethodSelectionForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(473, 418);
+            this.Controls.Add(this.label3);
+            this.Controls.Add(this.FromTape_button);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.UpCamAssist_button);
             this.Controls.Add(this.label1);
@@ -103,5 +127,7 @@
         private System.Windows.Forms.ToolTip PlacementMethod_toolTip;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Button UpCamAssist_button;
+        private System.Windows.Forms.Button FromTape_button;
+        private System.Windows.Forms.Label label3;
     }
 }

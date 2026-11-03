@@ -107,6 +107,34 @@ namespace LitePlacer
                 MainForm.DefaultNozzle_label.Text = "--";
             }
 
+            // Placement defaults for jobs using this tape:
+            string Method = "--";
+            if ((Row.Cells["PlaceMethod_Column"].Value != null) &&
+                (Row.Cells["PlaceMethod_Column"].Value.ToString() == "Up Cam Assisted"))
+            {
+                Method = "Up Cam Assisted";
+            }
+            PlaceMethod_comboBox.SelectedItem = Method;
+
+            PlaceAlgorithm_comboBox.Items.Clear();
+            foreach (VideoAlgorithmsCollection.FullAlgorithmDescription Alg in MainForm.VideoAlgorithms.AllAlgorithms)
+            {
+                PlaceAlgorithm_comboBox.Items.Add(Alg.Name);
+            }
+            string AlgName = "";
+            if (Row.Cells["PlaceAlgorithm_Column"].Value != null)
+            {
+                AlgName = Row.Cells["PlaceAlgorithm_Column"].Value.ToString();
+            }
+            if (PlaceAlgorithm_comboBox.Items.Contains(AlgName))
+            {
+                PlaceAlgorithm_comboBox.SelectedItem = AlgName;
+            }
+            else if (PlaceAlgorithm_comboBox.Items.Count > 0)
+            {
+                PlaceAlgorithm_comboBox.SelectedIndex = 0;
+            }
+
             if (Row.Cells["Width_Column"].Value != null)
             {
                 TapeWidth_comboBox.Text = Row.Cells["Width_Column"].Value.ToString();
@@ -348,6 +376,8 @@ namespace LitePlacer
             Row.Cells["Orientation_Column"].Value = TapeOrientation_comboBox.SelectedItem;
             Row.Cells["Rotation_Column"].Value = TapeRotation_comboBox.SelectedItem;
             Row.Cells["Nozzle_Column"].Value = Nozzle_numericUpDown.Value.ToString(CultureInfo.InvariantCulture);
+            Row.Cells["PlaceMethod_Column"].Value = (PlaceMethod_comboBox.SelectedItem == null) ? "--" : PlaceMethod_comboBox.SelectedItem.ToString();
+            Row.Cells["PlaceAlgorithm_Column"].Value = (PlaceAlgorithm_comboBox.SelectedItem == null) ? "" : PlaceAlgorithm_comboBox.SelectedItem.ToString();
             Row.Cells["NextPart_Column"].Value = NextPart_textBox.Text;
             // Row.Cells["Capacity_Column"].Value = Capacity_textBox.Text;
             Row.Cells["Width_Column"].Value = TapeWidth_comboBox.Text;

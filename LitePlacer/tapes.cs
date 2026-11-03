@@ -59,6 +59,21 @@ namespace LitePlacer
 		// ========================================================================================
 		// IdValidates_m(): Checks that tape with description of "Id" exists.
 		// TapeNumber is set to the corresponding row of the grid.
+        // Row index of the tape with this ID, or -1. No dialogs (safe to call from paint/format handlers).
+        public int FindTapeRow(string Id)
+        {
+            if (Id == null) return -1;
+            for (int i = 0; i < Grid.Rows.Count; i++)
+            {
+                object v = Grid.Rows[i].Cells["Id_Column"].Value;
+                if ((v != null) && (v.ToString() == Id))
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
 		public bool IdValidates_m(string Id, out int Tape)
 		{
 			Tape = -1;

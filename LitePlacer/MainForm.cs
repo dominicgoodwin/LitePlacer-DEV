@@ -6823,7 +6823,7 @@ namespace LitePlacer
                     JobData_GridView.Rows[Last].Cells["JobdataMethodParametersColumn"].Value = Line[4];
                     JobData_GridView.Rows[Last].Cells["PlacementMethodColumn"].Value = Line[5];
                     JobData_GridView.Rows[Last].Cells["JobdataComponentsColumn"].Value = Line[7];
-                    JobData_GridView.Rows[Last].Cells["JobDataNozzleColumn"].Value = Line[8];
+                    JobData_GridView.Rows[Last].Cells["JobDataNozzleColumn"].Value = (Line[8].Trim() == "") ? FROM_TAPE : Line[8];
                     JobData_GridView.Rows[Last].Cells["PlacementParameterColumn"].Value = Line[6];
                 }
             }
@@ -6845,7 +6845,7 @@ namespace LitePlacer
                     JobData_GridView.Rows[Last].Cells["JobdataMethodColumn"].Value = Line[3];
                     JobData_GridView.Rows[Last].Cells["JobdataMethodParametersColumn"].Value = Line[4];
                     JobData_GridView.Rows[Last].Cells["JobdataComponentsColumn"].Value = Line[5];
-                    JobData_GridView.Rows[Last].Cells["JobDataNozzleColumn"].Value = Line[6];
+                    JobData_GridView.Rows[Last].Cells["JobDataNozzleColumn"].Value = (Line[6].Trim() == "") ? FROM_TAPE : Line[6];
                     JobData_GridView.Rows[Last].Cells["PlacementMethodColumn"].Value = "--";
                     JobData_GridView.Rows[Last].Cells["PlacementParameterColumn"].Value = VideoAlgorithms.AllAlgorithms[0].Name;
                 }
@@ -6896,7 +6896,7 @@ namespace LitePlacer
                     JobData_GridView.Rows[Last].Cells["JobdataComponentsColumn"].Value = Line[4];
                     if (Line.Count>5)
                     {
-                        JobData_GridView.Rows[Last].Cells["JobDataNozzleColumn"].Value = Line[5];
+                        JobData_GridView.Rows[Last].Cells["JobDataNozzleColumn"].Value = (Line[5].Trim() == "") ? FROM_TAPE : Line[5];
                     }
                     JobData_GridView.Rows[Last].Cells["PlacementMethodColumn"].Value = "--";
                     JobData_GridView.Rows[Last].Cells["PlacementParameterColumn"].Value = VideoAlgorithms.AllAlgorithms[0].Name;
@@ -6948,8 +6948,9 @@ namespace LitePlacer
                     OutRow.Cells["JobdataMethodColumn"].Value = "?";
                     OutRow.Cells["JobdataMethodParametersColumn"].Value = "--";
                     OutRow.Cells["JobdataComponentsColumn"].Value = InRow.Cells["CADdataComponentColumn"].Value.ToString();
-                    OutRow.Cells["PlacementMethodColumn"].Value = "--";
-                    OutRow.Cells["PlacementParameterColumn"].Value = VideoAlgorithms.AllAlgorithms[0].Name;
+                    OutRow.Cells["JobDataNozzleColumn"].Value = FROM_TAPE;
+                    OutRow.Cells["PlacementMethodColumn"].Value = FROM_TAPE;
+                    OutRow.Cells["PlacementParameterColumn"].Value = FROM_TAPE;
                 }
                 else
                 {
@@ -6973,10 +6974,7 @@ namespace LitePlacer
                 if (JobRow.Cells["JobdataMethodColumn"].Value.ToString() != "Fiducials")
                 {
                     JobRow.Cells["JobdataMethodColumn"].Value = "Place Fast";
-                    if (Setting.Nozzles_Enabled)
-                    {
-                        JobRow.Cells["JobDataNozzleColumn"].Value = Setting.Nozzles_default.ToString(CultureInfo.InvariantCulture);
-                    }
+                    // Nozzle, placement method and algorithm stay FROM_TAPE: they follow the tape once one is assigned.
                 }
             }
         }
@@ -7040,10 +7038,10 @@ namespace LitePlacer
             JobData_GridView.Rows[index].Cells["JobdataCountColumn"].Value = "--";
             JobData_GridView.Rows[index].Cells["JobdataMethodColumn"].Value = "?";
             JobData_GridView.Rows[index].Cells["JobdataMethodParametersColumn"].Value = "--";
-            JobData_GridView.Rows[index].Cells["JobDataNozzleColumn"].Value = Setting.Nozzles_default.ToString();
+            JobData_GridView.Rows[index].Cells["JobDataNozzleColumn"].Value = FROM_TAPE;
             JobData_GridView.Rows[index].Cells["JobdataComponentsColumn"].Value = "--";
-            JobData_GridView.Rows[index].Cells["PlacementMethodColumn"].Value = "--";
-            JobData_GridView.Rows[index].Cells["PlacementParameterColumn"].Value = VideoAlgorithms.AllAlgorithms[0].Name;
+            JobData_GridView.Rows[index].Cells["PlacementMethodColumn"].Value = FROM_TAPE;
+            JobData_GridView.Rows[index].Cells["PlacementParameterColumn"].Value = FROM_TAPE;
         }
 
         private void AddCadDataRow_button_Click(object sender, EventArgs e)
@@ -7109,6 +7107,99 @@ namespace LitePlacer
         public string SelectedMethod { get; set; }
         public string PlacementMethod { get; set; }
 
+        // =================================================================================
+        // Job rows inheriting settings from the tape.
+        // The Nozzle, Placement method and Placement parameter (up cam algorithm) cells of a job row
+        // may hold FROM_TAPE instead of a value. The effective value is then taken from the tape
+        // named in the Method parameters cell, at the time it is needed, so editing the tape changes
+        // every job that uses it. An explicit value in the cell is a per-job override.
+        public const string FROM_TAPE = "(tape)";
+
+        private static readonly string[] TapeInheritedJobColumns =
+            { "JobDataNozzleColumn", "PlacementMethodColumn", "PlacementParameterColumn" };
+
+        private bool JobRowUsesTape(int row)
+        {
+            object m = JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value;
+            if (m == null) return false;
+            string Method = m.ToString();
+            return (Method == "Place") || (Method == "Place Fast") || (Method == "Place Assisted");
+        }
+
+        // Effective value of a job row cell, following FROM_TAPE to the tape. Never returns FROM_TAPE.
+        // Returns null if the cell is FROM_TAPE and the tape cannot be found or has no value.
+        public string ResolveJobCell(int row, string ColumnName)
+        {
+            object v = JobData_GridView.Rows[row].Cells[ColumnName].Value;
+            string s = (v == null) ? null : v.ToString();
+            if (s != FROM_TAPE)
+            {
+                return s;
+            }
+            if (!JobRowUsesTape(row))
+            {
+                return null;
+            }
+            object idObj = JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value;
+            int TapeNo = (idObj == null || Tapes == null) ? -1 : Tapes.FindTapeRow(idObj.ToString());
+            if (TapeNo < 0)
+            {
+                return null;
+            }
+            string TapeColumn;
+            switch (ColumnName)
+            {
+                case "JobDataNozzleColumn": TapeColumn = "Nozzle_Column"; break;
+                case "PlacementMethodColumn": TapeColumn = "PlaceMethod_Column"; break;
+                case "PlacementParameterColumn": TapeColumn = "PlaceAlgorithm_Column"; break;
+                default: return null;
+            }
+            object tv = Tapes_dataGridView.Rows[TapeNo].Cells[TapeColumn].Value;
+            if ((tv == null) || (tv.ToString() == ""))
+            {
+                // tape has no default for this (older tapes file): program defaults
+                switch (ColumnName)
+                {
+                    case "JobDataNozzleColumn": return Setting.Nozzles_default.ToString(CultureInfo.InvariantCulture);
+                    case "PlacementMethodColumn": return "--";
+                    case "PlacementParameterColumn": return (VideoAlgorithms.AllAlgorithms.Count > 0) ? VideoAlgorithms.AllAlgorithms[0].Name : "";
+                }
+                return null;
+            }
+            return tv.ToString();
+        }
+
+        // Set the three inheritable cells of a job row to FROM_TAPE.
+        private void SetJobRowFromTape(int row)
+        {
+            foreach (string col in TapeInheritedJobColumns)
+            {
+                JobData_GridView.Rows[row].Cells[col].Value = FROM_TAPE;
+            }
+        }
+
+        // Show the resolved value, greyed, for inherited cells.
+        private void JobData_GridView_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if ((e.RowIndex < 0) || (e.ColumnIndex < 0) || StartingUp)
+            {
+                return;
+            }
+            string ColumnName = JobData_GridView.Columns[e.ColumnIndex].Name;
+            if (Array.IndexOf(TapeInheritedJobColumns, ColumnName) < 0)
+            {
+                return;
+            }
+            if ((e.Value == null) || (e.Value.ToString() != FROM_TAPE))
+            {
+                return;
+            }
+            string Resolved = ResolveJobCell(e.RowIndex, ColumnName);
+            e.Value = (Resolved == null) ? FROM_TAPE : Resolved + " (tape)";
+            e.CellStyle.ForeColor = Color.Gray;
+            e.FormattingApplied = true;
+        }
+
         private void JobData_GridView_CellClick(object sender, DataGridViewCellEventArgs e)
         {
             if (e.RowIndex == -1)
@@ -7147,7 +7238,6 @@ namespace LitePlacer
                 // For method parameter, show the tape selection form if method is place of some sort;
                 MakeJobDataDirty();
                 string TapeID;
-                int TapeNo;
                 int row = JobData_GridView.CurrentCell.RowIndex;
                 if ((JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value.ToString() == "Place") ||
                      (JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value.ToString() == "Place Assisted") ||
@@ -7161,11 +7251,8 @@ namespace LitePlacer
                         return;
                     }
                     JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value = TapeID;
-                    if (Tapes.IdValidates_m(TapeID, out TapeNo))
-                    {
-                        JobData_GridView.Rows[row].Cells["JobDataNozzleColumn"].Value =
-                            Tapes_dataGridView.Rows[TapeNo].Cells["Nozzle_Column"].Value.ToString();
-                    }
+                    // Nozzle, placement method and up cam algorithm now follow this tape (until overridden on the row)
+                    SetJobRowFromTape(row);
                 }
                 // Auto fill the visual algorithm
                 if ((JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value.ToString() == "Fiducials") ||
@@ -7191,11 +7278,16 @@ namespace LitePlacer
                 foreach (DataGridViewCell cell in JobData_GridView.SelectedCells)
                 {
                     JobData_GridView.Rows[cell.RowIndex].Cells["PlacementMethodColumn"].Value = PlacementMethod;
-                    // Auto fill the visual algorithm
-                    if (JobData_GridView.Rows[cell.RowIndex].Cells["PlacementMethodColumn"].Value.ToString() == "Up Cam Assisted")
+                    if (PlacementMethod == FROM_TAPE)
                     {
-                        JobData_GridView.Rows[cell.RowIndex].Cells["PlacementParameterColumn"].Value =
-                            SelectFiducialAlgorithm(JobData_GridView.Rows[cell.RowIndex].Cells["PlacementParameterColumn"].Value.ToString());
+                        // method follows the tape, so does the algorithm
+                        JobData_GridView.Rows[cell.RowIndex].Cells["PlacementParameterColumn"].Value = FROM_TAPE;
+                    }
+                    else if (PlacementMethod == "Up Cam Assisted")
+                    {
+                        // Auto fill the visual algorithm
+                        string Current = ResolveJobCell(cell.RowIndex, "PlacementParameterColumn") ?? "";
+                        JobData_GridView.Rows[cell.RowIndex].Cells["PlacementParameterColumn"].Value = SelectFiducialAlgorithm(Current);
                     }
                 }
                 JobData_GridView.ClearSelection();
@@ -7204,7 +7296,10 @@ namespace LitePlacer
             }
             if (JobData_GridView.CurrentCell.OwningColumn.Name == "PlacementParameterColumn")
             {
-                JobData_GridView.CurrentCell.Value = SelectFiducialAlgorithm(JobData_GridView.CurrentCell.Value.ToString());
+                MakeJobDataDirty();
+                int row = JobData_GridView.CurrentCell.RowIndex;
+                string Current = ResolveJobCell(row, "PlacementParameterColumn") ?? "";
+                JobData_GridView.CurrentCell.Value = SelectFiducialAlgorithm(Current);
             }
         }
 
@@ -7222,6 +7317,16 @@ namespace LitePlacer
                 int row = JobData_GridView.CurrentCell.RowIndex;
                 JobData_GridView.Rows[row].Cells["JobdataCountColumn"].Value = Line.Count.ToString(CultureInfo.InvariantCulture);
                 Update_GridView(JobData_GridView);
+            }
+            else if (JobData_GridView.Columns[col].Name == "JobDataNozzleColumn")
+            {
+                // Nozzle: a number is a per-job override; clearing the cell makes it follow the tape again.
+                MakeJobDataDirty();
+                object v = JobData_GridView.CurrentCell.Value;
+                if ((v == null) || (v.ToString().Trim() == "") || (v.ToString().Trim().ToLowerInvariant() == "tape"))
+                {
+                    JobData_GridView.CurrentCell.Value = FROM_TAPE;
+                }
             }
         }
 
@@ -7662,13 +7767,14 @@ namespace LitePlacer
                 ((method == "Place Fast") || (method == "Place") || (method == "LoosePart") || (method == "LoosePart Assisted") || (method == "Place Assisted"))
                 && Setting.Nozzles_Enabled)
             {
-                if (JobData_GridView.Rows[RowNo].Cells["JobDataNozzleColumn"].Value == null)
+                string NozzleStr = ResolveJobCell(RowNo, "JobDataNozzleColumn");
+                if (string.IsNullOrEmpty(NozzleStr))
                 {
                     nozzle = Setting.Nozzles_default;
                 }
                 else
                 {
-                    if (!int.TryParse(JobData_GridView.Rows[RowNo].Cells["JobDataNozzleColumn"].Value.ToString(), out nozzle))
+                    if (!int.TryParse(NozzleStr, out nozzle))
                     {
                         ShowMessageBox(
                             "Bad data at Nozzle column for " + JobData_GridView.Rows[RowNo].Cells["JobDataValueColumn"].Value.ToString()
@@ -9095,7 +9201,7 @@ namespace LitePlacer
             };
             */
 
-            string PlacementMethod = JobData_GridView.Rows[JobDataRow].Cells["PlacementMethodColumn"].Value.ToString();
+            string PlacementMethod = ResolveJobCell(JobDataRow, "PlacementMethodColumn") ?? "--";
 
             if (PlacementMethod== "--")
             {
@@ -9208,7 +9314,7 @@ namespace LitePlacer
 
                 // -------------------
                 // measure it
-                string PlacementParameter = JobData_GridView.Rows[JobDataRow].Cells["PlacementParameterColumn"].Value.ToString();
+                string PlacementParameter = ResolveJobCell(JobDataRow, "PlacementParameterColumn") ?? "";
 
                 DisplayText("Measuring part, algorithm " + PlacementParameter);
                 VideoAlgorithmsCollection.FullAlgorithmDescription Alg = new VideoAlgorithmsCollection.FullAlgorithmDescription();

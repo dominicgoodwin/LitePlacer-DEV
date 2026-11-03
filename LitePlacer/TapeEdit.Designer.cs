@@ -81,6 +81,12 @@
             this.ResetPlacementZ_button = new System.Windows.Forms.Button();
             this.ResetTrayID_button = new System.Windows.Forms.Button();
             this.DrawGrid_checkBox = new System.Windows.Forms.CheckBox();
+            this.PlacementDefaults_groupBox = new System.Windows.Forms.GroupBox();
+            this.PlaceMethod_label = new System.Windows.Forms.Label();
+            this.PlaceMethod_comboBox = new System.Windows.Forms.ComboBox();
+            this.PlaceAlgorithm_label = new System.Windows.Forms.Label();
+            this.PlaceAlgorithm_comboBox = new System.Windows.Forms.ComboBox();
+            this.PlacementDefaults_groupBox.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.Nozzle_numericUpDown)).BeginInit();
             this.SuspendLayout();
             // 
@@ -683,6 +689,56 @@
             this.ResetTrayID_button.UseVisualStyleBackColor = true;
             this.ResetTrayID_button.Click += new System.EventHandler(this.ResetTrayID_button_Click);
             // 
+            // PlacementDefaults_groupBox
+            // 
+            this.PlacementDefaults_groupBox.Controls.Add(this.PlaceMethod_label);
+            this.PlacementDefaults_groupBox.Controls.Add(this.PlaceMethod_comboBox);
+            this.PlacementDefaults_groupBox.Controls.Add(this.PlaceAlgorithm_label);
+            this.PlacementDefaults_groupBox.Controls.Add(this.PlaceAlgorithm_comboBox);
+            this.PlacementDefaults_groupBox.Location = new System.Drawing.Point(258, 258);
+            this.PlacementDefaults_groupBox.Name = "PlacementDefaults_groupBox";
+            this.PlacementDefaults_groupBox.Size = new System.Drawing.Size(188, 118);
+            this.PlacementDefaults_groupBox.TabIndex = 60;
+            this.PlacementDefaults_groupBox.TabStop = false;
+            this.PlacementDefaults_groupBox.Text = "Placement defaults for jobs";
+            // 
+            // PlaceMethod_label
+            // 
+            this.PlaceMethod_label.AutoSize = true;
+            this.PlaceMethod_label.Location = new System.Drawing.Point(8, 20);
+            this.PlaceMethod_label.Name = "PlaceMethod_label";
+            this.PlaceMethod_label.Size = new System.Drawing.Size(93, 13);
+            this.PlaceMethod_label.Text = "Placement method";
+            // 
+            // PlaceMethod_comboBox
+            // 
+            this.PlaceMethod_comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.PlaceMethod_comboBox.FormattingEnabled = true;
+            this.PlaceMethod_comboBox.Items.AddRange(new object[] {
+            "--",
+            "Up Cam Assisted"});
+            this.PlaceMethod_comboBox.Location = new System.Drawing.Point(11, 36);
+            this.PlaceMethod_comboBox.Name = "PlaceMethod_comboBox";
+            this.PlaceMethod_comboBox.Size = new System.Drawing.Size(165, 21);
+            this.PlaceMethod_comboBox.TabIndex = 61;
+            // 
+            // PlaceAlgorithm_label
+            // 
+            this.PlaceAlgorithm_label.AutoSize = true;
+            this.PlaceAlgorithm_label.Location = new System.Drawing.Point(8, 64);
+            this.PlaceAlgorithm_label.Name = "PlaceAlgorithm_label";
+            this.PlaceAlgorithm_label.Size = new System.Drawing.Size(103, 13);
+            this.PlaceAlgorithm_label.Text = "Up camera algorithm";
+            // 
+            // PlaceAlgorithm_comboBox
+            // 
+            this.PlaceAlgorithm_comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.PlaceAlgorithm_comboBox.FormattingEnabled = true;
+            this.PlaceAlgorithm_comboBox.Location = new System.Drawing.Point(11, 80);
+            this.PlaceAlgorithm_comboBox.Name = "PlaceAlgorithm_comboBox";
+            this.PlaceAlgorithm_comboBox.Size = new System.Drawing.Size(165, 21);
+            this.PlaceAlgorithm_comboBox.TabIndex = 62;
+            // 
             // DrawGrid_checkBox
             // 
             this.DrawGrid_checkBox.AutoSize = true;
@@ -700,6 +756,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(456, 464);
+            this.Controls.Add(this.PlacementDefaults_groupBox);
             this.Controls.Add(this.DrawGrid_checkBox);
             this.Controls.Add(this.UseNozzleCoordinates_checkBox);
             this.Controls.Add(this.label9);
@@ -756,6 +813,8 @@
             this.Text = "Edit Tape Parameters";
             this.Load += new System.EventHandler(this.TapeEditForm_Load);
             ((System.ComponentModel.ISupportInitialize)(this.Nozzle_numericUpDown)).EndInit();
+            this.PlacementDefaults_groupBox.ResumeLayout(false);
+            this.PlacementDefaults_groupBox.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -814,5 +873,10 @@
         private System.Windows.Forms.TextBox RotationDirect_textBox;
         private System.Windows.Forms.CheckBox UseNozzleCoordinates_checkBox;
         private System.Windows.Forms.CheckBox DrawGrid_checkBox;
+        private System.Windows.Forms.GroupBox PlacementDefaults_groupBox;
+        private System.Windows.Forms.Label PlaceMethod_label;
+        private System.Windows.Forms.ComboBox PlaceMethod_comboBox;
+        private System.Windows.Forms.Label PlaceAlgorithm_label;
+        private System.Windows.Forms.ComboBox PlaceAlgorithm_comboBox;
     }
 }

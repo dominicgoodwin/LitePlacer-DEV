@@ -124,6 +124,8 @@
             this.NextPart_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Orientation_Column = new System.Windows.Forms.DataGridViewComboBoxColumn();
             this.Nozzle_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.PlaceMethod_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.PlaceAlgorithm_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Capacity_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.TrayID_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Rotation_Column = new System.Windows.Forms.DataGridViewComboBoxColumn();
@@ -1991,6 +1993,8 @@
             this.NextPart_Column,
             this.Orientation_Column,
             this.Nozzle_Column,
+            this.PlaceMethod_Column,
+            this.PlaceAlgorithm_Column,
             this.Capacity_Column,
             this.TrayID_Column,
             this.Rotation_Column,
@@ -2071,6 +2075,24 @@
             this.Nozzle_Column.MinimumWidth = 6;
             this.Nozzle_Column.Name = "Nozzle_Column";
             this.Nozzle_Column.Width = 64;
+            // 
+            // PlaceMethod_Column
+            // 
+            this.PlaceMethod_Column.HeaderText = "Placement";
+            this.PlaceMethod_Column.MinimumWidth = 6;
+            this.PlaceMethod_Column.Name = "PlaceMethod_Column";
+            this.PlaceMethod_Column.ReadOnly = true;
+            this.PlaceMethod_Column.ToolTipText = "Default placement method for jobs using this tape (edit via Tape Edit)";
+            this.PlaceMethod_Column.Width = 90;
+            // 
+            // PlaceAlgorithm_Column
+            // 
+            this.PlaceAlgorithm_Column.HeaderText = "Up cam alg.";
+            this.PlaceAlgorithm_Column.MinimumWidth = 6;
+            this.PlaceAlgorithm_Column.Name = "PlaceAlgorithm_Column";
+            this.PlaceAlgorithm_Column.ReadOnly = true;
+            this.PlaceAlgorithm_Column.ToolTipText = "Default up camera algorithm for jobs using this tape (edit via Tape Edit)";
+            this.PlaceAlgorithm_Column.Width = 90;
             // 
             // Capacity_Column
             // 
@@ -8247,6 +8269,7 @@
             this.JobData_GridView.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.JobData_GridView_CellClick);
             this.JobData_GridView.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.JobData_GridView_CellContentClick);
             this.JobData_GridView.CellEndEdit += new System.Windows.Forms.DataGridViewCellEventHandler(this.JobData_GridView_CellEndEdit);
+            this.JobData_GridView.CellFormatting += new System.Windows.Forms.DataGridViewCellFormattingEventHandler(this.JobData_GridView_CellFormatting);
             this.JobData_GridView.DataError += new System.Windows.Forms.DataGridViewDataErrorEventHandler(this.JobData_GridView_DataError);
             // 
             // JobDataValueColumn
@@ -12120,6 +12143,8 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn NextPart_Column;
         private System.Windows.Forms.DataGridViewComboBoxColumn Orientation_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn Nozzle_Column;
+        private System.Windows.Forms.DataGridViewTextBoxColumn PlaceMethod_Column;
+        private System.Windows.Forms.DataGridViewTextBoxColumn PlaceAlgorithm_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn Capacity_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn TrayID_Column;
         private System.Windows.Forms.DataGridViewComboBoxColumn Rotation_Column;
