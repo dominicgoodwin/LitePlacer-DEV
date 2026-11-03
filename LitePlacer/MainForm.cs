@@ -6825,7 +6825,7 @@ namespace LitePlacer
                         OutLine += ",\"" + JobData_GridView.Rows[i].Cells["JobDataValueColumn"].Value.ToString() + "\"";
                         OutLine += ",\"" + JobData_GridView.Rows[i].Cells["JobDataFootprintColumn"].Value.ToString() + "\"";
                         OutLine += ",\"" + JobData_GridView.Rows[i].Cells["JobdataMethodColumn"].Value.ToString() + "\"";
-                        OutLine += ",\"" + JobData_GridView.Rows[i].Cells["JobdataMethodParametersColumn"].Value.ToString() + "\"";
+                        OutLine += ",\"" + JobRowParameterField(i) + "\"";
                         OutLine += ",\"" + JobData_GridView.Rows[i].Cells["PlacementMethodColumn"].Value.ToString() + "\"";
                         OutLine += ",\"" + JobData_GridView.Rows[i].Cells["PlacementParameterColumn"].Value.ToString() + "\"";
                         OutLine += ",\"" + JobData_GridView.Rows[i].Cells["JobdataComponentsColumn"].Value.ToString() + "\"";
@@ -6873,7 +6873,7 @@ namespace LitePlacer
                     JobData_GridView.Rows[Last].Cells["JobDataValueColumn"].Value = Line[1];
                     JobData_GridView.Rows[Last].Cells["JobDataFootprintColumn"].Value = Line[2];
                     JobData_GridView.Rows[Last].Cells["JobdataMethodColumn"].Value = Line[3];
-                    JobData_GridView.Rows[Last].Cells["JobdataMethodParametersColumn"].Value = Line[4];
+                    SetJobRowParameterField(Last, Line[3], Line[4]);
                     JobData_GridView.Rows[Last].Cells["PlacementMethodColumn"].Value = Line[5];
                     JobData_GridView.Rows[Last].Cells["JobdataComponentsColumn"].Value = Line[7];
                     JobData_GridView.Rows[Last].Cells["JobDataNozzleColumn"].Value = (Line[8].Trim() == "") ? FROM_TAPE : Line[8];
@@ -6896,7 +6896,7 @@ namespace LitePlacer
                     JobData_GridView.Rows[Last].Cells["JobDataValueColumn"].Value = Line[1];
                     JobData_GridView.Rows[Last].Cells["JobDataFootprintColumn"].Value = Line[2];
                     JobData_GridView.Rows[Last].Cells["JobdataMethodColumn"].Value = Line[3];
-                    JobData_GridView.Rows[Last].Cells["JobdataMethodParametersColumn"].Value = Line[4];
+                    SetJobRowParameterField(Last, Line[3], Line[4]);
                     JobData_GridView.Rows[Last].Cells["JobdataComponentsColumn"].Value = Line[5];
                     JobData_GridView.Rows[Last].Cells["JobDataNozzleColumn"].Value = (Line[6].Trim() == "") ? FROM_TAPE : Line[6];
                     JobData_GridView.Rows[Last].Cells["PlacementMethodColumn"].Value = "--";
@@ -6944,7 +6944,7 @@ namespace LitePlacer
                     }
                     else
                     {
-                        JobData_GridView.Rows[Last].Cells["JobdataMethodParametersColumn"].Value = Line[3];
+                        SetJobRowParameterField(Last, Line[2], Line[3]);
                     }
                     JobData_GridView.Rows[Last].Cells["JobdataComponentsColumn"].Value = Line[4];
                     if (Line.Count>5)
@@ -6999,6 +6999,7 @@ namespace LitePlacer
                     OutRow.Cells["JobDataValueColumn"].Value = CurrentComponentValue;
                     OutRow.Cells["JobDataFootprintColumn"].Value = CurrentComponentFootprint;
                     OutRow.Cells["JobdataMethodColumn"].Value = FROM_TAPE;
+                    OutRow.Cells["JobdataTapeColumn"].Value = "";
                     OutRow.Cells["JobdataMethodParametersColumn"].Value = "--";
                     OutRow.Cells["JobdataComponentsColumn"].Value = InRow.Cells["CADdataComponentColumn"].Value.ToString();
                     OutRow.Cells["JobDataNozzleColumn"].Value = FROM_TAPE;
@@ -7090,6 +7091,7 @@ namespace LitePlacer
             JobData_GridView.Rows[index].Cells["JobDataFootprintColumn"].Value = "--";
             JobData_GridView.Rows[index].Cells["JobdataCountColumn"].Value = "--";
             JobData_GridView.Rows[index].Cells["JobdataMethodColumn"].Value = FROM_TAPE;
+            JobData_GridView.Rows[index].Cells["JobdataTapeColumn"].Value = "";
             JobData_GridView.Rows[index].Cells["JobdataMethodParametersColumn"].Value = "--";
             JobData_GridView.Rows[index].Cells["JobDataNozzleColumn"].Value = FROM_TAPE;
             JobData_GridView.Rows[index].Cells["JobdataComponentsColumn"].Value = "--";
@@ -7183,9 +7185,49 @@ namespace LitePlacer
         // Tape row for a job row, or -1. Silent.
         private int JobRowTape(int row)
         {
-            object idObj = JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value;
+            object idObj = JobData_GridView.Rows[row].Cells["JobdataTapeColumn"].Value;
             if ((idObj == null) || (Tapes == null)) return -1;
             return Tapes.FindTapeRow(idObj.ToString());
+        }
+
+        public string JobRowTapeId(int row)
+        {
+            object v = JobData_GridView.Rows[row].Cells["JobdataTapeColumn"].Value;
+            return (v == null) ? "" : v.ToString();
+        }
+
+        // .lpj files have one "parameter" field per row that is the tape ID for tape rows and the
+        // method parameter for the others (the file format predates the separate Tape column and is
+        // kept so that older builds can read the file).
+        private static bool IsTapeMethod(string Method)
+        {
+            return (Method == "Place") || (Method == "Place Assisted") || (Method == "Place Fast") || (Method == FROM_TAPE);
+        }
+
+        private string JobRowParameterField(int row)
+        {
+            object m = JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value;
+            string Method = (m == null) ? "" : m.ToString();
+            if (IsTapeMethod(Method))
+            {
+                return JobRowTapeId(row);
+            }
+            object v = JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value;
+            return (v == null) ? "--" : v.ToString();
+        }
+
+        private void SetJobRowParameterField(int row, string Method, string Value)
+        {
+            if (IsTapeMethod(Method))
+            {
+                JobData_GridView.Rows[row].Cells["JobdataTapeColumn"].Value = Value;
+                JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value = "--";
+            }
+            else
+            {
+                JobData_GridView.Rows[row].Cells["JobdataTapeColumn"].Value = "";
+                JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value = Value;
+            }
         }
 
         private static bool CellIsTrue(DataGridViewCell c)
@@ -7335,30 +7377,35 @@ namespace LitePlacer
                 return;
             };
 
+            if (JobData_GridView.CurrentCell.OwningColumn.Name == "JobdataTapeColumn")
+            {
+                // Tape: show the tape selection form. Everything "(tape)" on the row follows it.
+                MakeJobDataDirty();
+                int row = JobData_GridView.CurrentCell.RowIndex;
+                string TapeID = SelectTape("Select tape for " + JobData_GridView.Rows[row].Cells["JobDataValueColumn"].Value.ToString()
+                    + ", " + JobData_GridView.Rows[row].Cells["JobDataFootprintColumn"].Value.ToString());
+                if (TapeID == "none")
+                {
+                    // user closed it
+                    return;
+                }
+                JobData_GridView.Rows[row].Cells["JobdataTapeColumn"].Value = TapeID;
+                // A row given a tape is a tape row: method, nozzle, placement method and up cam algorithm follow it
+                // (unless the operator has overridden them afterwards)
+                SetJobRowFromTape(row);
+                JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value = "--";
+                JobData_GridView.ClearSelection();
+                Update_GridView(JobData_GridView);
+                return;
+            }
+
             if (JobData_GridView.CurrentCell.OwningColumn.Name == "JobdataMethodParametersColumn")
             {
-                // For method parameter, show the tape selection form if method is place of some sort;
+                // Parameter: vision algorithm for Fiducials / LoosePart rows; stop distance for LoosePart Assisted (typed)
                 MakeJobDataDirty();
-                string TapeID;
                 int row = JobData_GridView.CurrentCell.RowIndex;
                 string MethodCell = JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value.ToString();
-                if ((MethodCell == "Place") || (MethodCell == "Place Assisted") || (MethodCell == "Place Fast") || (MethodCell == FROM_TAPE))
-                {
-                    TapeID = SelectTape("Select tape for " + JobData_GridView.Rows[row].Cells["JobDataValueColumn"].Value.ToString()
-                        + ", " + JobData_GridView.Rows[row].Cells["JobDataFootprintColumn"].Value.ToString());
-                    if (TapeID == "none")
-                    {
-                        // user closed it
-                        return;
-                    }
-                    JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value = TapeID;
-                    // Nozzle, placement method and up cam algorithm now follow this tape (until overridden on the row)
-                    SetJobRowFromTape(row);
-                }
-                // Auto fill the visual algorithm
-                if ((JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value.ToString() == "Fiducials") ||
-                     (JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value.ToString() == "LoosePart") ||
-                     (JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value.ToString() == "LoosePart Assisted"))
+                if ((MethodCell == "Fiducials") || (MethodCell == "LoosePart"))
                 {
                     JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value =
                         SelectFiducialAlgorithm(JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value.ToString());
@@ -7809,7 +7856,14 @@ namespace LitePlacer
                 }
                 // Put the values to JobData_GridView
                 JobData_GridView.Rows[RowNo].Cells["JobdataMethodColumn"].Value = SelectedMethod;
-                JobData_GridView.Rows[RowNo].Cells["JobdataMethodParametersColumn"].Value = NewID;
+                if ((SelectedMethod == "Place") || (SelectedMethod == "Place Assisted") || (SelectedMethod == "Place Fast"))
+                {
+                    JobData_GridView.Rows[RowNo].Cells["JobdataTapeColumn"].Value = NewID;
+                }
+                else
+                {
+                    JobData_GridView.Rows[RowNo].Cells["JobdataMethodParametersColumn"].Value = NewID;
+                }
                 Update_GridView(JobData_GridView);
                 MethodDialog.Dispose();
             }
@@ -7912,7 +7966,7 @@ namespace LitePlacer
             bool FirstInRow = true;
             if (method == "Place Fast")
             {
-                string TapeID = JobData_GridView.Rows[RowNo].Cells["JobdataMethodParametersColumn"].Value.ToString();
+                string TapeID = JobRowTapeId(RowNo);
                 int count;
                 if (!int.TryParse(JobData_GridView.Rows[RowNo].Cells["JobdataCountColumn"].Value.ToString(), out count))
                 {
@@ -9173,8 +9227,11 @@ namespace LitePlacer
                 AbortPlacement = false;
                 return false;
             };
-            string id = JobData_GridView.Rows[JobDataRow].Cells["JobdataMethodParametersColumn"].Value.ToString();
             string Method = ResolveJobCell(JobDataRow, "JobdataMethodColumn") ?? "?";
+            // id: tape ID for tape rows, parameter (algorithm / stop distance) for the others
+            string id = ((Method == "Place") || (Method == "Place Assisted") || (Method == "Place Fast"))
+                ? JobRowTapeId(JobDataRow)
+                : JobData_GridView.Rows[JobDataRow].Cells["JobdataMethodParametersColumn"].Value.ToString();
             bool ManualAssist = JobRowManualAssist(JobDataRow);
 
             int TapeNum = 0;

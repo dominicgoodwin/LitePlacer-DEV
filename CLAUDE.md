@@ -35,6 +35,12 @@ and customer CAD data out of the repo.
   alg."), UpCamAlg ("--" or algorithm), UseUpCam, ManualAssist, Nozzle. Algorithm combos on
   the tapes grid are rebuilt per row (`FillAlgorithmSelectionBox` for Type,
   `RefreshUpCamAlgCombos` for UpCamAlg) after load and after algorithm add/remove/rename.
+- Job grid columns: Value, Footprint, Count, **Tape** (`JobdataTapeColumn`, tape ID for
+  Place-family rows), Method, Parameter (`JobdataMethodParametersColumn`: algorithm for
+  Fiducials/LoosePart, stop distance for LoosePart Assisted), Nozzle, Placement method,
+  Placement parameter, Components. `.lpj` files still have ONE parameter field: the saver
+  writes Tape for tape rows and Parameter otherwise (`JobRowParameterField`), the loaders
+  route it back by method (`SetJobRowParameterField`), so the file format is unchanged.
 - Job grid: Method / Nozzle / Placement method / Placement parameter cells may hold
   `FormMain.FROM_TAPE` ("(tape)"), meaning derive from the tape in Method parameters. Read
   them through `ResolveJobCell(row, column)` (and `JobRowManualAssist(row)`), never

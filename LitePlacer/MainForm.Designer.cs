@@ -640,6 +640,7 @@
             this.JobDataFootprintColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.JobdataCountColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.JobdataMethodColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.JobdataTapeColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.JobdataMethodParametersColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.JobDataNozzleColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.PlacementMethodColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -8274,6 +8275,7 @@
             this.JobDataValueColumn,
             this.JobDataFootprintColumn,
             this.JobdataCountColumn,
+            this.JobdataTapeColumn,
             this.JobdataMethodColumn,
             this.JobdataMethodParametersColumn,
             this.JobDataNozzleColumn,
@@ -8325,12 +8327,21 @@
             this.JobdataMethodColumn.ToolTipText = "Main method";
             this.JobdataMethodColumn.Width = 80;
             // 
+            // JobdataTapeColumn
+            // 
+            this.JobdataTapeColumn.HeaderText = "Tape";
+            this.JobdataTapeColumn.MinimumWidth = 6;
+            this.JobdataTapeColumn.Name = "JobdataTapeColumn";
+            this.JobdataTapeColumn.ReadOnly = true;
+            this.JobdataTapeColumn.ToolTipText = "Tape the parts come from. Click to select. Method, nozzle and placement settings follow the tape unless overridden.";
+            this.JobdataTapeColumn.Width = 70;
+            // 
             // JobdataMethodParametersColumn
             // 
-            this.JobdataMethodParametersColumn.HeaderText = "Parameters";
+            this.JobdataMethodParametersColumn.HeaderText = "Parameter";
             this.JobdataMethodParametersColumn.MinimumWidth = 6;
             this.JobdataMethodParametersColumn.Name = "JobdataMethodParametersColumn";
-            this.JobdataMethodParametersColumn.ToolTipText = "Parameters for main method, if any. Usually, vision algorithm for pickup";
+            this.JobdataMethodParametersColumn.ToolTipText = "Fiducials / LoosePart: vision algorithm. LoosePart Assisted: stop distance above board (mm). Unused for tape rows.";
             this.JobdataMethodParametersColumn.Width = 80;
             // 
             // JobDataNozzleColumn
@@ -12328,6 +12339,7 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn JobDataFootprintColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn JobdataCountColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn JobdataMethodColumn;
+        private System.Windows.Forms.DataGridViewTextBoxColumn JobdataTapeColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn JobdataMethodParametersColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn JobDataNozzleColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn PlacementMethodColumn;
