@@ -386,7 +386,7 @@ namespace LitePlacer
             Thread.Sleep(50);
             Write_m("{\"zsx\",1}",150);
             Thread.Sleep(50);
-            Write_m("{\"zzb\",0}", 150);
+            Write_m("{\"zzb\",1}", 150);   // 1 mm zero back-off so the head is not left pressed on the switch (garrettsworkshop 10736d96)
             Thread.Sleep(50);
 
             if (!Write_m("{\"gc\":\"G28.4 Z0\"}", RegularMoveTimeout))

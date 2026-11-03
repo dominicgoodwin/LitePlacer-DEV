@@ -2019,7 +2019,9 @@
             this.Tapes_dataGridView.Size = new System.Drawing.Size(584, 581);
             this.Tapes_dataGridView.TabIndex = 15;
             this.Tapes_dataGridView.Tag = "https://liteplacer.com/tape-positions-page/";
+            this.Tapes_dataGridView.CellBeginEdit += new System.Windows.Forms.DataGridViewCellCancelEventHandler(this.Tapes_dataGridView_CellBeginEdit);
             this.Tapes_dataGridView.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.Tapes_dataGridView_CellClick);
+            this.Tapes_dataGridView.CellEndEdit += new System.Windows.Forms.DataGridViewCellEventHandler(this.Tapes_dataGridView_CellEndEdit);
             this.Tapes_dataGridView.CellLeave += new System.Windows.Forms.DataGridViewCellEventHandler(this.Tapes_dataGridView_CellLeave);
             this.Tapes_dataGridView.CellMouseDown += new System.Windows.Forms.DataGridViewCellMouseEventHandler(this.Tapes_dataGridView_CellMouseDown);
             this.Tapes_dataGridView.CellMouseEnter += new System.Windows.Forms.DataGridViewCellEventHandler(this.Tapes_dataGridView_CellMouseEnter);
