@@ -39,6 +39,12 @@ namespace LitePlacer
             MainForm.Setting.Placement_UpdateJobGridAtRuntime = UpdateJobGrid_checkBox.Checked;
 		}
 
+		private void FromTape_button_Click(object sender, EventArgs e)
+		{
+			 MainForm.SelectedMethod = FormMain.FROM_TAPE;
+			 this.Close();
+		}
+
 		private void Question_button_Click(object sender, EventArgs e)
 		{
 			 MainForm.SelectedMethod = "?";

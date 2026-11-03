@@ -107,33 +107,31 @@ namespace LitePlacer
                 MainForm.DefaultNozzle_label.Text = "--";
             }
 
-            // Placement defaults for jobs using this tape:
-            string Method = "--";
-            if ((Row.Cells["PlaceMethod_Column"].Value != null) &&
-                (Row.Cells["PlaceMethod_Column"].Value.ToString() == "Up Cam Assisted"))
+            // Placement recipe for jobs using this tape:
+            string Method = "Place Fast";
+            if ((Row.Cells["Method_Column"].Value != null) && (Row.Cells["Method_Column"].Value.ToString() == "Place"))
             {
-                Method = "Up Cam Assisted";
+                Method = "Place";
             }
-            PlaceMethod_comboBox.SelectedItem = Method;
+            Method_comboBox.SelectedItem = Method;
 
-            PlaceAlgorithm_comboBox.Items.Clear();
+            UpCamAlg_comboBox.Items.Clear();
+            UpCamAlg_comboBox.Items.Add(FormMain.NO_UPCAM_ALG);
             foreach (VideoAlgorithmsCollection.FullAlgorithmDescription Alg in MainForm.VideoAlgorithms.AllAlgorithms)
             {
-                PlaceAlgorithm_comboBox.Items.Add(Alg.Name);
+                UpCamAlg_comboBox.Items.Add(Alg.Name);
             }
-            string AlgName = "";
-            if (Row.Cells["PlaceAlgorithm_Column"].Value != null)
+            string AlgName = FormMain.NO_UPCAM_ALG;
+            if (Row.Cells["UpCamAlg_Column"].Value != null)
             {
-                AlgName = Row.Cells["PlaceAlgorithm_Column"].Value.ToString();
+                AlgName = Row.Cells["UpCamAlg_Column"].Value.ToString();
             }
-            if (PlaceAlgorithm_comboBox.Items.Contains(AlgName))
-            {
-                PlaceAlgorithm_comboBox.SelectedItem = AlgName;
-            }
-            else if (PlaceAlgorithm_comboBox.Items.Count > 0)
-            {
-                PlaceAlgorithm_comboBox.SelectedIndex = 0;
-            }
+            UpCamAlg_comboBox.SelectedItem = UpCamAlg_comboBox.Items.Contains(AlgName) ? AlgName : FormMain.NO_UPCAM_ALG;
+
+            UseUpCam_checkBox.Checked = (Row.Cells["UseUpCam_Column"].Value == null) ? true :
+                (Row.Cells["UseUpCam_Column"].Value.ToString().ToLowerInvariant() == "true");
+            ManualAssist_checkBox.Checked = (Row.Cells["ManualAssist_Column"].Value != null) &&
+                (Row.Cells["ManualAssist_Column"].Value.ToString().ToLowerInvariant() == "true");
 
             if (Row.Cells["Width_Column"].Value != null)
             {
@@ -376,8 +374,10 @@ namespace LitePlacer
             Row.Cells["Orientation_Column"].Value = TapeOrientation_comboBox.SelectedItem;
             Row.Cells["Rotation_Column"].Value = TapeRotation_comboBox.SelectedItem;
             Row.Cells["Nozzle_Column"].Value = Nozzle_numericUpDown.Value.ToString(CultureInfo.InvariantCulture);
-            Row.Cells["PlaceMethod_Column"].Value = (PlaceMethod_comboBox.SelectedItem == null) ? "--" : PlaceMethod_comboBox.SelectedItem.ToString();
-            Row.Cells["PlaceAlgorithm_Column"].Value = (PlaceAlgorithm_comboBox.SelectedItem == null) ? "" : PlaceAlgorithm_comboBox.SelectedItem.ToString();
+            Row.Cells["Method_Column"].Value = (Method_comboBox.SelectedItem == null) ? "Place Fast" : Method_comboBox.SelectedItem.ToString();
+            Row.Cells["UpCamAlg_Column"].Value = (UpCamAlg_comboBox.SelectedItem == null) ? FormMain.NO_UPCAM_ALG : UpCamAlg_comboBox.SelectedItem.ToString();
+            Row.Cells["UseUpCam_Column"].Value = UseUpCam_checkBox.Checked;
+            Row.Cells["ManualAssist_Column"].Value = ManualAssist_checkBox.Checked;
             Row.Cells["NextPart_Column"].Value = NextPart_textBox.Text;
             // Row.Cells["Capacity_Column"].Value = Capacity_textBox.Text;
             Row.Cells["Width_Column"].Value = TapeWidth_comboBox.Text;

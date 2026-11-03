@@ -30,6 +30,8 @@
 		{
             this.components = new System.ComponentModel.Container();
             this.Question_button = new System.Windows.Forms.Button();
+            this.FromTape_button = new System.Windows.Forms.Button();
+            this.FromTape_label = new System.Windows.Forms.Label();
             this.Place_button = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
@@ -58,6 +60,26 @@
             this.label13 = new System.Windows.Forms.Label();
             this.Method_toolTip = new System.Windows.Forms.ToolTip(this.components);
             this.SuspendLayout();
+            // 
+            // FromTape_button
+            // 
+            this.FromTape_button.Location = new System.Drawing.Point(9, 15);
+            this.FromTape_button.Margin = new System.Windows.Forms.Padding(4);
+            this.FromTape_button.Name = "FromTape_button";
+            this.FromTape_button.Size = new System.Drawing.Size(120, 28);
+            this.FromTape_button.TabIndex = 30;
+            this.FromTape_button.Text = "From tape";
+            this.FromTape_button.UseVisualStyleBackColor = true;
+            this.FromTape_button.Click += new System.EventHandler(this.FromTape_button_Click);
+            // 
+            // FromTape_label
+            // 
+            this.FromTape_label.AutoSize = true;
+            this.FromTape_label.Location = new System.Drawing.Point(9, 46);
+            this.FromTape_label.Name = "FromTape_label";
+            this.FromTape_label.Size = new System.Drawing.Size(120, 16);
+            this.FromTape_label.TabIndex = 31;
+            this.FromTape_label.Text = "Use the tape's method";
             // 
             // Question_button
             // 
@@ -395,6 +417,8 @@
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.Place_button);
+            this.Controls.Add(this.FromTape_button);
+            this.Controls.Add(this.FromTape_label);
             this.Controls.Add(this.Question_button);
             this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "MethodSelectionForm";
@@ -409,6 +433,8 @@
 		#endregion
 
 		private System.Windows.Forms.Button Question_button;
+		private System.Windows.Forms.Button FromTape_button;
+		private System.Windows.Forms.Label FromTape_label;
 		private System.Windows.Forms.Button Place_button;
 		private System.Windows.Forms.Label label1;
 		private System.Windows.Forms.Label label2;

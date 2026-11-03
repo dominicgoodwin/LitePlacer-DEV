@@ -82,10 +82,12 @@
             this.ResetTrayID_button = new System.Windows.Forms.Button();
             this.DrawGrid_checkBox = new System.Windows.Forms.CheckBox();
             this.PlacementDefaults_groupBox = new System.Windows.Forms.GroupBox();
-            this.PlaceMethod_label = new System.Windows.Forms.Label();
-            this.PlaceMethod_comboBox = new System.Windows.Forms.ComboBox();
-            this.PlaceAlgorithm_label = new System.Windows.Forms.Label();
-            this.PlaceAlgorithm_comboBox = new System.Windows.Forms.ComboBox();
+            this.Method_label = new System.Windows.Forms.Label();
+            this.Method_comboBox = new System.Windows.Forms.ComboBox();
+            this.UpCamAlg_label = new System.Windows.Forms.Label();
+            this.UpCamAlg_comboBox = new System.Windows.Forms.ComboBox();
+            this.UseUpCam_checkBox = new System.Windows.Forms.CheckBox();
+            this.ManualAssist_checkBox = new System.Windows.Forms.CheckBox();
             this.PlacementDefaults_groupBox.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.Nozzle_numericUpDown)).BeginInit();
             this.SuspendLayout();
@@ -369,7 +371,7 @@
             this.label11.Size = new System.Drawing.Size(31, 13);
             this.label11.TabIndex = 23;
             this.label11.Tag = "https://liteplacer.com/edit-tape-parameters-dialog/";
-            this.label11.Text = "Type";
+            this.label11.Text = "Down cam alg.";
             this.toolTip1.SetToolTip(this.label11, "What optical filter set is used");
             // 
             // label12
@@ -691,53 +693,75 @@
             // 
             // PlacementDefaults_groupBox
             // 
-            this.PlacementDefaults_groupBox.Controls.Add(this.PlaceMethod_label);
-            this.PlacementDefaults_groupBox.Controls.Add(this.PlaceMethod_comboBox);
-            this.PlacementDefaults_groupBox.Controls.Add(this.PlaceAlgorithm_label);
-            this.PlacementDefaults_groupBox.Controls.Add(this.PlaceAlgorithm_comboBox);
-            this.PlacementDefaults_groupBox.Location = new System.Drawing.Point(258, 258);
+            this.PlacementDefaults_groupBox.Controls.Add(this.Method_label);
+            this.PlacementDefaults_groupBox.Controls.Add(this.Method_comboBox);
+            this.PlacementDefaults_groupBox.Controls.Add(this.UpCamAlg_label);
+            this.PlacementDefaults_groupBox.Controls.Add(this.UpCamAlg_comboBox);
+            this.PlacementDefaults_groupBox.Controls.Add(this.UseUpCam_checkBox);
+            this.PlacementDefaults_groupBox.Controls.Add(this.ManualAssist_checkBox);
+            this.PlacementDefaults_groupBox.Location = new System.Drawing.Point(258, 252);
             this.PlacementDefaults_groupBox.Name = "PlacementDefaults_groupBox";
-            this.PlacementDefaults_groupBox.Size = new System.Drawing.Size(188, 118);
+            this.PlacementDefaults_groupBox.Size = new System.Drawing.Size(188, 158);
             this.PlacementDefaults_groupBox.TabIndex = 60;
             this.PlacementDefaults_groupBox.TabStop = false;
-            this.PlacementDefaults_groupBox.Text = "Placement defaults for jobs";
+            this.PlacementDefaults_groupBox.Text = "Placement (jobs follow these)";
             // 
-            // PlaceMethod_label
+            // Method_label
             // 
-            this.PlaceMethod_label.AutoSize = true;
-            this.PlaceMethod_label.Location = new System.Drawing.Point(8, 20);
-            this.PlaceMethod_label.Name = "PlaceMethod_label";
-            this.PlaceMethod_label.Size = new System.Drawing.Size(93, 13);
-            this.PlaceMethod_label.Text = "Placement method";
+            this.Method_label.AutoSize = true;
+            this.Method_label.Location = new System.Drawing.Point(8, 18);
+            this.Method_label.Name = "Method_label";
+            this.Method_label.Size = new System.Drawing.Size(43, 13);
+            this.Method_label.Text = "Method";
             // 
-            // PlaceMethod_comboBox
+            // Method_comboBox
             // 
-            this.PlaceMethod_comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.PlaceMethod_comboBox.FormattingEnabled = true;
-            this.PlaceMethod_comboBox.Items.AddRange(new object[] {
-            "--",
-            "Up Cam Assisted"});
-            this.PlaceMethod_comboBox.Location = new System.Drawing.Point(11, 36);
-            this.PlaceMethod_comboBox.Name = "PlaceMethod_comboBox";
-            this.PlaceMethod_comboBox.Size = new System.Drawing.Size(165, 21);
-            this.PlaceMethod_comboBox.TabIndex = 61;
+            this.Method_comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.Method_comboBox.FormattingEnabled = true;
+            this.Method_comboBox.Items.AddRange(new object[] {
+            "Place Fast",
+            "Place"});
+            this.Method_comboBox.Location = new System.Drawing.Point(11, 34);
+            this.Method_comboBox.Name = "Method_comboBox";
+            this.Method_comboBox.Size = new System.Drawing.Size(165, 21);
+            this.Method_comboBox.TabIndex = 61;
             // 
-            // PlaceAlgorithm_label
+            // UpCamAlg_label
             // 
-            this.PlaceAlgorithm_label.AutoSize = true;
-            this.PlaceAlgorithm_label.Location = new System.Drawing.Point(8, 64);
-            this.PlaceAlgorithm_label.Name = "PlaceAlgorithm_label";
-            this.PlaceAlgorithm_label.Size = new System.Drawing.Size(103, 13);
-            this.PlaceAlgorithm_label.Text = "Up camera algorithm";
+            this.UpCamAlg_label.AutoSize = true;
+            this.UpCamAlg_label.Location = new System.Drawing.Point(8, 60);
+            this.UpCamAlg_label.Name = "UpCamAlg_label";
+            this.UpCamAlg_label.Size = new System.Drawing.Size(103, 13);
+            this.UpCamAlg_label.Text = "Up camera algorithm";
             // 
-            // PlaceAlgorithm_comboBox
+            // UpCamAlg_comboBox
             // 
-            this.PlaceAlgorithm_comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.PlaceAlgorithm_comboBox.FormattingEnabled = true;
-            this.PlaceAlgorithm_comboBox.Location = new System.Drawing.Point(11, 80);
-            this.PlaceAlgorithm_comboBox.Name = "PlaceAlgorithm_comboBox";
-            this.PlaceAlgorithm_comboBox.Size = new System.Drawing.Size(165, 21);
-            this.PlaceAlgorithm_comboBox.TabIndex = 62;
+            this.UpCamAlg_comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.UpCamAlg_comboBox.FormattingEnabled = true;
+            this.UpCamAlg_comboBox.Location = new System.Drawing.Point(11, 76);
+            this.UpCamAlg_comboBox.Name = "UpCamAlg_comboBox";
+            this.UpCamAlg_comboBox.Size = new System.Drawing.Size(165, 21);
+            this.UpCamAlg_comboBox.TabIndex = 62;
+            // 
+            // UseUpCam_checkBox
+            // 
+            this.UseUpCam_checkBox.AutoSize = true;
+            this.UseUpCam_checkBox.Location = new System.Drawing.Point(11, 106);
+            this.UseUpCam_checkBox.Name = "UseUpCam_checkBox";
+            this.UseUpCam_checkBox.Size = new System.Drawing.Size(80, 17);
+            this.UseUpCam_checkBox.TabIndex = 63;
+            this.UseUpCam_checkBox.Text = "Use up cam";
+            this.UseUpCam_checkBox.UseVisualStyleBackColor = true;
+            // 
+            // ManualAssist_checkBox
+            // 
+            this.ManualAssist_checkBox.AutoSize = true;
+            this.ManualAssist_checkBox.Location = new System.Drawing.Point(11, 129);
+            this.ManualAssist_checkBox.Name = "ManualAssist_checkBox";
+            this.ManualAssist_checkBox.Size = new System.Drawing.Size(90, 17);
+            this.ManualAssist_checkBox.TabIndex = 64;
+            this.ManualAssist_checkBox.Text = "Manual assist";
+            this.ManualAssist_checkBox.UseVisualStyleBackColor = true;
             // 
             // DrawGrid_checkBox
             // 
@@ -874,9 +898,11 @@
         private System.Windows.Forms.CheckBox UseNozzleCoordinates_checkBox;
         private System.Windows.Forms.CheckBox DrawGrid_checkBox;
         private System.Windows.Forms.GroupBox PlacementDefaults_groupBox;
-        private System.Windows.Forms.Label PlaceMethod_label;
-        private System.Windows.Forms.ComboBox PlaceMethod_comboBox;
-        private System.Windows.Forms.Label PlaceAlgorithm_label;
-        private System.Windows.Forms.ComboBox PlaceAlgorithm_comboBox;
+        private System.Windows.Forms.Label Method_label;
+        private System.Windows.Forms.ComboBox Method_comboBox;
+        private System.Windows.Forms.Label UpCamAlg_label;
+        private System.Windows.Forms.ComboBox UpCamAlg_comboBox;
+        private System.Windows.Forms.CheckBox UseUpCam_checkBox;
+        private System.Windows.Forms.CheckBox ManualAssist_checkBox;
     }
 }

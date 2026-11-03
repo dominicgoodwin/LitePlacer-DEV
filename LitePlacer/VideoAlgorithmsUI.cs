@@ -341,6 +341,7 @@ namespace LitePlacer
                 Tapes_dataGridView.Rows[i].Cells["Type_Column"] = c;
                 Tapes_dataGridView.Rows[i].Cells["Type_Column"].Value = OrgValue;
             }
+            RefreshUpCamAlgCombos();
         }
 
         private void AddAlgorithm_button_Click(object sender, EventArgs e)
@@ -472,6 +473,16 @@ namespace LitePlacer
                     row.Cells["Type_Column"].Value = NewName;
                 }
             }
+            // up cam algorithm column: same rename
+            foreach (DataGridViewRow row in Tapes_dataGridView.Rows)
+            {
+                object v = row.Cells["UpCamAlg_Column"].Value;
+                if ((v != null) && (v.ToString() == OldName))
+                {
+                    row.Cells["UpCamAlg_Column"].Value = NewName;
+                }
+            }
+            RefreshUpCamAlgCombos();
             // Nozzles
 
         }
@@ -551,6 +562,14 @@ namespace LitePlacer
                         ret = true;
                     }
                 }
+                if (Tapes_dataGridView.Rows[i].Cells["UpCamAlg_Column"].Value != null)
+                {
+                    if (Tapes_dataGridView.Rows[i].Cells["UpCamAlg_Column"].Value.ToString() == Alg)
+                    {
+                        DisplayText("Algorithm \"" + Alg + "\" used as up cam algorithm in Tapes data, row " + (i + 1).ToString());
+                        ret = true;
+                    }
+                }
             }
 
             for (int i = 0; i < NozzlesParameters_dataGridView.RowCount; i++)
@@ -601,6 +620,7 @@ namespace LitePlacer
                     Tapes_dataGridView.Rows[i].Cells["Type_Column"].Value = OrgValue;
                 }
             }
+            RefreshUpCamAlgCombos();
 
             // Nozzles
             for (int i = 0; i < NozzlesParameters_dataGridView.RowCount; i++)

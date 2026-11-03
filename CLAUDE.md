@@ -31,10 +31,15 @@ and customer CAD data out of the repo.
   "Next" value changed; `Tapes.UpdateNextCoordinates` recomputes from first hole + pitch and
   must not run after "Set part no." (which stores a measured position). Tape buttons call
   `TapesGrid_CommitAndGetRow()` first.
-- Job grid: Nozzle / Placement method / Placement parameter cells may hold
-  `FormMain.FROM_TAPE` ("(tape)"), meaning inherit from the tape in Method parameters. Read
-  them through `ResolveJobCell(row, column)`, never directly. `CellFormatting` shows the
-  resolved value greyed.
+- Tape "recipe": Method (Place Fast / Place), Type (= down cam algorithm; header "Down cam
+  alg."), UpCamAlg ("--" or algorithm), UseUpCam, ManualAssist, Nozzle. Algorithm combos on
+  the tapes grid are rebuilt per row (`FillAlgorithmSelectionBox` for Type,
+  `RefreshUpCamAlgCombos` for UpCamAlg) after load and after algorithm add/remove/rename.
+- Job grid: Method / Nozzle / Placement method / Placement parameter cells may hold
+  `FormMain.FROM_TAPE` ("(tape)"), meaning derive from the tape in Method parameters. Read
+  them through `ResolveJobCell(row, column)` (and `JobRowManualAssist(row)`), never
+  directly. `CellFormatting` shows the resolved value greyed. Manual assist is independent
+  of Place vs Place Fast: both put-down sites in `PlacePart_m` check it.
 - Panelize (`PanelizeForm`) replaces CAD data; the single-board rows and fiducial list are kept
   on `MainForm.SingleBoardCadRows` / `SingleBoardFiducials` so it can be re-run. Job row
   settings survive the job-grid rebuild via a value+footprint keyed snapshot.

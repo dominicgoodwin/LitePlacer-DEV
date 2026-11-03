@@ -124,8 +124,10 @@
             this.NextPart_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Orientation_Column = new System.Windows.Forms.DataGridViewComboBoxColumn();
             this.Nozzle_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.PlaceMethod_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.PlaceAlgorithm_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Method_Column = new System.Windows.Forms.DataGridViewComboBoxColumn();
+            this.UpCamAlg_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.UseUpCam_Column = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.ManualAssist_Column = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             this.Capacity_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.TrayID_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Rotation_Column = new System.Windows.Forms.DataGridViewComboBoxColumn();
@@ -1993,12 +1995,14 @@
             this.NextPart_Column,
             this.Orientation_Column,
             this.Nozzle_Column,
-            this.PlaceMethod_Column,
-            this.PlaceAlgorithm_Column,
+            this.Method_Column,
+            this.Type_Column,
+            this.UpCamAlg_Column,
+            this.UseUpCam_Column,
+            this.ManualAssist_Column,
             this.Capacity_Column,
             this.TrayID_Column,
             this.Rotation_Column,
-            this.Type_Column,
             this.Width_Column,
             this.Pitch_Column,
             this.OffsetX_Column,
@@ -2076,23 +2080,40 @@
             this.Nozzle_Column.Name = "Nozzle_Column";
             this.Nozzle_Column.Width = 64;
             // 
-            // PlaceMethod_Column
+            // Method_Column
             // 
-            this.PlaceMethod_Column.HeaderText = "Placement";
-            this.PlaceMethod_Column.MinimumWidth = 6;
-            this.PlaceMethod_Column.Name = "PlaceMethod_Column";
-            this.PlaceMethod_Column.ReadOnly = true;
-            this.PlaceMethod_Column.ToolTipText = "Default placement method for jobs using this tape (edit via Tape Edit)";
-            this.PlaceMethod_Column.Width = 90;
+            this.Method_Column.HeaderText = "Method";
+            this.Method_Column.Items.AddRange(new object[] {
+            "Place Fast",
+            "Place"});
+            this.Method_Column.MinimumWidth = 6;
+            this.Method_Column.Name = "Method_Column";
+            this.Method_Column.ToolTipText = "Default pick method for jobs using this tape: Place Fast (holes measured once per row) or Place (every hole measured)";
+            this.Method_Column.Width = 80;
             // 
-            // PlaceAlgorithm_Column
+            // UpCamAlg_Column
             // 
-            this.PlaceAlgorithm_Column.HeaderText = "Up cam alg.";
-            this.PlaceAlgorithm_Column.MinimumWidth = 6;
-            this.PlaceAlgorithm_Column.Name = "PlaceAlgorithm_Column";
-            this.PlaceAlgorithm_Column.ReadOnly = true;
-            this.PlaceAlgorithm_Column.ToolTipText = "Default up camera algorithm for jobs using this tape (edit via Tape Edit)";
-            this.PlaceAlgorithm_Column.Width = 90;
+            this.UpCamAlg_Column.HeaderText = "Up cam alg.";
+            this.UpCamAlg_Column.MinimumWidth = 6;
+            this.UpCamAlg_Column.Name = "UpCamAlg_Column";
+            this.UpCamAlg_Column.ToolTipText = "Up camera algorithm for part measurement before placement, or -- for none";
+            this.UpCamAlg_Column.Width = 90;
+            // 
+            // UseUpCam_Column
+            // 
+            this.UseUpCam_Column.HeaderText = "Use up cam";
+            this.UseUpCam_Column.MinimumWidth = 6;
+            this.UseUpCam_Column.Name = "UseUpCam_Column";
+            this.UseUpCam_Column.ToolTipText = "Measure the part with the up camera before placing (ignored if Up cam alg. is --)";
+            this.UseUpCam_Column.Width = 50;
+            // 
+            // ManualAssist_Column
+            // 
+            this.ManualAssist_Column.HeaderText = "Manual assist";
+            this.ManualAssist_Column.MinimumWidth = 6;
+            this.ManualAssist_Column.Name = "ManualAssist_Column";
+            this.ManualAssist_Column.ToolTipText = "Pause above the board before placing, for a manual nudge; Enter places the part";
+            this.ManualAssist_Column.Width = 50;
             // 
             // Capacity_Column
             // 
@@ -2125,14 +2146,15 @@
             // 
             // Type_Column
             // 
-            this.Type_Column.HeaderText = "Type";
+            this.Type_Column.HeaderText = "Down cam alg.";
             this.Type_Column.Items.AddRange(new object[] {
             "Paper (White)",
             "Black Plastic",
             "Clear Plastic"});
             this.Type_Column.MinimumWidth = 6;
             this.Type_Column.Name = "Type_Column";
-            this.Type_Column.Width = 37;
+            this.Type_Column.ToolTipText = "Down camera algorithm for tape hole / part recognition";
+            this.Type_Column.Width = 90;
             // 
             // Width_Column
             // 
@@ -12143,8 +12165,10 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn NextPart_Column;
         private System.Windows.Forms.DataGridViewComboBoxColumn Orientation_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn Nozzle_Column;
-        private System.Windows.Forms.DataGridViewTextBoxColumn PlaceMethod_Column;
-        private System.Windows.Forms.DataGridViewTextBoxColumn PlaceAlgorithm_Column;
+        private System.Windows.Forms.DataGridViewComboBoxColumn Method_Column;
+        private System.Windows.Forms.DataGridViewTextBoxColumn UpCamAlg_Column;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn UseUpCam_Column;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn ManualAssist_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn Capacity_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn TrayID_Column;
         private System.Windows.Forms.DataGridViewComboBoxColumn Rotation_Column;
