@@ -31,6 +31,11 @@ and customer CAD data out of the repo.
   "Next" value changed; `Tapes.UpdateNextCoordinates` recomputes from first hole + pitch and
   must not run after "Set part no." (which stores a measured position). Tape buttons call
   `TapesGrid_CommitAndGetRow()` first.
+- Tapes grid `Source_Column`: "Tape" or "Loose". A Loose row is a one-part-at-a-time source
+  at First X/Y found by its down cam algorithm; `PlacePart_m` branches on `TapeIsLoose()`.
+  The job methods LoosePart / LoosePart Assisted / *Snapshot are legacy (buttons hidden);
+  old `.lpj` rows with them are mapped to the Loose row named `LOOSE_SOURCE_ID`, which
+  `EnsureLooseSourceRow()` creates from `Setting.General_PickupCenterX/Y` on tapes load.
 - Tape "recipe": Method (Place Fast / Place), Type (= down cam algorithm; header "Down cam
   alg."), UpCamAlg ("--" or algorithm), UseUpCam, ManualAssist, Nozzle. Algorithm combos on
   the tapes grid are rebuilt per row (`FillAlgorithmSelectionBox` for Type,

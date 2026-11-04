@@ -272,6 +272,7 @@
             this.LoosePart_button.Location = new System.Drawing.Point(315, 158);
             this.LoosePart_button.Margin = new System.Windows.Forms.Padding(4);
             this.LoosePart_button.Name = "LoosePart_button";
+            this.LoosePart_button.Visible = false;
             this.LoosePart_button.Size = new System.Drawing.Size(181, 28);
             this.LoosePart_button.TabIndex = 17;
             this.LoosePart_button.Text = "Loose Part Pickup";
@@ -284,6 +285,7 @@
             this.label9.Location = new System.Drawing.Point(60, 164);
             this.label9.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label9.Name = "label9";
+            this.label9.Visible = false;
             this.label9.Size = new System.Drawing.Size(233, 16);
             this.label9.TabIndex = 18;
             this.label9.Text = "Pickup from loose part pickup position";
@@ -366,6 +368,7 @@
             this.LoosePartAssisted_button.Location = new System.Drawing.Point(315, 193);
             this.LoosePartAssisted_button.Margin = new System.Windows.Forms.Padding(4);
             this.LoosePartAssisted_button.Name = "LoosePartAssisted_button";
+            this.LoosePartAssisted_button.Visible = false;
             this.LoosePartAssisted_button.Size = new System.Drawing.Size(181, 28);
             this.LoosePartAssisted_button.TabIndex = 25;
             this.LoosePartAssisted_button.Text = "Loose Part Assisted";
@@ -380,6 +383,7 @@
             this.label13.Location = new System.Drawing.Point(141, 199);
             this.label13.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label13.Name = "label13";
+            this.label13.Visible = false;
             this.label13.Size = new System.Drawing.Size(159, 16);
             this.label13.TabIndex = 26;
             this.label13.Text = "Place loose part assisted";

@@ -1224,6 +1224,7 @@ namespace LitePlacer
                         LoadingDataGrid = false;
                         FillAlgorithmSelectionBox(Tapes_dataGridView, "Type_Column");
                         FillTapeRecipeDefaults();
+                        EnsureLooseSourceRow();
                         RefreshUpCamAlgCombos();
                     }
                     else
@@ -1275,6 +1276,7 @@ namespace LitePlacer
             LoadDataGrid(Filename, Grid, DataTableType.Tapes);
             FillAlgorithmSelectionBox(Grid, "Type_Column");
             FillTapeRecipeDefaults();
+            EnsureLooseSourceRow();
             RefreshUpCamAlgCombos();
         }
 
@@ -1288,6 +1290,10 @@ namespace LitePlacer
             foreach (DataGridViewRow Row in Tapes_dataGridView.Rows)
             {
                 if (Row.IsNewRow) continue;
+                if (Row.Cells["Source_Column"].Value == null || Row.Cells["Source_Column"].Value.ToString() == "")
+                {
+                    Row.Cells["Source_Column"].Value = "Tape";
+                }
                 if (Row.Cells["Method_Column"].Value == null || Row.Cells["Method_Column"].Value.ToString() == "")
                 {
                     Row.Cells["Method_Column"].Value = "Place Fast";
@@ -1305,6 +1311,59 @@ namespace LitePlacer
                     Row.Cells["ManualAssist_Column"].Value = false;
                 }
             }
+        }
+
+        public const string LOOSE_SOURCE_ID = "Loose";
+
+        public bool TapeIsLoose(int TapeNo)
+        {
+            object v = Tapes_dataGridView.Rows[TapeNo].Cells["Source_Column"].Value;
+            return (v != null) && (v.ToString() == "Loose");
+        }
+
+        // Loose parts used to be picked from a single global location (Setting.General_PickupCenterX/Y)
+        // with job method "LoosePart". They are now a tape row with Source = Loose. If there is no Loose
+        // row yet, make one from the old setting so existing jobs keep working.
+        private void EnsureLooseSourceRow()
+        {
+            if (Tapes == null) return;
+            if (Tapes.FindTapeRow(LOOSE_SOURCE_ID) >= 0) return;
+            foreach (DataGridViewRow Row in Tapes_dataGridView.Rows)
+            {
+                if (!Row.IsNewRow && TapeIsLoose(Row.Index)) return;   // some loose row exists under another name
+            }
+            DisplayText("Creating tape row \"" + LOOSE_SOURCE_ID + "\" (Source = Loose) from the loose part pickup location setting");
+            Tapes_dataGridView.Rows.Add();
+            int index = Tapes_dataGridView.Rows.Count - 1;
+            if (Tapes_dataGridView.AllowUserToAddRows) index--;
+            DataGridViewRow R = Tapes_dataGridView.Rows[index];
+            R.Cells["Id_Column"].Value = LOOSE_SOURCE_ID;
+            R.Cells["Source_Column"].Value = "Loose";
+            R.Cells["Orientation_Column"].Value = "+X";
+            R.Cells["Rotation_Column"].Value = "0deg.";
+            R.Cells["Width_Column"].Value = "custom";
+            R.Cells["Pitch_Column"].Value = "0";
+            R.Cells["OffsetX_Column"].Value = "0";
+            R.Cells["OffsetY_Column"].Value = "0";
+            R.Cells["FirstX_Column"].Value = Setting.General_PickupCenterX.ToString("0.000", CultureInfo.InvariantCulture);
+            R.Cells["FirstY_Column"].Value = Setting.General_PickupCenterY.ToString("0.000", CultureInfo.InvariantCulture);
+            R.Cells["NextPart_Column"].Value = "1";
+            R.Cells["Next_X_Column"].Value = R.Cells["FirstX_Column"].Value;
+            R.Cells["Next_Y_Column"].Value = R.Cells["FirstY_Column"].Value;
+            R.Cells["Z_Pickup_Column"].Value = "--";
+            R.Cells["Z_Place_Column"].Value = "--";
+            R.Cells["RotationDirect_Column"].Value = "0.00";
+            R.Cells["CoordinatesForParts_Column"].Value = false;
+            R.Cells["UseNozzleCoordinates_Column"].Value = false;
+            R.Cells["Nozzle_Column"].Value = Setting.Nozzles_default.ToString(CultureInfo.InvariantCulture);
+            R.Cells["Method_Column"].Value = "Place";
+            R.Cells["UseUpCam_Column"].Value = true;
+            R.Cells["ManualAssist_Column"].Value = false;
+            DataGridViewComboBoxCell c = new DataGridViewComboBoxCell();
+            BuildAlgorithmsCombox(out c);
+            R.Cells["Type_Column"] = c;
+            R.Cells["Type_Column"].Value = VideoAlgorithms.AllAlgorithms[0].Name;
+            R.Cells["UpCamAlg_Column"].Value = NO_UPCAM_ALG;
         }
 
         // Rebuild the up cam algorithm dropdown on every tape row: "--" plus the current algorithm list.
@@ -7218,6 +7277,17 @@ namespace LitePlacer
 
         private void SetJobRowParameterField(int row, string Method, string Value)
         {
+            if ((Method == "LoosePart") || (Method == "LoosePart Assisted"))
+            {
+                // Legacy: loose parts are now a tape row with Source = Loose. Point the row at it; the part
+                // algorithm that used to be the parameter is now the source's down cam algorithm.
+                JobData_GridView.Rows[row].Cells["JobdataTapeColumn"].Value = LOOSE_SOURCE_ID;
+                JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value = (Method == "LoosePart Assisted") ? "Place Assisted" : "Place";
+                JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value = "--";
+                DisplayText("Job row " + JobData_GridView.Rows[row].Cells["JobDataValueColumn"].Value + ": method " + Method
+                    + " converted to tape source \"" + LOOSE_SOURCE_ID + "\" (was using algorithm/parameter " + Value + ")");
+                return;
+            }
             if (IsTapeMethod(Method))
             {
                 JobData_GridView.Rows[row].Cells["JobdataTapeColumn"].Value = Value;
@@ -7405,7 +7475,7 @@ namespace LitePlacer
                 MakeJobDataDirty();
                 int row = JobData_GridView.CurrentCell.RowIndex;
                 string MethodCell = JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value.ToString();
-                if ((MethodCell == "Fiducials") || (MethodCell == "LoosePart"))
+                if (MethodCell == "Fiducials")
                 {
                     JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value =
                         SelectFiducialAlgorithm(JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value.ToString());
@@ -7964,7 +8034,13 @@ namespace LitePlacer
             }
 
             bool FirstInRow = true;
-            if (method == "Place Fast")
+            int SourceRow = JobRowTape(RowNo);
+            if ((method == "Place Fast") && (SourceRow >= 0) && TapeIsLoose(SourceRow))
+            {
+                // Place Fast on a loose source: nothing to pre-measure, each part is found individually
+                DisplayText("Loose part source: no fast placement preparation");
+            }
+            else if (method == "Place Fast")
             {
                 string TapeID = JobRowTapeId(RowNo);
                 int count;
@@ -9070,7 +9146,9 @@ namespace LitePlacer
         private double LoosePartPickupZ = 0.0;
         private double LoosePartPlaceZ = 0.0;
 
-        private bool PickUpLoosePart_m(bool Probe, bool Snapshot, int CADdataRow, int JobDataRow, string Component)
+        // Loose part pickup: TapeNum is a tape row with Source = Loose. The pickup location is its First X/Y
+        // and the part is found with its down cam algorithm (Type_Column).
+        private bool PickUpLoosePart_m(bool Probe, bool Snapshot, int CADdataRow, int JobDataRow, string Component, int TapeNum)
         {
             if (!Check_HeightCalibrationDone_m()) return false;
 
@@ -9078,21 +9156,32 @@ namespace LitePlacer
                 + Snapshot.ToString(CultureInfo.InvariantCulture) + ", "
                 + CADdataRow.ToString(CultureInfo.InvariantCulture) + ", "
                 + JobDataRow.ToString(CultureInfo.InvariantCulture) + ", "
-                + Component, KnownColor.Blue);
+                + Component + ", source row " + TapeNum.ToString(CultureInfo.InvariantCulture), KnownColor.Blue);
 
             VideoAlgorithmsCollection.FullAlgorithmDescription PartAlg = new VideoAlgorithmsCollection.FullAlgorithmDescription();
-            string VidAlgName = JobData_GridView.Rows[JobDataRow].Cells["JobdataMethodParametersColumn"].Value.ToString();
+            object AlgObj = Tapes_dataGridView.Rows[TapeNum].Cells["Type_Column"].Value;
+            string VidAlgName = (AlgObj == null) ? "" : AlgObj.ToString();
             DisplayText("Using algorithm " + VidAlgName);
             if (!VideoAlgorithms.FindAlgorithm(VidAlgName, out PartAlg))
             {
-                DisplayText("*** Fiducial algorithm (" + VidAlgName + ") not found", KnownColor.DarkRed, true);
+                DisplayText("*** Part algorithm (" + VidAlgName + ") not found", KnownColor.DarkRed, true);
                 return false;
             }
             DownCamera.BuildMeasurementFunctionsList(PartAlg.FunctionList);
-            DownCamera.MeasurementParameters = PartAlg.MeasurementParameters;            
-            
-            // goto pickup
-            if (!CNC_XYA_m(Setting.General_PickupCenterX, Setting.General_PickupCenterY, Cnc.CurrentA))
+            DownCamera.MeasurementParameters = PartAlg.MeasurementParameters;
+
+            // goto pickup: the Loose source's First X/Y
+            double PickX, PickY;
+            if (!double.TryParse(Tapes_dataGridView.Rows[TapeNum].Cells["FirstX_Column"].Value.ToString().Replace(',', '.'), out PickX) ||
+                !double.TryParse(Tapes_dataGridView.Rows[TapeNum].Cells["FirstY_Column"].Value.ToString().Replace(',', '.'), out PickY))
+            {
+                ShowMessageBox(
+                    "Loose part source " + Tapes_dataGridView.Rows[TapeNum].Cells["Id_Column"].Value.ToString()
+                    + ": First X/Y (the pickup location) is not set.",
+                    "No pickup location", MessageBoxButtons.OK);
+                return false;
+            }
+            if (!CNC_XYA_m(PickX, PickY, Cnc.CurrentA))
             {
                 return false;
             }
@@ -9263,37 +9352,59 @@ namespace LitePlacer
                     break;
             };
 
+            // A tape row with Source = Loose: one part at a time at a fixed location, found by the down cam.
+            bool LooseSource = ((Method == "Place") || (Method == "Place Assisted") || (Method == "Place Fast")) && TapeIsLoose(TapeNum);
+
             // Pickup:
             switch (Method)
             {
                 case "Place":
                 case "Place Assisted":
-                    if (!PickUpPartWithHoleMeasurement_m(TapeNum))
-                    {
-                        return false;
-                    }
-                    break;
-
                 case "Place Fast":
-                    if (!PickUpPartFast_m(TapeNum))
+                    if (LooseSource)
                     {
-                        return false;
+                        if (!PickUpLoosePart_m(FirstInRow, false, CADdataRow, JobDataRow, Component, TapeNum))
+                        {
+                            return false;
+                        }
+                    }
+                    else if (Method == "Place Fast")
+                    {
+                        if (!PickUpPartFast_m(TapeNum))
+                        {
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        if (!PickUpPartWithHoleMeasurement_m(TapeNum))
+                        {
+                            return false;
+                        }
                     }
                     break;
 
                 case "LoosePart":
                 case "LoosePart Assisted":
-                    if (!PickUpLoosePart_m(FirstInRow, false, CADdataRow, JobDataRow, Component))
-                    {
-                        return false;
-                    }
-                    break;
-
                 case "DownCam Snapshot":
                 case "UpCam Snapshot":
-                    if (!PickUpLoosePart_m(FirstInRow, true, CADdataRow, JobDataRow, Component))
+                    // Legacy methods (jobs saved before loose parts became a tape source). Needs a Loose source row.
                     {
-                        return false;
+                        int LooseRow = Tapes.FindTapeRow(LOOSE_SOURCE_ID);
+                        if (LooseRow < 0)
+                        {
+                            ShowMessageBox(
+                                "Method " + Method + " needs a tape row with Source = Loose (named \"" + LOOSE_SOURCE_ID + "\").",
+                                "No loose part source", MessageBoxButtons.OK);
+                            return false;
+                        }
+                        TapeNum = LooseRow;
+                        LooseSource = true;
+                        bool Snap = (Method == "DownCam Snapshot") || (Method == "UpCam Snapshot");
+                        if (!PickUpLoosePart_m(FirstInRow, Snap, CADdataRow, JobDataRow, Component, TapeNum))
+                        {
+                            return false;
+                        }
                     }
                     break;
 
@@ -9407,10 +9518,19 @@ namespace LitePlacer
                     case "Place Fast":
                         if (ManualAssist)
                         {
-                            // since for tape parts id contains the Tape index, we use here a fixed stop distance above board
+                            // fixed stop distance above board for the manual nudge
                             if (!PutLoosePartDownAssisted_m("2.5"))
                             {
                                 // VacuumOff();  if this failed CNC seems to be down; low chances that VacuumOff() would go thru either. 
+                                return false;
+                            }
+                        }
+                        else if (LooseSource)
+                        {
+                            DownCamera.Draw_Snapshot = false;
+                            UpCamera.Draw_Snapshot = false;
+                            if (!PutLoosePartDown_m(FirstInRow))
+                            {
                                 return false;
                             }
                         }
@@ -9578,7 +9698,8 @@ namespace LitePlacer
                 }
                 PartAboveCam = false;
                 // place part (with the manual pause above the board if the tape asks for it)
-                bool PutDownOk = ManualAssist ? PutLoosePartDownAssisted_m("2.5") : PutPartDown_m(TapeNum);
+                bool PutDownOk = ManualAssist ? PutLoosePartDownAssisted_m("2.5")
+                               : (LooseSource ? PutLoosePartDown_m(FirstInRow) : PutPartDown_m(TapeNum));
                 if (!PutDownOk)
                 {
                     DownCamera.Draw_Snapshot = false;
@@ -11295,6 +11416,7 @@ namespace LitePlacer
             Tapes_dataGridView.Rows[index].Cells["Type_Column"] = c;
             Tapes_dataGridView.Rows[index].Cells["Type_Column"].Value = VideoAlgorithms.AllAlgorithms[0].Name;
             // Recipe defaults for jobs using this tape:
+            Tapes_dataGridView.Rows[index].Cells["Source_Column"].Value = "Tape";
             Tapes_dataGridView.Rows[index].Cells["Method_Column"].Value = "Place Fast";
             Tapes_dataGridView.Rows[index].Cells["UseUpCam_Column"].Value = true;
             Tapes_dataGridView.Rows[index].Cells["ManualAssist_Column"].Value = false;

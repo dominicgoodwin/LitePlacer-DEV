@@ -124,6 +124,7 @@
             this.NextPart_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Orientation_Column = new System.Windows.Forms.DataGridViewComboBoxColumn();
             this.Nozzle_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Source_Column = new System.Windows.Forms.DataGridViewComboBoxColumn();
             this.Method_Column = new System.Windows.Forms.DataGridViewComboBoxColumn();
             this.UpCamAlg_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.UseUpCam_Column = new System.Windows.Forms.DataGridViewCheckBoxColumn();
@@ -1992,6 +1993,7 @@
             this.Tapes_dataGridView.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.Tapes_dataGridView.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.Id_Column,
+            this.Source_Column,
             this.SelectButton_Column,
             this.NextPart_Column,
             this.Orientation_Column,
@@ -2080,6 +2082,17 @@
             this.Nozzle_Column.MinimumWidth = 6;
             this.Nozzle_Column.Name = "Nozzle_Column";
             this.Nozzle_Column.Width = 64;
+            // 
+            // Source_Column
+            // 
+            this.Source_Column.HeaderText = "Source";
+            this.Source_Column.Items.AddRange(new object[] {
+            "Tape",
+            "Loose"});
+            this.Source_Column.MinimumWidth = 6;
+            this.Source_Column.Name = "Source_Column";
+            this.Source_Column.ToolTipText = "Tape: parts in a tape, found by the holes. Loose: one part at a time at First X/Y, found by the down cam algorithm";
+            this.Source_Column.Width = 60;
             // 
             // Method_Column
             // 
@@ -12176,6 +12189,7 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn NextPart_Column;
         private System.Windows.Forms.DataGridViewComboBoxColumn Orientation_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn Nozzle_Column;
+        private System.Windows.Forms.DataGridViewComboBoxColumn Source_Column;
         private System.Windows.Forms.DataGridViewComboBoxColumn Method_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn UpCamAlg_Column;
         private System.Windows.Forms.DataGridViewCheckBoxColumn UseUpCam_Column;
