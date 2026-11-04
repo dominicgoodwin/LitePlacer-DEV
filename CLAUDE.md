@@ -52,7 +52,7 @@ and customer CAD data out of the repo.
   writes Tape for tape rows and Parameter otherwise (`JobRowParameterField`), the loaders
   route it back by method (`SetJobRowParameterField`), so the file format is unchanged.
 - Job grid: Method / Nozzle / Placement method / Placement parameter cells may hold
-  `FormMain.FROM_TAPE` ("(tape)"), meaning derive from the tape in Method parameters. Read
+  `FormMain.FROM_TAPE` ("(comp)"), meaning derive from the tape in Method parameters. Read
   them through `ResolveJobCell(row, column)` (and `JobRowManualAssist(row)`), never
   directly. `CellFormatting` shows the resolved value greyed. Manual assist is independent
   of Place vs Place Fast: both put-down sites in `PlacePart_m` check it.

@@ -7314,7 +7314,7 @@ namespace LitePlacer
         //   Placement method  = "Up Cam Assisted" if Use up cam is ticked and Up cam alg. is not "--",
         //                       otherwise "--"
         //   Placement param.  = tape Up cam alg.
-        public const string FROM_TAPE = "(tape)";
+        public const string FROM_TAPE = "(comp)";
 
         private static readonly string[] TapeInheritedJobColumns =
             { "JobdataMethodColumn", "JobDataNozzleColumn", "PlacementMethodColumn", "PlacementParameterColumn" };
@@ -7497,7 +7497,7 @@ namespace LitePlacer
                 return;
             }
             string Resolved = ResolveJobCell(e.RowIndex, ColumnName);
-            e.Value = (Resolved == null) ? FROM_TAPE : Resolved + " (tape)";
+            e.Value = (Resolved == null) ? FROM_TAPE : Resolved + " " + FROM_TAPE;
             e.CellStyle.ForeColor = Color.Gray;
             e.FormattingApplied = true;
         }
@@ -7635,7 +7635,7 @@ namespace LitePlacer
                 // Nozzle: a number is a per-job override; clearing the cell makes it follow the tape again.
                 MakeJobDataDirty();
                 object v = JobData_GridView.CurrentCell.Value;
-                if ((v == null) || (v.ToString().Trim() == "") || (v.ToString().Trim().ToLowerInvariant() == "tape"))
+                if ((v == null) || (v.ToString().Trim() == "") || (v.ToString().Trim().ToLowerInvariant() == "comp"))
                 {
                     JobData_GridView.CurrentCell.Value = FROM_TAPE;
                 }

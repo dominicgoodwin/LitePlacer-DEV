@@ -68,7 +68,7 @@
             this.FromTape_button.Name = "FromTape_button";
             this.FromTape_button.Size = new System.Drawing.Size(120, 28);
             this.FromTape_button.TabIndex = 30;
-            this.FromTape_button.Text = "From tape";
+            this.FromTape_button.Text = "From component";
             this.FromTape_button.UseVisualStyleBackColor = true;
             this.FromTape_button.Click += new System.EventHandler(this.FromTape_button_Click);
             // 
@@ -79,7 +79,7 @@
             this.FromTape_label.Name = "FromTape_label";
             this.FromTape_label.Size = new System.Drawing.Size(120, 16);
             this.FromTape_label.TabIndex = 31;
-            this.FromTape_label.Text = "Use the tape's method";
+            this.FromTape_label.Text = "Use the component's method";
             // 
             // Question_button
             // 
