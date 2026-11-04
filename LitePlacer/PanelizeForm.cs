@@ -233,7 +233,7 @@ namespace LitePlacer
                 bool found = false;
                 foreach (DataGridViewRow Row in JobData.Rows)
                 {
-                    if (Row.Cells["JobdataMethodColumn"].Value.ToString() == "Fiducials")
+                    if (MainForm.JobRowIsFiducials(Row.Index))
                     {
                         found = true;
                         break;
@@ -330,7 +330,7 @@ namespace LitePlacer
             int FiducialIndex = -1;
             foreach (DataGridViewRow Row in JobData.Rows)
             {
-                if (Row.Cells["JobdataMethodColumn"].Value.ToString() == "Fiducials")
+                if (MainForm.JobRowIsFiducials(Row.Index))
                 {
                     FiducialIndex = Row.Index;
                     break;
@@ -508,7 +508,7 @@ namespace LitePlacer
                 object f = Row.Cells["JobDataFootprintColumn"].Value;
                 if ((v != null) && (f != null) && (v.ToString() == "Fiducial") && (f.ToString() == "On panel"))
                 {
-                    Row.Cells["JobdataMethodColumn"].Value = "Fiducials";
+                    MainForm.AssignFiducialComponent(Row.Index);
                 }
             }
         }
@@ -810,7 +810,7 @@ namespace LitePlacer
             }
             JobData.Rows[FiducialIndex].Cells["JobdataComponentsColumn"].Value = LowLeft + "," + HighLeft + "," + LowRight + "," + HighRight;
             JobData.Rows[FiducialIndex].Cells["JobdataCountColumn"].Value = "4";
-            JobData.Rows[FiducialIndex].Cells["JobdataMethodColumn"].Value = "Fiducials";   // keep the indication; FillJobData_GridView reset it to "?"
+            MainForm.AssignFiducialComponent(FiducialIndex);   // keep the indication; FillJobData_GridView reset it
             return true;
         }
 

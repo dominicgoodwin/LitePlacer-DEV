@@ -2088,10 +2088,11 @@
             this.Source_Column.HeaderText = "Source";
             this.Source_Column.Items.AddRange(new object[] {
             "Tape",
-            "Loose"});
+            "Loose",
+            "Fiducial"});
             this.Source_Column.MinimumWidth = 6;
             this.Source_Column.Name = "Source_Column";
-            this.Source_Column.ToolTipText = "Tape: parts in a tape, found by the holes. Loose: one part at a time at First X/Y, found by the down cam algorithm";
+            this.Source_Column.ToolTipText = "Tape: parts in a tape, found by the holes. Loose: one part at a time at First X/Y, found by the down cam algorithm. Fiducial: board fiducials, found by the down cam algorithm";
             this.Source_Column.Width = 60;
             // 
             // Method_Column
@@ -8342,16 +8343,17 @@
             // 
             // JobdataTapeColumn
             // 
-            this.JobdataTapeColumn.HeaderText = "Tape";
+            this.JobdataTapeColumn.HeaderText = "Component";
             this.JobdataTapeColumn.MinimumWidth = 6;
             this.JobdataTapeColumn.Name = "JobdataTapeColumn";
             this.JobdataTapeColumn.ReadOnly = true;
-            this.JobdataTapeColumn.ToolTipText = "Tape the parts come from. Click to select. Method, nozzle and placement settings follow the tape unless overridden.";
+            this.JobdataTapeColumn.ToolTipText = "Component definition (Tapes tab): tape, loose part source or fiducial. Click to select. Method, nozzle and placement settings follow it unless overridden.";
             this.JobdataTapeColumn.Width = 70;
             // 
             // JobdataMethodParametersColumn
             // 
             this.JobdataMethodParametersColumn.HeaderText = "Parameter";
+            this.JobdataMethodParametersColumn.Visible = false;
             this.JobdataMethodParametersColumn.MinimumWidth = 6;
             this.JobdataMethodParametersColumn.Name = "JobdataMethodParametersColumn";
             this.JobdataMethodParametersColumn.ToolTipText = "Fiducials / LoosePart: vision algorithm. LoosePart Assisted: stop distance above board (mm). Unused for tape rows.";

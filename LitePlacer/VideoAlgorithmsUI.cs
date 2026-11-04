@@ -446,7 +446,9 @@ namespace LitePlacer
             // Fiducials on the job table
             foreach (DataGridViewRow row in JobData_GridView.Rows)
             {
-                if (row.Cells["JobdataMethodColumn"].Value.ToString() == "Fiducials")
+                // legacy rows that still hold the fiducial algorithm in the Parameter cell
+                object pv = row.Cells["JobdataMethodParametersColumn"].Value;
+                if ((pv != null) && (pv.ToString() == OldName))
                 {
                     row.Cells["JobdataMethodParametersColumn"].Value = NewName;
                 }

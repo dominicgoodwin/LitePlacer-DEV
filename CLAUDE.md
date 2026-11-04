@@ -31,8 +31,13 @@ and customer CAD data out of the repo.
   "Next" value changed; `Tapes.UpdateNextCoordinates` recomputes from first hole + pitch and
   must not run after "Set part no." (which stores a measured position). Tape buttons call
   `TapesGrid_CommitAndGetRow()` first.
-- Tapes grid `Source_Column`: "Tape" or "Loose". A Loose row is a one-part-at-a-time source
-  at First X/Y found by its down cam algorithm; `PlacePart_m` branches on `TapeIsLoose()`.
+- The Tapes tab is really the **component** table. `Source_Column`: "Tape", "Loose" or
+  "Fiducial". A Loose row is a one-part-at-a-time source at First X/Y found by its down cam
+  algorithm; `PlacePart_m` branches on `TapeIsLoose()`. A Fiducial row carries only the
+  fiducial-finding algorithm (Type_Column); the job's fiducials row is the one whose
+  component is a Fiducial (`JobRowIsFiducials(row)`, which also accepts the legacy Method
+  "Fiducials"); `JobRowFiducialAlgorithm(row)` gives its algorithm. `AssignFiducialComponent`
+  marks a row as fiducials (creating the default `FIDUCIAL_SOURCE_ID` component if needed).
   The job methods LoosePart / LoosePart Assisted / *Snapshot are legacy (buttons hidden);
   old `.lpj` rows with them are mapped to the Loose row named `LOOSE_SOURCE_ID`, which
   `EnsureLooseSourceRow()` creates from `Setting.General_PickupCenterX/Y` on tapes load.
@@ -40,9 +45,9 @@ and customer CAD data out of the repo.
   alg."), UpCamAlg ("--" or algorithm), UseUpCam, ManualAssist, Nozzle. Algorithm combos on
   the tapes grid are rebuilt per row (`FillAlgorithmSelectionBox` for Type,
   `RefreshUpCamAlgCombos` for UpCamAlg) after load and after algorithm add/remove/rename.
-- Job grid columns: Value, Footprint, Count, **Tape** (`JobdataTapeColumn`, tape ID for
-  Place-family rows), Method, Parameter (`JobdataMethodParametersColumn`: algorithm for
-  Fiducials/LoosePart, stop distance for LoosePart Assisted), Nozzle, Placement method,
+- Job grid columns: Value, Footprint, Count, **Component** (`JobdataTapeColumn`, name of the
+  tape / loose source / fiducial component), Method, Parameter (`JobdataMethodParametersColumn`,
+  hidden: only legacy rows and the Pause/Ignore timing use it), Nozzle, Placement method,
   Placement parameter, Components. `.lpj` files still have ONE parameter field: the saver
   writes Tape for tape rows and Parameter otherwise (`JobRowParameterField`), the loaders
   route it back by method (`SetJobRowParameterField`), so the file format is unchanged.

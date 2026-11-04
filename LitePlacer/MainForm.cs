@@ -1321,6 +1321,97 @@ namespace LitePlacer
             return (v != null) && (v.ToString() == "Loose");
         }
 
+        public bool TapeIsFiducial(int TapeNo)
+        {
+            object v = Tapes_dataGridView.Rows[TapeNo].Cells["Source_Column"].Value;
+            return (v != null) && (v.ToString() == "Fiducial");
+        }
+
+        public const string FIDUCIAL_SOURCE_ID = "Fiducial";
+
+        // Fiducials are a component with Source = Fiducial; its down cam algorithm finds them.
+        // Returns the row of the component named Id (created if missing, with algorithm AlgName).
+        private int EnsureFiducialSourceRow(string Id, string AlgName)
+        {
+            int r = Tapes.FindTapeRow(Id);
+            if (r >= 0) return r;
+            DisplayText("Creating component \"" + Id + "\" (Source = Fiducial, algorithm " + AlgName + ")");
+            Tapes_dataGridView.Rows.Add();
+            int index = Tapes_dataGridView.Rows.Count - 1;
+            DataGridViewRow R = Tapes_dataGridView.Rows[index];
+            R.Cells["Id_Column"].Value = Id;
+            R.Cells["Source_Column"].Value = "Fiducial";
+            R.Cells["Orientation_Column"].Value = "+X";
+            R.Cells["Rotation_Column"].Value = "0deg.";
+            R.Cells["Width_Column"].Value = "custom";
+            R.Cells["Pitch_Column"].Value = "0";
+            R.Cells["OffsetX_Column"].Value = "0";
+            R.Cells["OffsetY_Column"].Value = "0";
+            R.Cells["FirstX_Column"].Value = "0";
+            R.Cells["FirstY_Column"].Value = "0";
+            R.Cells["NextPart_Column"].Value = "1";
+            R.Cells["Next_X_Column"].Value = "0";
+            R.Cells["Next_Y_Column"].Value = "0";
+            R.Cells["Z_Pickup_Column"].Value = "--";
+            R.Cells["Z_Place_Column"].Value = "--";
+            R.Cells["RotationDirect_Column"].Value = "0.00";
+            R.Cells["CoordinatesForParts_Column"].Value = false;
+            R.Cells["UseNozzleCoordinates_Column"].Value = false;
+            R.Cells["Nozzle_Column"].Value = "0";
+            R.Cells["Method_Column"].Value = "Place";
+            R.Cells["UseUpCam_Column"].Value = false;
+            R.Cells["ManualAssist_Column"].Value = false;
+            DataGridViewComboBoxCell c = new DataGridViewComboBoxCell();
+            BuildAlgorithmsCombox(out c);
+            R.Cells["Type_Column"] = c;
+            R.Cells["Type_Column"].Value = VideoAlgorithms.AlgorithmExists(AlgName) ? AlgName : VideoAlgorithms.AllAlgorithms[0].Name;
+            DataGridViewComboBoxCell uc = new DataGridViewComboBoxCell();
+            uc.Items.Add(NO_UPCAM_ALG);
+            foreach (VideoAlgorithmsCollection.FullAlgorithmDescription Alg in VideoAlgorithms.AllAlgorithms) uc.Items.Add(Alg.Name);
+            R.Cells["UpCamAlg_Column"] = uc;
+            R.Cells["UpCamAlg_Column"].Value = NO_UPCAM_ALG;
+            return index;
+        }
+
+        // Make a job row the fiducials row by giving it the default Fiducial component (keeps any
+        // Fiducial component it already has).
+        public void AssignFiducialComponent(int row)
+        {
+            int t = JobRowTape(row);
+            if ((t >= 0) && TapeIsFiducial(t))
+            {
+                SetJobRowFromTape(row);
+                return;
+            }
+            string DefaultAlg = VideoAlgorithms.AlgorithmExists("Fiducials") ? "Fiducials" : VideoAlgorithms.AllAlgorithms[0].Name;
+            EnsureFiducialSourceRow(FIDUCIAL_SOURCE_ID, DefaultAlg);
+            JobData_GridView.Rows[row].Cells["JobdataTapeColumn"].Value = FIDUCIAL_SOURCE_ID;
+            SetJobRowFromTape(row);
+        }
+
+        // True if this job row is the fiducials row: its component has Source = Fiducial, or (legacy)
+        // its Method cell says "Fiducials".
+        public bool JobRowIsFiducials(int row)
+        {
+            object m = JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value;
+            if ((m != null) && (m.ToString() == "Fiducials")) return true;
+            int t = JobRowTape(row);
+            return (t >= 0) && TapeIsFiducial(t);
+        }
+
+        // Down cam algorithm for the fiducials row: the component's, or (legacy) the Parameter cell.
+        public string JobRowFiducialAlgorithm(int row)
+        {
+            int t = JobRowTape(row);
+            if ((t >= 0) && TapeIsFiducial(t))
+            {
+                object a = Tapes_dataGridView.Rows[t].Cells["Type_Column"].Value;
+                if (a != null) return a.ToString();
+            }
+            object v = JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value;
+            return (v == null) ? "" : v.ToString();
+        }
+
         // Loose parts used to be picked from a single global location (Setting.General_PickupCenterX/Y)
         // with job method "LoosePart". They are now a tape row with Source = Loose. If there is no Loose
         // row yet, make one from the old setting so existing jobs keep working.
@@ -6986,25 +7077,12 @@ namespace LitePlacer
 
                     }
                     JobData_GridView.Rows[Last].Cells["JobdataMethodColumn"].Value = Line[2];
-                    if (Line[2] == "Fiducials")
+                    if ((Line[2] == "Fiducials") && !VideoAlgorithms.AlgorithmExists(Line[3]))
                     {
-                        // Does the saved algorithm stil exist?
-                        string AlgName = Line[3];
-                        if (VideoAlgorithms.AlgorithmExists(AlgName))
-                        {
-                            JobData_GridView.Rows[Last].Cells["JobdataMethodParametersColumn"].Value = AlgName;
-                        }
-                        else
-                        {
-                            WarningMessage = WarningMessage + "Algorithm " + AlgName + " used on job data file " +
-                                "as a parameter for method " + Line[2] + " does not exist.\n\r";
-                            JobData_GridView.Rows[Last].Cells["JobdataMethodParametersColumn"].Value = "--";
-                        }
+                        WarningMessage = WarningMessage + "Algorithm " + Line[3] + " used on job data file " +
+                            "as a parameter for method " + Line[2] + " does not exist.\n\r";
                     }
-                    else
-                    {
-                        SetJobRowParameterField(Last, Line[2], Line[3]);
-                    }
+                    SetJobRowParameterField(Last, Line[2], Line[3]);
                     JobData_GridView.Rows[Last].Cells["JobdataComponentsColumn"].Value = Line[4];
                     if (Line.Count>5)
                     {
@@ -7084,7 +7162,7 @@ namespace LitePlacer
         {
             foreach (DataGridViewRow JobRow in JobData_GridView.Rows)
             {
-                if (JobRow.Cells["JobdataMethodColumn"].Value.ToString() != "Fiducials")
+                if (!JobRowIsFiducials(JobRow.Index))
                 {
                     // Method, nozzle, placement method and algorithm all follow the tape once one is assigned.
                     SetJobRowFromTape(JobRow.Index);
@@ -7277,6 +7355,21 @@ namespace LitePlacer
 
         private void SetJobRowParameterField(int row, string Method, string Value)
         {
+            if (Method == "Fiducials")
+            {
+                // Legacy: the parameter was the fiducial algorithm. Fiducials are now a component with
+                // Source = Fiducial; use one named after the algorithm so different jobs keep their choice.
+                string Id = FIDUCIAL_SOURCE_ID;
+                if (VideoAlgorithms.AlgorithmExists(Value) && (Value != "Fiducials"))
+                {
+                    Id = FIDUCIAL_SOURCE_ID + " " + Value;
+                }
+                EnsureFiducialSourceRow(Id, Value);
+                JobData_GridView.Rows[row].Cells["JobdataTapeColumn"].Value = Id;
+                JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value = "--";
+                SetJobRowFromTape(row);
+                return;
+            }
             if ((Method == "LoosePart") || (Method == "LoosePart Assisted"))
             {
                 // Legacy: loose parts are now a tape row with Source = Loose. Point the row at it; the part
@@ -7333,6 +7426,7 @@ namespace LitePlacer
             {
                 case "JobdataMethodColumn":
                     {
+                        if (TapeIsFiducial(TapeNo)) return "Fiducials";
                         string Method = TapeCellString(TapeNo, "Method_Column");
                         if (Method == "") Method = "Place Fast";
                         if ((Method == "Place") && CellIsTrue(Tapes_dataGridView.Rows[TapeNo].Cells["ManualAssist_Column"]))
@@ -7435,10 +7529,10 @@ namespace LitePlacer
                             continue;
                         }
                         // JobData_GridView.Rows[cell.RowIndex].Cells["JobdataMethodParametersColumn"].Value = "--";
-                        if ((SelectedMethod == "Fiducials") || (SelectedMethod == "LoosePart") || (SelectedMethod == "LoosePart Assisted"))
+                        if (SelectedMethod == "Fiducials")
                         {
-                            string FidAlg = SelectFiducialAlgorithm("--");
-                            JobData_GridView.Rows[cell.RowIndex].Cells["JobdataMethodParametersColumn"].Value = FidAlg;
+                            // Fiducials are a component (Source = Fiducial); the algorithm lives on it
+                            AssignFiducialComponent(cell.RowIndex);
                         }
                     }
                 }
@@ -8277,7 +8371,7 @@ namespace LitePlacer
             PartAboveCam = false;
             DisplayText("PlaceComponent_m: Component: " + Component + ", Row:" + GroupRow.ToString(CultureInfo.InvariantCulture), KnownColor.Blue);
             // Skip fiducials
-            if (JobData_GridView.Rows[GroupRow].Cells["JobdataMethodColumn"].Value.ToString() == "Fiducials")
+            if (JobRowIsFiducials(GroupRow))
             {
                 DisplayText("PlaceComponent_m(): Skip fiducials");
                 return true;
@@ -9754,7 +9848,7 @@ namespace LitePlacer
 
             for (int i = 0; i < JobData_GridView.RowCount; i++)
             {
-                if (JobData_GridView.Rows[i].Cells["JobdataMethodColumn"].Value.ToString() == "Fiducials")
+                if (JobRowIsFiducials(i))
                 {
                     if (FiducialsFound)
                     {
@@ -9812,10 +9906,10 @@ namespace LitePlacer
                         }
                     }
                 }
-                // If fids were found, the row is unique. Mark it:
+                // If fids were found, the row is unique. Mark it by giving it the Fiducial component:
                 if (FiducialsFound)
                 {
-                    JobData_GridView.Rows[FiducialsRow].Cells["JobdataMethodColumn"].Value = "Fiducials";
+                    AssignFiducialComponent(FiducialsRow);
                 }
             }
             if (!FiducialsFound)
@@ -9958,7 +10052,7 @@ namespace LitePlacer
             // Get ready for position measurements
             DisplayText("SetFiducialsMeasurement");
             VideoAlgorithmsCollection.FullAlgorithmDescription FidAlg = new VideoAlgorithmsCollection.FullAlgorithmDescription();
-            string VidAlgName = JobData_GridView.Rows[FiducialsRow].Cells["JobdataMethodParametersColumn"].Value.ToString();
+            string VidAlgName = JobRowFiducialAlgorithm(FiducialsRow);
             if (!VideoAlgorithms.FindAlgorithm(VidAlgName, out FidAlg))
             {
                 DisplayText("*** Fiducial algorithm (" + VidAlgName + ") not found", KnownColor.DarkRed, true);
