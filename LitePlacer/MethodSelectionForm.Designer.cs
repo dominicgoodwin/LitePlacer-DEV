@@ -66,6 +66,7 @@
             this.FromTape_button.Location = new System.Drawing.Point(9, 15);
             this.FromTape_button.Margin = new System.Windows.Forms.Padding(4);
             this.FromTape_button.Name = "FromTape_button";
+            this.FromTape_button.Visible = false;
             this.FromTape_button.Size = new System.Drawing.Size(120, 28);
             this.FromTape_button.TabIndex = 30;
             this.FromTape_button.Text = "From component";
@@ -77,6 +78,7 @@
             this.FromTape_label.AutoSize = true;
             this.FromTape_label.Location = new System.Drawing.Point(9, 46);
             this.FromTape_label.Name = "FromTape_label";
+            this.FromTape_label.Visible = false;
             this.FromTape_label.Size = new System.Drawing.Size(120, 16);
             this.FromTape_label.TabIndex = 31;
             this.FromTape_label.Text = "Use the component's method";
@@ -99,7 +101,7 @@
             this.Place_button.Name = "Place_button";
             this.Place_button.Size = new System.Drawing.Size(181, 28);
             this.Place_button.TabIndex = 1;
-            this.Place_button.Text = "Place";
+            this.Place_button.Text = "Choose component";
             this.Method_toolTip.SetToolTip(this.Place_button, "Slow placement measures tape hole postion\r\nfor each part separately. Use this if " +
         "the vision\r\nmeasurement targets parts, not holes");
             this.Place_button.UseVisualStyleBackColor = true;
@@ -123,7 +125,7 @@
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(102, 16);
             this.label2.TabIndex = 3;
-            this.label2.Text = "Slow placement";
+            this.label2.Text = "Pick a component from the component table";
             this.Method_toolTip.SetToolTip(this.label2, "Slow placement measures tape hole postion\r\nfor each part separately. Use this if " +
         "the vision\r\nmeasurement targets parts, not holes");
             // 
@@ -175,6 +177,7 @@
             this.label5.Location = new System.Drawing.Point(220, 306);
             this.label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label5.Name = "label5";
+            this.label5.Visible = false;
             this.label5.Size = new System.Drawing.Size(81, 16);
             this.label5.TabIndex = 9;
             this.label5.Text = "Skip this row";
@@ -184,6 +187,7 @@
             this.Ignore_button.Location = new System.Drawing.Point(317, 300);
             this.Ignore_button.Margin = new System.Windows.Forms.Padding(4);
             this.Ignore_button.Name = "Ignore_button";
+            this.Ignore_button.Visible = false;
             this.Ignore_button.Size = new System.Drawing.Size(181, 28);
             this.Ignore_button.TabIndex = 8;
             this.Ignore_button.Text = "Ignore";
@@ -196,6 +200,7 @@
             this.label6.Location = new System.Drawing.Point(149, 378);
             this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label6.Name = "label6";
+            this.label6.Visible = false;
             this.label6.Size = new System.Drawing.Size(149, 16);
             this.label6.TabIndex = 11;
             this.label6.Text = "Fiducials are on this row";
@@ -205,6 +210,7 @@
             this.Fiducials_button.Location = new System.Drawing.Point(317, 372);
             this.Fiducials_button.Margin = new System.Windows.Forms.Padding(4);
             this.Fiducials_button.Name = "Fiducials_button";
+            this.Fiducials_button.Visible = false;
             this.Fiducials_button.Size = new System.Drawing.Size(181, 28);
             this.Fiducials_button.TabIndex = 10;
             this.Fiducials_button.Text = "Fiducials";
@@ -296,6 +302,7 @@
             this.label10.Location = new System.Drawing.Point(205, 56);
             this.label10.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label10.Name = "label10";
+            this.label10.Visible = false;
             this.label10.Size = new System.Drawing.Size(99, 16);
             this.label10.TabIndex = 20;
             this.label10.Text = "Fast placement";
@@ -307,6 +314,7 @@
             this.PlaceFast_button.Location = new System.Drawing.Point(317, 50);
             this.PlaceFast_button.Margin = new System.Windows.Forms.Padding(4);
             this.PlaceFast_button.Name = "PlaceFast_button";
+            this.PlaceFast_button.Visible = false;
             this.PlaceFast_button.Size = new System.Drawing.Size(181, 28);
             this.PlaceFast_button.TabIndex = 19;
             this.PlaceFast_button.Text = "Place Fast";
@@ -344,6 +352,7 @@
             this.label12.Location = new System.Drawing.Point(177, 128);
             this.label12.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label12.Name = "label12";
+            this.label12.Visible = false;
             this.label12.Size = new System.Drawing.Size(125, 16);
             this.label12.TabIndex = 24;
             this.label12.Text = "Assisted placement";
@@ -355,6 +364,7 @@
             this.PlaceAssisted_button.Location = new System.Drawing.Point(315, 122);
             this.PlaceAssisted_button.Margin = new System.Windows.Forms.Padding(4);
             this.PlaceAssisted_button.Name = "PlaceAssisted_button";
+            this.PlaceAssisted_button.Visible = false;
             this.PlaceAssisted_button.Size = new System.Drawing.Size(181, 28);
             this.PlaceAssisted_button.TabIndex = 23;
             this.PlaceAssisted_button.Text = "Place Assisted";

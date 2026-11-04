@@ -108,12 +108,8 @@ namespace LitePlacer
             }
 
             // Placement recipe for jobs using this tape:
-            string Method = "Place Fast";
-            if ((Row.Cells["Method_Column"].Value != null) && (Row.Cells["Method_Column"].Value.ToString() == "Place"))
-            {
-                Method = "Place";
-            }
-            Method_comboBox.SelectedItem = Method;
+            FindFast_checkBox.Checked = (Row.Cells["FindFast_Column"].Value == null) ? true :
+                (Row.Cells["FindFast_Column"].Value.ToString().ToLowerInvariant() == "true");
 
             UpCamAlg_comboBox.Items.Clear();
             UpCamAlg_comboBox.Items.Add(FormMain.NO_UPCAM_ALG);
@@ -374,7 +370,7 @@ namespace LitePlacer
             Row.Cells["Orientation_Column"].Value = TapeOrientation_comboBox.SelectedItem;
             Row.Cells["Rotation_Column"].Value = TapeRotation_comboBox.SelectedItem;
             Row.Cells["Nozzle_Column"].Value = Nozzle_numericUpDown.Value.ToString(CultureInfo.InvariantCulture);
-            Row.Cells["Method_Column"].Value = (Method_comboBox.SelectedItem == null) ? "Place Fast" : Method_comboBox.SelectedItem.ToString();
+            Row.Cells["FindFast_Column"].Value = FindFast_checkBox.Checked;
             Row.Cells["UpCamAlg_Column"].Value = (UpCamAlg_comboBox.SelectedItem == null) ? FormMain.NO_UPCAM_ALG : UpCamAlg_comboBox.SelectedItem.ToString();
             Row.Cells["UseUpCam_Column"].Value = UseUpCam_checkBox.Checked;
             Row.Cells["ManualAssist_Column"].Value = ManualAssist_checkBox.Checked;

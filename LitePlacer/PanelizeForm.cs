@@ -455,8 +455,8 @@ namespace LitePlacer
         // data and resets every row to "?". Rows are keyed by value + footprint, which panelizing
         // doesn't change, so we snapshot the per-row settings first and put them back afterwards.
         private static readonly string[] JobSettingColumns = {
-            "JobdataMethodColumn", "JobdataTapeColumn", "JobdataMethodParametersColumn", "JobDataNozzleColumn",
-            "PlacementMethodColumn", "PlacementParameterColumn" };
+            "JobdataTapeColumn", "JobdataMethodColumn", "JobSkipColumn", "JobFindFastColumn", "JobDataNozzleColumn",
+            "JobUseUpCamColumn", "PlacementParameterColumn", "JobManualAssistColumn" };
 
         private static string JobRowKey(DataGridViewRow Row)
         {
@@ -497,10 +497,7 @@ namespace LitePlacer
                 {
                     for (int i = 0; i < JobSettingColumns.Length; i++)
                     {
-                        if (Values[i] != null)
-                        {
-                            Row.Cells[JobSettingColumns[i]].Value = Values[i];
-                        }
+                        Row.Cells[JobSettingColumns[i]].Value = Values[i];   // null = inherited, keep it
                     }
                 }
                 // Panel fiducials added by this form:

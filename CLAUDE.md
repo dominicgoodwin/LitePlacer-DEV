@@ -31,31 +31,27 @@ and customer CAD data out of the repo.
   "Next" value changed; `Tapes.UpdateNextCoordinates` recomputes from first hole + pitch and
   must not run after "Set part no." (which stores a measured position). Tape buttons call
   `TapesGrid_CommitAndGetRow()` first.
-- The Tapes tab is really the **component** table. `Source_Column`: "Tape", "Loose" or
-  "Fiducial". A Loose row is a one-part-at-a-time source at First X/Y found by its down cam
-  algorithm; `PlacePart_m` branches on `TapeIsLoose()`. A Fiducial row carries only the
-  fiducial-finding algorithm (Type_Column); the job's fiducials row is the one whose
-  component is a Fiducial (`JobRowIsFiducials(row)`, which also accepts the legacy Method
-  "Fiducials"); `JobRowFiducialAlgorithm(row)` gives its algorithm. `AssignFiducialComponent`
-  marks a row as fiducials (creating the default `FIDUCIAL_SOURCE_ID` component if needed).
-  The job methods LoosePart / LoosePart Assisted / *Snapshot are legacy (buttons hidden);
-  old `.lpj` rows with them are mapped to the Loose row named `LOOSE_SOURCE_ID`, which
-  `EnsureLooseSourceRow()` creates from `Setting.General_PickupCenterX/Y` on tapes load.
-- Tape "recipe": Method (Place Fast / Place), Type (= down cam algorithm; header "Down cam
-  alg."), UpCamAlg ("--" or algorithm), UseUpCam, ManualAssist, Nozzle. Algorithm combos on
-  the tapes grid are rebuilt per row (`FillAlgorithmSelectionBox` for Type,
-  `RefreshUpCamAlgCombos` for UpCamAlg) after load and after algorithm add/remove/rename.
-- Job grid columns: Value, Footprint, Count, **Component** (`JobdataTapeColumn`, name of the
-  tape / loose source / fiducial component), Method, Parameter (`JobdataMethodParametersColumn`,
-  hidden: only legacy rows and the Pause/Ignore timing use it), Nozzle, Placement method,
-  Placement parameter, Components. `.lpj` files still have ONE parameter field: the saver
-  writes Tape for tape rows and Parameter otherwise (`JobRowParameterField`), the loaders
-  route it back by method (`SetJobRowParameterField`), so the file format is unchanged.
-- Job grid: Method / Nozzle / Placement method / Placement parameter cells may hold
-  `FormMain.FROM_TAPE` ("(comp)"), meaning derive from the tape in Method parameters. Read
-  them through `ResolveJobCell(row, column)` (and `JobRowManualAssist(row)`), never
-  directly. `CellFormatting` shows the resolved value greyed. Manual assist is independent
-  of Place vs Place Fast: both put-down sites in `PlacePart_m` check it.
+- The Tapes tab is the **component** table. Columns: ID, `Source_Column` (Tape / Loose /
+  Fiducial), Down cam alg. (`Type_Column`: holes for Tape, the part for Loose, fiducials for
+  Fiducial), `FindFast_Column`, Nozzle, `UpCamAlg_Column` ("--" or algorithm), `UseUpCam_Column`,
+  `ManualAssist_Column`, then tape geometry. `Method_Column` is hidden/legacy and only seeds
+  FindFast when an old tapes file is loaded. Algorithm combos are rebuilt per row
+  (`FillAlgorithmSelectionBox` for Type, `RefreshUpCamAlgCombos` for UpCamAlg) after load and
+  after algorithm add/remove/rename. `EnsureLooseSourceRow()` migrates the old global pickup
+  location into a Loose row named `LOOSE_SOURCE_ID`; `EnsureFiducialSourceRow()` creates a
+  Fiducial component.
+- Job grid columns: Value, Footprint, Count, **Component** (`JobdataTapeColumn`; blank = process
+  step row), **Step** (`JobdataMethodColumn`; only meaningful on blank-component rows: "?",
+  Pause, Change Nozzle, Recalibrate; derived and greyed on component rows), Skip, Find fast,
+  Nozzle, Use up cam, Up cam alg. (`PlacementParameterColumn`), Manual assist, Components.
+  Inherited cells hold `FormMain.FROM_TAPE` ("(comp)") for text or null for checkboxes and
+  draw grey; left-click a checkbox overrides, right-click resets. The run loop reads rows ONLY
+  through `JobRowMethod(row)` (vocabulary: Place / Place Fast / Place Assisted / Fiducials /
+  ? / Pause / Change Nozzle / Recalibrate), `JobRowSkipped`, `JobRowNozzle`, `JobRowUseUpCam`,
+  `JobRowUpCamAlgorithm`, `JobRowManualAssist`, `JobRowFindFast`, `JobRowIsFiducials`.
+  `SetJobRowComponent` / `SetJobRowStep` are the only writers of a row's kind.
+- `.lpj` format "2026": 12 quoted CSV fields per row in the column order above; inherited
+  cells saved as "" (checkbox) or "(comp)" (text). Older formats are refused.
 - Panelize (`PanelizeForm`) replaces CAD data; the single-board rows and fiducial list are kept
   on `MainForm.SingleBoardCadRows` / `SingleBoardFiducials` so it can be re-run. Job row
   settings survive the job-grid rebuild via a value+footprint keyed snapshot.

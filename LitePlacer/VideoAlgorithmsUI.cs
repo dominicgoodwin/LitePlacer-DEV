@@ -446,11 +446,10 @@ namespace LitePlacer
             // Fiducials on the job table
             foreach (DataGridViewRow row in JobData_GridView.Rows)
             {
-                // legacy rows that still hold the fiducial algorithm in the Parameter cell
-                object pv = row.Cells["JobdataMethodParametersColumn"].Value;
+                object pv = row.Cells["PlacementParameterColumn"].Value;
                 if ((pv != null) && (pv.ToString() == OldName))
                 {
-                    row.Cells["JobdataMethodParametersColumn"].Value = NewName;
+                    row.Cells["PlacementParameterColumn"].Value = NewName;
                 }
             }
             // Tapes data table
@@ -544,9 +543,9 @@ namespace LitePlacer
             bool ret = false;
             for (int i = 0; i < JobData_GridView.RowCount; i++)
             {
-                if (JobData_GridView.Rows[i].Cells["JobdataMethodParametersColumn"].Value != null)
+                if (JobData_GridView.Rows[i].Cells["PlacementParameterColumn"].Value != null)
                 {
-                    if (JobData_GridView.Rows[i].Cells["JobdataMethodParametersColumn"].Value.ToString() == Alg)
+                    if (JobData_GridView.Rows[i].Cells["PlacementParameterColumn"].Value.ToString() == Alg)
                     {
                         DisplayText("Algorithm \"" + Alg + "\" used in Job data, row " + (i + 1).ToString());
                         ret = true;
@@ -596,11 +595,11 @@ namespace LitePlacer
             // Job data
             for (int i = 0; i < JobData_GridView.RowCount; i++)
             {
-                if (JobData_GridView.Rows[i].Cells["JobdataMethodParametersColumn"].Value != null)
+                if (JobData_GridView.Rows[i].Cells["PlacementParameterColumn"].Value != null)
                 {
-                    if (JobData_GridView.Rows[i].Cells["JobdataMethodParametersColumn"].Value.ToString() == Alg)
+                    if (JobData_GridView.Rows[i].Cells["PlacementParameterColumn"].Value.ToString() == Alg)
                     {
-                        JobData_GridView.Rows[i].Cells["JobdataMethodParametersColumn"].Value = VideoAlgorithms.AllAlgorithms[0].Name;
+                        JobData_GridView.Rows[i].Cells["PlacementParameterColumn"].Value = FormMain.FROM_TAPE;
                     }
                 }
             }
