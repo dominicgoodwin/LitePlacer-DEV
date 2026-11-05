@@ -43,6 +43,8 @@
             this.Ignore_button = new System.Windows.Forms.Button();
             this.label6 = new System.Windows.Forms.Label();
             this.Fiducials_button = new System.Windows.Forms.Button();
+            this.AbortJob_button = new System.Windows.Forms.Button();
+            this.AbortJob_label = new System.Windows.Forms.Label();
             this.label7 = new System.Windows.Forms.Label();
             this.Pause_button = new System.Windows.Forms.Button();
             this.UpdateJobGrid_checkBox = new System.Windows.Forms.CheckBox();
@@ -190,7 +192,7 @@
             this.Ignore_button.Visible = false;
             this.Ignore_button.Size = new System.Drawing.Size(181, 28);
             this.Ignore_button.TabIndex = 8;
-            this.Ignore_button.Text = "Ignore";
+            this.Ignore_button.Text = "Skip row";
             this.Ignore_button.UseVisualStyleBackColor = true;
             this.Ignore_button.Click += new System.EventHandler(this.Ignore_button_Click);
             // 
@@ -204,6 +206,25 @@
             this.label6.Size = new System.Drawing.Size(149, 16);
             this.label6.TabIndex = 11;
             this.label6.Text = "Fiducials are on this row";
+            // 
+            // AbortJob_label
+            // 
+            this.AbortJob_label.AutoSize = true;
+            this.AbortJob_label.Location = new System.Drawing.Point(149, 378);
+            this.AbortJob_label.Name = "AbortJob_label";
+            this.AbortJob_label.Size = new System.Drawing.Size(120, 16);
+            this.AbortJob_label.Text = "Stop the whole job";
+            // 
+            // AbortJob_button
+            // 
+            this.AbortJob_button.Location = new System.Drawing.Point(317, 372);
+            this.AbortJob_button.Margin = new System.Windows.Forms.Padding(4);
+            this.AbortJob_button.Name = "AbortJob_button";
+            this.AbortJob_button.Size = new System.Drawing.Size(181, 28);
+            this.AbortJob_button.TabIndex = 32;
+            this.AbortJob_button.Text = "Abort job";
+            this.AbortJob_button.UseVisualStyleBackColor = true;
+            this.AbortJob_button.Click += new System.EventHandler(this.AbortJob_button_Click);
             // 
             // Fiducials_button
             // 
@@ -431,6 +452,8 @@
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.Place_button);
+            this.Controls.Add(this.AbortJob_button);
+            this.Controls.Add(this.AbortJob_label);
             this.Controls.Add(this.FromTape_button);
             this.Controls.Add(this.FromTape_label);
             this.Controls.Add(this.Question_button);
@@ -448,6 +471,8 @@
 
 		private System.Windows.Forms.Button Question_button;
 		private System.Windows.Forms.Button FromTape_button;
+		private System.Windows.Forms.Button AbortJob_button;
+		private System.Windows.Forms.Label AbortJob_label;
 		private System.Windows.Forms.Label FromTape_label;
 		private System.Windows.Forms.Button Place_button;
 		private System.Windows.Forms.Label label1;

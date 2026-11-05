@@ -8024,9 +8024,14 @@ namespace LitePlacer
                         }
                     }
                 } while (UserHasNotDecided);
-                if (string.IsNullOrEmpty(SelectedMethod))
+                if (string.IsNullOrEmpty(SelectedMethod) || (SelectedMethod == "Abort"))
                 {
-                    return false;   // user pressed x
+                    // Abort job button, or dialog closed with X: stop the whole run, leave the row as "?"
+                    MethodDialog.Dispose();
+                    AbortPlacement = true;
+                    AbortPlacementShown = true;
+                    DisplayText("Job aborted by operator", KnownColor.DarkRed, true);
+                    return false;
                 }
                 // Put the values to JobData_GridView
                 if (SelectedMethod == "Place")

@@ -30,6 +30,8 @@ namespace LitePlacer
 			label2.Visible = ShowCheckBox;
 			Ignore_button.Visible = ShowCheckBox;
 			label5.Visible = ShowCheckBox;
+			AbortJob_button.Visible = ShowCheckBox;
+			AbortJob_label.Visible = ShowCheckBox;
 			if (ShowCheckBox)
 			{
 				// The form is raised at run time, because method was ?. That can't be selected again.
@@ -42,6 +44,12 @@ namespace LitePlacer
 		private void UpdateJobGrid_checkBox_CheckedChanged(object sender, EventArgs e)
 		{
             MainForm.Setting.Placement_UpdateJobGridAtRuntime = UpdateJobGrid_checkBox.Checked;
+		}
+
+		private void AbortJob_button_Click(object sender, EventArgs e)
+		{
+			 MainForm.SelectedMethod = "Abort";
+			 this.Close();
 		}
 
 		private void FromTape_button_Click(object sender, EventArgs e)
