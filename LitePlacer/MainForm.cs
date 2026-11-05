@@ -361,6 +361,7 @@ namespace LitePlacer
             // ======== Tape Positions tab:
 
             LoadTapesTable(path + TAPES_DATAFILE);
+            CheckJobComponentsExist();
 
             // ======== Nozzles Setup tab:
 
@@ -7016,6 +7017,21 @@ namespace LitePlacer
 
 
         // =================================================================================
+        // Warn about job rows whose component is not in the component table (after both are loaded).
+        private void CheckJobComponentsExist()
+        {
+            for (int i = 0; i < JobData_GridView.RowCount; i++)
+            {
+                string Id = JobRowTapeId(i);
+                if ((Id != "") && (Tapes.FindTapeRow(Id) < 0))
+                {
+                    DisplayText("Job row " + JobData_GridView.Rows[i].Cells["JobDataValueColumn"].Value + ", "
+                        + JobData_GridView.Rows[i].Cells["JobDataFootprintColumn"].Value
+                        + ": component \"" + Id + "\" is not in the component table", KnownColor.DarkRed, true);
+                }
+            }
+        }
+
         private static string CellText(DataGridViewRow R, string Col)
         {
             object v = R.Cells[Col].Value;
@@ -7068,14 +7084,14 @@ namespace LitePlacer
                 R.Cells["PlacementParameterColumn"].Value = (Line[9] == "") ? FROM_TAPE : Line[9];
                 R.Cells["JobManualAssistColumn"].Value = CheckFromText(Line[10]);
                 R.Cells["JobdataComponentsColumn"].Value = Line[11];
-                if ((Line[3] != "") && (Tapes.FindTapeRow(Line[3]) < 0))
-                {
-                    DisplayText("Job row " + Line[1] + ", " + Line[2] + ": component \"" + Line[3] + "\" is not in the component table", KnownColor.DarkRed, true);
-                }
             }
 
             JobData_GridView.ClearSelection();
             Update_GridView(JobData_GridView);
+            if (!StartingUp)
+            {
+                CheckJobComponentsExist();
+            }
             return true;
         }
 
