@@ -44,8 +44,9 @@ namespace LitePlacer
             // obtained with debugger.
             Grid.Size = new Size(1250 - GridSizeXtrim, 875 - GridSizeYtrim);
 
-			// Add a CellClick handler to handle clicks in the button column.
+			// Add a CellClick handler to handle clicks in the button column, and double-click anywhere on a row.
 			Grid.CellClick += new DataGridViewCellEventHandler(Grid_CellClick);
+			Grid.CellDoubleClick += new DataGridViewCellEventHandler(Grid_CellDoubleClick);
 		}
 
 		private void ResizeGrid()
@@ -61,6 +62,7 @@ namespace LitePlacer
             }
             Grid.Size = GridSizeSave;
 			Grid.CellClick -= new DataGridViewCellEventHandler(Grid_CellClick);
+			Grid.CellDoubleClick -= new DataGridViewCellEventHandler(Grid_CellDoubleClick);
 			this.Close();
 		}
 
@@ -82,6 +84,12 @@ namespace LitePlacer
 			MainForm.Setting.Placement_UpdateJobGridAtRuntime = UpdateJobData_checkBox.Checked;
 		}
 
+		private void Grid_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+		{
+			if (e.RowIndex < 0) return;
+			SelectRow(e.RowIndex);
+		}
+
 		private void Grid_CellClick(object sender, DataGridViewCellEventArgs e)
 		{
 			// Ignore clicks that are not on button cell  Id_Column
@@ -89,6 +97,12 @@ namespace LitePlacer
 			{
 				return;
 			}
+			SelectRow(e.RowIndex);
+		}
+
+		private void SelectRow(int RowIndex)
+		{
+			DataGridViewCellEventArgs e = new DataGridViewCellEventArgs(0, RowIndex);
 			ID = Grid.Rows[e.RowIndex].Cells["Id_Column"].Value.ToString();
             if (Grid.Rows[e.RowIndex].Cells["Nozzle_Column"].Value == null)
             {
