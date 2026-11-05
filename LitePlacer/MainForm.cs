@@ -8333,7 +8333,6 @@ namespace LitePlacer
             double Y_machine = 0;
             double A_machine = 0;
             string Method = "";
-            string MethodParameter = "";
 
             if (Component != "--") // if component exists:
             {
