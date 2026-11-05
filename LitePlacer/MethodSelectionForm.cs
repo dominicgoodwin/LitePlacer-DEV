@@ -24,7 +24,7 @@ namespace LitePlacer
 
         private void MethodSelectionForm_Load(object sender, EventArgs e)
 		{
-			UpdateJobGrid_checkBox.Visible = ShowCheckBox;
+			UpdateJobGrid_checkBox.Visible = false;
 			// "Choose component" only makes sense at run time; on the job page the Component column does that.
 			Place_button.Visible = ShowCheckBox;
 			label2.Visible = ShowCheckBox;
@@ -38,13 +38,8 @@ namespace LitePlacer
 				Question_button.Enabled = false;
 				this.Text = "Place " + HeaderString;
 			}
-			UpdateJobGrid_checkBox.Checked = MainForm.Setting.Placement_UpdateJobGridAtRuntime;
 		}
 
-		private void UpdateJobGrid_checkBox_CheckedChanged(object sender, EventArgs e)
-		{
-            MainForm.Setting.Placement_UpdateJobGridAtRuntime = UpdateJobGrid_checkBox.Checked;
-		}
 
 		private void AbortJob_button_Click(object sender, EventArgs e)
 		{

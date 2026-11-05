@@ -7961,9 +7961,6 @@ namespace LitePlacer
 
             string[] Components;  // This array has the list of components to place:
             string NewID = "";
-            bool RestoreRow = false;
-            // RestoreRow: If we'll replace the jobdata row with new data at the end. 
-            // There isn't any new data, unless method is "?".
 
             if (JobRowSkipped(RowNo))
             {
@@ -7971,18 +7968,10 @@ namespace LitePlacer
                 return true;
             }
 
-            // If the Step is "?", ask the user what to do:
-            DataGridViewRow tempRow = (DataGridViewRow)JobData_GridView.Rows[RowNo].Clone();
+            // If the Step is "?", ask the user what to do. The answer is stored in the job grid:
+            // this dialog is how the job table gets filled in on the first run.
             if (JobRowMethod(RowNo) == "?")
             {
-                // We'll now get new data from the user. By default, we don't mess with the data we have
-                // So, take a copy of current row
-                RestoreRow = true;
-                for (int i = 0; i < tempRow.Cells.Count; i++)
-                {
-                    tempRow.Cells[i].Value = JobData_GridView.Rows[RowNo].Cells[i].Value;
-                }
-
                 // Ask for a component (or a process step)
                 bool UserHasNotDecided = false;
                 MethodSelectionForm MethodDialog = new MethodSelectionForm(this);
@@ -7992,19 +7981,11 @@ namespace LitePlacer
                     MethodDialog.ShowCheckBox = true;
                     MethodDialog.HeaderString = CurrentGroup_label.Text;
                     MethodDialog.ShowDialog(this);
-                    if (Setting.Placement_UpdateJobGridAtRuntime)
-                    {
-                        RestoreRow = false;
-                    };
                     if (SelectedMethod == "Place")
                     {
                         // pick the component
                         NewID = SelectTape("Select component for " + JobData_GridView.Rows[RowNo].Cells["JobDataValueColumn"].Value.ToString()
                             + ", " + JobData_GridView.Rows[RowNo].Cells["JobDataFootprintColumn"].Value.ToString());
-                        if (!Setting.Placement_UpdateJobGridAtRuntime)
-                        {
-                            RestoreRow = true;   // In case user unselected it at the component selection dialog
-                        };
                         if (NewID == "none")
                         {
                             UserHasNotDecided = true; // User did select "Place", but didn't select a component, we'll ask again.
@@ -8020,7 +8001,6 @@ namespace LitePlacer
                             NewID = "";
                             AbortPlacement = true;
                             AbortPlacementShown = true;
-                            RestoreRow = true;		// something went astray, keep step at "?"
                         }
                     }
                 } while (UserHasNotDecided);
@@ -8175,14 +8155,6 @@ namespace LitePlacer
             Tapes.FastParametersOk = false;
 
             // restore the row if needed
-            if (RestoreRow)
-            {
-                for (int i = 0; i < tempRow.Cells.Count; i++)
-                {
-                    JobData_GridView.Rows[RowNo].Cells[i].Value = tempRow.Cells[i].Value;
-                }
-                Update_GridView(JobData_GridView);
-            };
 
             JobData_GridView.Rows[RowNo].Selected = false;
             return ReturnValue;

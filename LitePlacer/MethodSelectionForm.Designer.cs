@@ -269,7 +269,6 @@
             this.UpdateJobGrid_checkBox.TabIndex = 14;
             this.UpdateJobGrid_checkBox.Text = "Update Job Data";
             this.UpdateJobGrid_checkBox.UseVisualStyleBackColor = true;
-            this.UpdateJobGrid_checkBox.CheckedChanged += new System.EventHandler(this.UpdateJobGrid_checkBox_CheckedChanged);
             // 
             // ManualUpCam_button
             // 
