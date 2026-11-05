@@ -119,12 +119,25 @@ namespace LitePlacer
             DialogForm.Button3Txt = str3;
             MessageboxDone = false;
             DialogForm.Show(this);
-            this.Focus();   // get focus back to main screen, saving the user a click
-
-            while (!MessageboxDone)
+            // The wait loop below pumps messages, so the main window would stay fully live while a
+            // placement is suspended: a Home click (for instance) would run in the middle of the
+            // placement and the placement would then carry on from the home position. Keep the main
+            // window disabled while this dialog is up; the dialog is owned, not modal, so it stays usable.
+            bool WasEnabled = this.Enabled;
+            this.Enabled = false;
+            DialogForm.Focus();
+            try
             {
-                Thread.Sleep(1);
-                Application.DoEvents();
+                while (!MessageboxDone)
+                {
+                    Thread.Sleep(1);
+                    Application.DoEvents();
+                }
+            }
+            finally
+            {
+                this.Enabled = WasEnabled;
+                this.Focus();
             }
             return NonModalMessageBox_result;
         }
@@ -162,6 +175,7 @@ namespace LitePlacer
             string path = GetPath();
             Setting = new MySettings();
             Setting.MainForm = this;
+            OpenLogFile();
             Setting = Setting.Load(path + APPLICATIONSETTINGS_DATAFILE);
             if (Setting == null)
             {
@@ -405,6 +419,7 @@ namespace LitePlacer
             {
                 UpCamera.Close();
             }
+            CloseLogFile();
             for (int i = 0; i < 20; i++)
             {
                 Thread.Sleep(2);
@@ -5186,6 +5201,38 @@ namespace LitePlacer
             _DisplayTxt(txt);
         }
 
+        // Everything shown in the log window is also written to LitePlacer.log next to the program,
+        // truncated at each start, flushed per line (so it is complete after a crash).
+        private StreamWriter LogFile = null;
+        private readonly object LogFileLock = new object();
+
+        private void OpenLogFile()
+        {
+            try
+            {
+                LogFile = new StreamWriter(System.IO.Path.Combine(Application.StartupPath, "LitePlacer.log"), false);
+                LogFile.AutoFlush = true;
+                LogFile.WriteLine("LitePlacer log, started " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            }
+            catch (Exception excep)
+            {
+                LogFile = null;
+                _DisplayTxt("Could not open LitePlacer.log: " + excep.Message);
+            }
+        }
+
+        private void CloseLogFile()
+        {
+            lock (LogFileLock)
+            {
+                if (LogFile != null)
+                {
+                    try { LogFile.Close(); } catch { }
+                    LogFile = null;
+                }
+            }
+        }
+
         public void _DisplayTxt(string txt)
         {
             if (InvokeRequired) { Invoke(new Action<string>(_DisplayTxt), new[] { txt }); return; }
@@ -5194,6 +5241,13 @@ namespace LitePlacer
             {
                 txt = txt.Replace("\n", "");
                 txt = txt.Replace("\r", "");
+                lock (LogFileLock)
+                {
+                    if (LogFile != null)
+                    {
+                        try { LogFile.WriteLine(DateTime.Now.ToString("HH:mm:ss.fff") + " " + txt); } catch { }
+                    }
+                }
                 // TinyG sends \n, textbox needs \r\n. (TinyG could be set to send \n\r, which does not work with textbox.)
                 // Adding end of line here saves typing elsewhere
                 txt = txt + "\r\n";
