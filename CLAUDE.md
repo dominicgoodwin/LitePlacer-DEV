@@ -34,8 +34,7 @@ and customer CAD data out of the repo.
 - The Tapes tab is the **component** table. Columns: ID, `Source_Column` (Tape / Loose /
   Fiducial), Down cam alg. (`Type_Column`: holes for Tape, the part for Loose, fiducials for
   Fiducial), `FindFast_Column`, Nozzle, `UpCamAlg_Column` ("--" or algorithm), `UseUpCam_Column`,
-  `ManualAssist_Column`, then tape geometry. `Method_Column` is hidden/legacy and only seeds
-  FindFast when an old tapes file is loaded. Algorithm combos are rebuilt per row
+  `ManualAssist_Column`, then tape geometry. Algorithm combos are rebuilt per row
   (`FillAlgorithmSelectionBox` for Type, `RefreshUpCamAlgCombos` for UpCamAlg) after load and
   after algorithm add/remove/rename. `EnsureLooseSourceRow()` migrates the old global pickup
   location into a Loose row named `LOOSE_SOURCE_ID`; `EnsureFiducialSourceRow()` creates a

@@ -125,7 +125,6 @@
             this.Orientation_Column = new System.Windows.Forms.DataGridViewComboBoxColumn();
             this.Nozzle_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Source_Column = new System.Windows.Forms.DataGridViewComboBoxColumn();
-            this.Method_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.FindFast_Column = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             this.UpCamAlg_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.UseUpCam_Column = new System.Windows.Forms.DataGridViewCheckBoxColumn();
@@ -2097,14 +2096,6 @@
             this.Source_Column.Name = "Source_Column";
             this.Source_Column.ToolTipText = "Tape: parts in a tape, found by the holes. Loose: one part at a time at First X/Y, found by the down cam algorithm. Fiducial: board fiducials, found by the down cam algorithm";
             this.Source_Column.Width = 60;
-            // 
-            // Method_Column
-            // 
-            this.Method_Column.HeaderText = "Method";
-            this.Method_Column.MinimumWidth = 6;
-            this.Method_Column.Name = "Method_Column";
-            this.Method_Column.Visible = false;
-            this.Method_Column.Width = 6;
             // 
             // FindFast_Column
             // 
@@ -12222,7 +12213,6 @@
         private System.Windows.Forms.DataGridViewComboBoxColumn Orientation_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn Nozzle_Column;
         private System.Windows.Forms.DataGridViewComboBoxColumn Source_Column;
-        private System.Windows.Forms.DataGridViewTextBoxColumn Method_Column;   // legacy, hidden: seeds FindFast on load
         private System.Windows.Forms.DataGridViewCheckBoxColumn FindFast_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn UpCamAlg_Column;
         private System.Windows.Forms.DataGridViewCheckBoxColumn UseUpCam_Column;

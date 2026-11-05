@@ -1296,9 +1296,7 @@ namespace LitePlacer
                 }
                 if (Row.Cells["FindFast_Column"].Value == null || Row.Cells["FindFast_Column"].Value.ToString() == "")
                 {
-                    // seed from the legacy Method column if present, else default to fast
-                    object m = Row.Cells["Method_Column"].Value;
-                    Row.Cells["FindFast_Column"].Value = (m == null) || (m.ToString() != "Place");
+                    Row.Cells["FindFast_Column"].Value = true;
                 }
                 if (Row.Cells["UpCamAlg_Column"].Value == null || Row.Cells["UpCamAlg_Column"].Value.ToString() == "")
                 {
