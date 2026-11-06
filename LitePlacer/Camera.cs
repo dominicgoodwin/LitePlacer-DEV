@@ -547,6 +547,11 @@ namespace LitePlacer
                         f.parameter_int = usage;
                         break;
 
+                    case "Find holes":
+                        f.func = FindHolesFunct;
+                        f.parameter_int = usage;
+                        break;
+
                     default:
                         continue;
                         // break; 
@@ -1344,6 +1349,78 @@ namespace LitePlacer
             //HoughCircle[] circles = circleTransform.GetCirclesByRelativeIntensity(par_d);
         }
 
+
+        // =========================================================
+        // Find holes: rim-based circle finder (see HoleFinder.cs). Replaces the frame with a black image
+        // carrying a white disc per accepted hole, so "Search round" measures a clean circle.
+        // par_int: usage (1 = measurement, 2 = display) -- set by BuildFunctionsList, not the user.
+        // par_d: hole diameter, mm. par_dA: size tolerance, %. par_dB: min. rim coverage, %. par_dC: max. rim gap, %.
+        private void FindHolesFunct(ref Bitmap frame, int par_int, double par_d, int par_R, int par_G, int par_B,
+            double par_dA, double par_dB, double par_dC)
+        {
+            int width = frame.Width;
+            int height = frame.Height;
+            double zoom = (par_int == 2) ? GetProcessingZoom() : GetMeasurementZoom();
+            if (zoom < 0.1) zoom = 1.0;
+            double mmPerPixel = XmmPerPixel / zoom;
+            if (mmPerPixel <= 0.0)
+            {
+                mmPerPixel = 0.03 / zoom;   // camera not calibrated yet; a typical value
+            }
+            double ExpectedRadius = (par_d / 2.0) / mmPerPixel;
+            double tolerance = par_dA / 100.0;
+            double minCoverage = par_dB / 100.0;
+            double maxGap = par_dC / 100.0;
+            if (tolerance <= 0.0) tolerance = 0.15;
+            if (minCoverage <= 0.0) minCoverage = 0.70;
+            if (maxGap <= 0.0) maxGap = 0.20;
+
+            // Grey bytes, stride == width
+            Bitmap grey = Grayscale.CommonAlgorithms.RMY.Apply(frame);
+            byte[] pixels = new byte[width * height];
+            BitmapData data = grey.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadOnly, PixelFormat.Format8bppIndexed);
+            try
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    System.Runtime.InteropServices.Marshal.Copy(data.Scan0 + y * data.Stride, pixels, y * width, width);
+                }
+            }
+            finally
+            {
+                grey.UnlockBits(data);
+            }
+            grey.Dispose();
+
+            List<HoleFinder.Hole> holes = HoleFinder.Find(pixels, width, height, ExpectedRadius, tolerance, minCoverage, maxGap);
+
+            // Output image
+            Bitmap result = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+            using (Graphics g = Graphics.FromImage(result))
+            {
+                g.Clear(Color.Black);
+                g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                foreach (HoleFinder.Hole h in holes)
+                {
+                    if (!h.Accepted) continue;
+                    float r = (float)h.Radius;
+                    g.FillEllipse(Brushes.White, (float)h.X - r, (float)h.Y - r, 2 * r, 2 * r);
+                }
+            }
+            frame = result;
+
+            if (par_int == 1)
+            {
+                MainForm.DisplayText("Find holes: expected r=" + ExpectedRadius.ToString("0.0") + " px, "
+                    + holes.Count.ToString() + " candidates:");
+                foreach (HoleFinder.Hole h in holes)
+                {
+                    MainForm.DisplayText("  (" + h.X.ToString("0.0") + ", " + h.Y.ToString("0.0") + ") r=" + h.Radius.ToString("0.0")
+                        + " coverage=" + (h.Coverage * 100).ToString("0") + "% gap=" + (h.MaxGap * 100).ToString("0") + "%"
+                        + (h.Accepted ? " OK" : " rejected"));
+                }
+            }
+        }
 
         // =========================================================
         private void KillColor_Func(ref Bitmap frame, int par_int, double par_d, int par_R, int par_G, int par_B,

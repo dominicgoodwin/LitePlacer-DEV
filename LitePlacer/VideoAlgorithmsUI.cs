@@ -34,7 +34,7 @@ namespace LitePlacer
         enum Functions_dataGridViewColumns : int { FunctionColumn, ActiveColumn };
         public List<string> KnownFunctions = new List<string> {"Threshold", "Invert", "Meas. zoom", "Histogram",
             "Grayscale", "Edge detect", "Noise reduction", "Erosion", "Kill color", "Keep color", "Blur",
-            "Gaussian blur", "Hough circles", "Filter Features by Size", "Jog before measurement"};
+            "Gaussian blur", "Hough circles", "Find holes", "Filter Features by Size", "Jog before measurement"};
 
 
         public VideoAlgorithmsCollection VideoAlgorithms;
@@ -1024,6 +1024,13 @@ namespace LitePlacer
                     funct.parameterInt = 128;
                     break;
 
+                case "Find holes":
+                    funct.parameterDouble = 1.5;    // hole diameter, mm
+                    funct.parameterDoubleA = 15.0;  // size tolerance, %
+                    funct.parameterDoubleB = 70.0;  // min. rim coverage, %
+                    funct.parameterDoubleC = 20.0;  // max. rim gap, %
+                    break;
+
                 case "Jog before measurement":
                     break;		// no parameters
 
@@ -1136,6 +1143,18 @@ namespace LitePlacer
                     EnableDouble("Intensity:");
                     FunctionExplanation_textBox.Text = "Finds partial circles with specified diameter.\r\n"
                         + "Result intensity correlates to match quality.";
+                    FunctionExplanation_textBox.Visible = true;
+                    break;
+
+                case "Find holes":
+                    EnableDouble("Diameter (mm):");
+                    EnableDoubleA("Size tol. %:");
+                    EnableDoubleB("Min rim %:");
+                    EnableDoubleC("Max gap %:");
+                    FunctionExplanation_textBox.Text = "Finds tape holes of the given diameter from the circular edge at the rim,\r\n"
+                        + "whatever shows through the hole and without a grey threshold. Outputs a white disc per hole;\r\n"
+                        + "tick 'Search round' and set size limits. Put it after any Meas. zoom step.\r\n"
+                        + "Min rim: % of the rim that must have an edge. Max gap: largest missing % of rim allowed.";
                     FunctionExplanation_textBox.Visible = true;
                     break;
 
