@@ -2474,6 +2474,53 @@ namespace LitePlacer
 
         public Bitmap GetMeasurementFrame()
         {
+            if (!WaitForFrameCopy())
+            {
+                return null;
+            }
+
+            lock (MeasurementFrameLock)
+            {
+                ApplyMeasurementFunctions(ref MeasurementFrame);
+            }
+            return MeasurementFrame;
+        }
+
+        // Grabs a frame from the stream and returns a copy of it with no processing applied.
+        // Used to save frames for offline algorithm development.
+        public Bitmap GetRawFrame()
+        {
+            if (!WaitForFrameCopy())
+            {
+                return null;
+            }
+            lock (MeasurementFrameLock)
+            {
+                return (Bitmap)MeasurementFrame.Clone();
+            }
+        }
+
+        // Runs the current MeasurementFunctions list over an image, in place.
+        public void ApplyMeasurementFunctions(ref Bitmap image)
+        {
+            if (MeasurementFunctions == null)
+            {
+                return;
+            }
+            lock (MeasurementFunctionsLock)
+            {
+                foreach (AForgeFunction f in MeasurementFunctions)
+                {
+                    f.func(ref image, f.parameter_int, f.parameter_double, f.R, f.G, f.B,
+                        f.parameter_doubleA, f.parameter_doubleB, f.parameter_doubleC);
+                }
+            }
+        }
+
+        // Asks Video_NewFrame() for a copy of the next frame and waits for it (max. 4 s).
+        // On return true, MeasurementFrame holds the copy.
+        private bool WaitForFrameCopy()
+        {
             if (JoggingRequested)
             {
                 ManualJogFunc();
@@ -2502,24 +2549,9 @@ namespace LitePlacer
                 // failed!
                 CopyFrame = false;
                 MainForm.DisplayText("*** GetMeasurementFrame() failed!", KnownColor.Purple);
-                return null;
+                return false;
             }
-
-            lock (MeasurementFrameLock)
-            {
-                if (MeasurementFunctions != null)
-                {
-                    lock (MeasurementFunctionsLock)
-                    {
-                        foreach (AForgeFunction f in MeasurementFunctions)
-                        {
-                            f.func(ref MeasurementFrame, f.parameter_int, f.parameter_double, f.R, f.G, f.B,
-                                f.parameter_doubleA, f.parameter_doubleB, f.parameter_doubleC);
-                        }
-                    }
-                }
-            }
-            return MeasurementFrame;
+            return true;
         }
 
         // Since the measured image might be zoomed in, we need the value, so that we can convert to real measurements (public for debug)

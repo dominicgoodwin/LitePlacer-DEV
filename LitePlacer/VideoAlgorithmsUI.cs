@@ -769,6 +769,65 @@ namespace LitePlacer
             cam.Measure(out double X, out double Y, out double Ares, true);
         }
 
+        // Saves the current camera frame to <exe folder>\Frames, both raw and after the current
+        // algorithm's processing steps, for offline algorithm development.
+        private void SaveFrame_button_Click(object sender, EventArgs e)
+        {
+            Camera cam = UpCamera;
+            string camName = "upcam";
+            if (DownCam_radioButton.Checked)
+            {
+                cam = DownCamera;
+                camName = "downcam";
+            }
+            if (!cam.IsRunning())
+            {
+                DisplayText("Camera is not running, no frame to save.", KnownColor.DarkRed, true);
+                return;
+            }
+            cam.BuildMeasurementFunctionsList(VideoAlgorithms.CurrentAlgorithm.FunctionList);
+            cam.MeasurementParameters = VideoAlgorithms.CurrentAlgorithm.MeasurementParameters;
+
+            Bitmap raw = cam.GetRawFrame();
+            if (raw == null)
+            {
+                DisplayText("Could not get a frame from the camera.", KnownColor.DarkRed, true);
+                return;
+            }
+            Bitmap processed = (Bitmap)raw.Clone();
+            cam.ApplyMeasurementFunctions(ref processed);
+
+            string algName = VideoAlgorithms.CurrentAlgorithm.Name;
+            foreach (char c in Path.GetInvalidFileNameChars())
+            {
+                algName = algName.Replace(c, '_');
+            }
+            algName = algName.Replace(' ', '_');
+            string folder = Path.Combine(Application.StartupPath, "Frames");
+            string stem = algName + "_" + camName + "_" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            try
+            {
+                Directory.CreateDirectory(folder);
+                raw.Save(Path.Combine(folder, stem + "_raw.png"), ImageFormat.Png);
+                processed.Save(Path.Combine(folder, stem + "_proc.png"), ImageFormat.Png);
+            }
+            catch (Exception ex)
+            {
+                DisplayText("Saving frame failed: " + ex.Message, KnownColor.DarkRed, true);
+                return;
+            }
+            finally
+            {
+                raw.Dispose();
+                processed.Dispose();
+            }
+            DisplayText("Saved " + Path.Combine(folder, stem) + "_raw.png / _proc.png; "
+                + camName + " mm/pixel X=" + cam.XmmPerPixel.ToString("0.00000", CultureInfo.InvariantCulture)
+                + " Y=" + cam.YmmPerPixel.ToString("0.00000", CultureInfo.InvariantCulture)
+                + ", meas. zoom=" + cam.GetMeasurementZoom().ToString("0.0#", CultureInfo.InvariantCulture)
+                + ", algorithm \"" + VideoAlgorithms.CurrentAlgorithm.Name + "\"");
+        }
+
         private void Measure10x_button_Click(object sender, EventArgs e)
         {
             if (DownCam_radioButton.Checked)
