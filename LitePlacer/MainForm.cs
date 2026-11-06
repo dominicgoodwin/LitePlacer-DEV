@@ -120,11 +120,23 @@ namespace LitePlacer
             MessageboxDone = false;
             DialogForm.Show(this);
             this.Focus();   // get focus back to main screen, saving the user a click
-
-            while (!MessageboxDone)
+            // The wait loop below pumps messages, so the main window stays live: that is wanted (look at
+            // the camera, edit the algorithm, then Retry), but a Home or Place click would run in the
+            // middle of the suspended placement. PlacementSuspended makes MovementIsBusy_m() and the
+            // job buttons refuse until the dialog is answered.
+            bool WasSuspended = PlacementSuspended;
+            PlacementSuspended = true;
+            try
             {
-                Thread.Sleep(1);
-                Application.DoEvents();
+                while (!MessageboxDone)
+                {
+                    Thread.Sleep(1);
+                    Application.DoEvents();
+                }
+            }
+            finally
+            {
+                PlacementSuspended = WasSuspended;
             }
             return NonModalMessageBox_result;
         }
@@ -162,6 +174,7 @@ namespace LitePlacer
             string path = GetPath();
             Setting = new MySettings();
             Setting.MainForm = this;
+            OpenLogFile();
             Setting = Setting.Load(path + APPLICATIONSETTINGS_DATAFILE);
             if (Setting == null)
             {
@@ -347,6 +360,7 @@ namespace LitePlacer
             // ======== Tape Positions tab:
 
             LoadTapesTable(path + TAPES_DATAFILE);
+            CheckJobComponentsExist();
 
             // ======== Nozzles Setup tab:
 
@@ -405,6 +419,7 @@ namespace LitePlacer
             {
                 UpCamera.Close();
             }
+            CloseLogFile();
             for (int i = 0; i < 20; i++)
             {
                 Thread.Sleep(2);
@@ -1223,6 +1238,9 @@ namespace LitePlacer
                         }
                         LoadingDataGrid = false;
                         FillAlgorithmSelectionBox(Tapes_dataGridView, "Type_Column");
+                        FillTapeRecipeDefaults();
+                        EnsureLooseSourceRow();
+                        RefreshUpCamAlgCombos();
                     }
                     else
                     {
@@ -1272,6 +1290,167 @@ namespace LitePlacer
         {
             LoadDataGrid(Filename, Grid, DataTableType.Tapes);
             FillAlgorithmSelectionBox(Grid, "Type_Column");
+            FillTapeRecipeDefaults();
+            EnsureLooseSourceRow();
+            RefreshUpCamAlgCombos();
+        }
+
+        // =================================================================================
+        // Tape "recipe" columns: Method, Type (down cam alg.), UpCamAlg, UseUpCam, ManualAssist, Nozzle.
+        // Older tapes files don't have the new ones; give them sensible defaults.
+        public const string NO_UPCAM_ALG = "--";
+
+        private void FillTapeRecipeDefaults()
+        {
+            foreach (DataGridViewRow Row in Tapes_dataGridView.Rows)
+            {
+                if (Row.IsNewRow) continue;
+                if (Row.Cells["Source_Column"].Value == null || Row.Cells["Source_Column"].Value.ToString() == "")
+                {
+                    Row.Cells["Source_Column"].Value = "Tape";
+                }
+                if (Row.Cells["FindFast_Column"].Value == null || Row.Cells["FindFast_Column"].Value.ToString() == "")
+                {
+                    Row.Cells["FindFast_Column"].Value = true;
+                }
+                if (Row.Cells["UpCamAlg_Column"].Value == null || Row.Cells["UpCamAlg_Column"].Value.ToString() == "")
+                {
+                    Row.Cells["UpCamAlg_Column"].Value = NO_UPCAM_ALG;
+                }
+                if (Row.Cells["UseUpCam_Column"].Value == null || Row.Cells["UseUpCam_Column"].Value.ToString() == "")
+                {
+                    Row.Cells["UseUpCam_Column"].Value = true;
+                }
+                if (Row.Cells["ManualAssist_Column"].Value == null || Row.Cells["ManualAssist_Column"].Value.ToString() == "")
+                {
+                    Row.Cells["ManualAssist_Column"].Value = false;
+                }
+            }
+        }
+
+        public const string LOOSE_SOURCE_ID = "Loose";
+
+        public bool TapeIsLoose(int TapeNo)
+        {
+            object v = Tapes_dataGridView.Rows[TapeNo].Cells["Source_Column"].Value;
+            return (v != null) && (v.ToString() == "Loose");
+        }
+
+        public bool TapeIsFiducial(int TapeNo)
+        {
+            object v = Tapes_dataGridView.Rows[TapeNo].Cells["Source_Column"].Value;
+            return (v != null) && (v.ToString() == "Fiducial");
+        }
+
+        public const string FIDUCIAL_SOURCE_ID = "Fiducial";
+
+        // Fiducials are a component with Source = Fiducial; its down cam algorithm finds them.
+        // Returns the row of the component named Id (created if missing, with algorithm AlgName).
+        private int EnsureFiducialSourceRow(string Id, string AlgName)
+        {
+            int r = Tapes.FindTapeRow(Id);
+            if (r >= 0) return r;
+            DisplayText("Creating feeder \"" + Id + "\" (Source = Fiducial, algorithm " + AlgName + ")");
+            Tapes_dataGridView.Rows.Add();
+            int index = Tapes_dataGridView.Rows.Count - 1;
+            DataGridViewRow R = Tapes_dataGridView.Rows[index];
+            R.Cells["Id_Column"].Value = Id;
+            R.Cells["Source_Column"].Value = "Fiducial";
+            R.Cells["Orientation_Column"].Value = "+X";
+            R.Cells["Rotation_Column"].Value = "0deg.";
+            R.Cells["Width_Column"].Value = "custom";
+            R.Cells["Pitch_Column"].Value = "0";
+            R.Cells["OffsetX_Column"].Value = "0";
+            R.Cells["OffsetY_Column"].Value = "0";
+            R.Cells["FirstX_Column"].Value = "0";
+            R.Cells["FirstY_Column"].Value = "0";
+            R.Cells["NextPart_Column"].Value = "1";
+            R.Cells["Next_X_Column"].Value = "0";
+            R.Cells["Next_Y_Column"].Value = "0";
+            R.Cells["Z_Pickup_Column"].Value = "--";
+            R.Cells["Z_Place_Column"].Value = "--";
+            R.Cells["RotationDirect_Column"].Value = "0.00";
+            R.Cells["CoordinatesForParts_Column"].Value = false;
+            R.Cells["UseNozzleCoordinates_Column"].Value = false;
+            R.Cells["Nozzle_Column"].Value = "0";
+            R.Cells["FindFast_Column"].Value = false;
+            R.Cells["UseUpCam_Column"].Value = false;
+            R.Cells["ManualAssist_Column"].Value = false;
+            DataGridViewComboBoxCell c = new DataGridViewComboBoxCell();
+            BuildAlgorithmsCombox(out c);
+            R.Cells["Type_Column"] = c;
+            R.Cells["Type_Column"].Value = VideoAlgorithms.AlgorithmExists(AlgName) ? AlgName : VideoAlgorithms.AllAlgorithms[0].Name;
+            DataGridViewComboBoxCell uc = new DataGridViewComboBoxCell();
+            uc.Items.Add(NO_UPCAM_ALG);
+            foreach (VideoAlgorithmsCollection.FullAlgorithmDescription Alg in VideoAlgorithms.AllAlgorithms) uc.Items.Add(Alg.Name);
+            R.Cells["UpCamAlg_Column"] = uc;
+            R.Cells["UpCamAlg_Column"].Value = NO_UPCAM_ALG;
+            return index;
+        }
+
+        // Loose parts used to be picked from a single global location (Setting.General_PickupCenterX/Y)
+        // with job method "LoosePart". They are now a tape row with Source = Loose. If there is no Loose
+        // row yet, make one from the old setting so existing jobs keep working.
+        private void EnsureLooseSourceRow()
+        {
+            if (Tapes == null) return;
+            if (Tapes.FindTapeRow(LOOSE_SOURCE_ID) >= 0) return;
+            foreach (DataGridViewRow Row in Tapes_dataGridView.Rows)
+            {
+                if (!Row.IsNewRow && TapeIsLoose(Row.Index)) return;   // some loose row exists under another name
+            }
+            DisplayText("Creating feeder \"" + LOOSE_SOURCE_ID + "\" (Source = Loose) from the loose part pickup location setting");
+            Tapes_dataGridView.Rows.Add();
+            int index = Tapes_dataGridView.Rows.Count - 1;
+            if (Tapes_dataGridView.AllowUserToAddRows) index--;
+            DataGridViewRow R = Tapes_dataGridView.Rows[index];
+            R.Cells["Id_Column"].Value = LOOSE_SOURCE_ID;
+            R.Cells["Source_Column"].Value = "Loose";
+            R.Cells["Orientation_Column"].Value = "+X";
+            R.Cells["Rotation_Column"].Value = "0deg.";
+            R.Cells["Width_Column"].Value = "custom";
+            R.Cells["Pitch_Column"].Value = "0";
+            R.Cells["OffsetX_Column"].Value = "0";
+            R.Cells["OffsetY_Column"].Value = "0";
+            R.Cells["FirstX_Column"].Value = Setting.General_PickupCenterX.ToString("0.000", CultureInfo.InvariantCulture);
+            R.Cells["FirstY_Column"].Value = Setting.General_PickupCenterY.ToString("0.000", CultureInfo.InvariantCulture);
+            R.Cells["NextPart_Column"].Value = "1";
+            R.Cells["Next_X_Column"].Value = R.Cells["FirstX_Column"].Value;
+            R.Cells["Next_Y_Column"].Value = R.Cells["FirstY_Column"].Value;
+            R.Cells["Z_Pickup_Column"].Value = "--";
+            R.Cells["Z_Place_Column"].Value = "--";
+            R.Cells["RotationDirect_Column"].Value = "0.00";
+            R.Cells["CoordinatesForParts_Column"].Value = false;
+            R.Cells["UseNozzleCoordinates_Column"].Value = false;
+            R.Cells["Nozzle_Column"].Value = Setting.Nozzles_default.ToString(CultureInfo.InvariantCulture);
+            R.Cells["FindFast_Column"].Value = false;
+            R.Cells["UseUpCam_Column"].Value = true;
+            R.Cells["ManualAssist_Column"].Value = false;
+            DataGridViewComboBoxCell c = new DataGridViewComboBoxCell();
+            BuildAlgorithmsCombox(out c);
+            R.Cells["Type_Column"] = c;
+            R.Cells["Type_Column"].Value = VideoAlgorithms.AllAlgorithms[0].Name;
+            R.Cells["UpCamAlg_Column"].Value = NO_UPCAM_ALG;
+        }
+
+        // Rebuild the up cam algorithm dropdown on every tape row: "--" plus the current algorithm list.
+        // Called after the algorithm list changes (load, add, remove, rename).
+        public void RefreshUpCamAlgCombos()
+        {
+            foreach (DataGridViewRow Row in Tapes_dataGridView.Rows)
+            {
+                if (Row.IsNewRow) continue;
+                object v = Row.Cells["UpCamAlg_Column"].Value;
+                string Current = (v == null) ? NO_UPCAM_ALG : v.ToString();
+                DataGridViewComboBoxCell c = new DataGridViewComboBoxCell();
+                c.Items.Add(NO_UPCAM_ALG);
+                foreach (VideoAlgorithmsCollection.FullAlgorithmDescription Alg in VideoAlgorithms.AllAlgorithms)
+                {
+                    c.Items.Add(Alg.Name);
+                }
+                Row.Cells["UpCamAlg_Column"] = c;
+                Row.Cells["UpCamAlg_Column"].Value = c.Items.Contains(Current) ? Current : NO_UPCAM_ALG;
+            }
         }
         private void FillAlgorithmSelectionBox(System.Windows.Forms.DataGridView Grid, string ColumnName)
         {
@@ -1492,8 +1671,18 @@ namespace LitePlacer
             Grid.Refresh();
         }
 
+        // True while a placement is suspended in a Retry/Cancel dialog. The main window stays live
+        // (so the camera view and the algorithm editor can be used to see why a measurement failed),
+        // but nothing that moves the machine or starts a job is allowed until the dialog is answered.
+        public bool PlacementSuspended = false;
+
         public bool MovementIsBusy_m()
         {
+            if (PlacementSuspended)
+            {
+                DisplayText("A placement is waiting for Retry/Cancel; answer that first", KnownColor.DarkRed, true);
+                return true;
+            }
             if (JoggingBusy || StartingUp || CNCstarting)
             {
                 DisplayText("Other operations are underway, please try again", KnownColor.DarkGreen, true);
@@ -5022,6 +5211,38 @@ namespace LitePlacer
             _DisplayTxt(txt);
         }
 
+        // Everything shown in the log window is also written to LitePlacer.log next to the program,
+        // truncated at each start, flushed per line (so it is complete after a crash).
+        private StreamWriter LogFile = null;
+        private readonly object LogFileLock = new object();
+
+        private void OpenLogFile()
+        {
+            try
+            {
+                LogFile = new StreamWriter(System.IO.Path.Combine(Application.StartupPath, "LitePlacer.log"), false);
+                LogFile.AutoFlush = true;
+                LogFile.WriteLine("LitePlacer log, started " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            }
+            catch (Exception excep)
+            {
+                LogFile = null;
+                _DisplayTxt("Could not open LitePlacer.log: " + excep.Message);
+            }
+        }
+
+        private void CloseLogFile()
+        {
+            lock (LogFileLock)
+            {
+                if (LogFile != null)
+                {
+                    try { LogFile.Close(); } catch { }
+                    LogFile = null;
+                }
+            }
+        }
+
         public void _DisplayTxt(string txt)
         {
             if (InvokeRequired) { Invoke(new Action<string>(_DisplayTxt), new[] { txt }); return; }
@@ -5030,6 +5251,13 @@ namespace LitePlacer
             {
                 txt = txt.Replace("\n", "");
                 txt = txt.Replace("\r", "");
+                lock (LogFileLock)
+                {
+                    if (LogFile != null)
+                    {
+                        try { LogFile.WriteLine(DateTime.Now.ToString("HH:mm:ss.fff") + " " + txt); } catch { }
+                    }
+                }
                 // TinyG sends \n, textbox needs \r\n. (TinyG could be set to send \n\r, which does not work with textbox.)
                 // Adding end of line here saves typing elsewhere
                 txt = txt + "\r\n";
@@ -6744,7 +6972,7 @@ namespace LitePlacer
             }
         }
 
-        private const string JobdataVersion = "2022";
+        private const string JobdataVersion = "2026";
 
         private bool SaveJobData(string filename, bool tempfile = false)
         {
@@ -6765,25 +6993,24 @@ namespace LitePlacer
                     }
                     f.WriteLine(JobdataVersion);  // used in ParseJobData()
 
-                    // for each row in job datagrid,
+                    // for each row in job datagrid: count, value, footprint, component, step, skip, find fast,
+                    // nozzle, use up cam, up cam alg, manual assist, components. Inherited cells are written
+                    // as "" (checkboxes) or "(comp)" (text) so they stay inherited when read back.
                     for (int i = 0; i < JobData_GridView.RowCount; i++)
                     {
-                        OutLine = "\"" + JobData_GridView.Rows[i].Cells["JobdataCountColumn"].Value.ToString() + "\"";
-                        OutLine += ",\"" + JobData_GridView.Rows[i].Cells["JobDataValueColumn"].Value.ToString() + "\"";
-                        OutLine += ",\"" + JobData_GridView.Rows[i].Cells["JobDataFootprintColumn"].Value.ToString() + "\"";
-                        OutLine += ",\"" + JobData_GridView.Rows[i].Cells["JobdataMethodColumn"].Value.ToString() + "\"";
-                        OutLine += ",\"" + JobData_GridView.Rows[i].Cells["JobdataMethodParametersColumn"].Value.ToString() + "\"";
-                        OutLine += ",\"" + JobData_GridView.Rows[i].Cells["PlacementMethodColumn"].Value.ToString() + "\"";
-                        OutLine += ",\"" + JobData_GridView.Rows[i].Cells["PlacementParameterColumn"].Value.ToString() + "\"";
-                        OutLine += ",\"" + JobData_GridView.Rows[i].Cells["JobdataComponentsColumn"].Value.ToString() + "\"";
-                        if (JobData_GridView.Rows[i].Cells["JobDataNozzleColumn"].Value != null)
-                        {
-                            OutLine += ",\"" + JobData_GridView.Rows[i].Cells["JobDataNozzleColumn"].Value.ToString() + "\"";
-                        }
-                        else
-                        {
-                            OutLine += ",\"" + "\"";
-                        }
+                        DataGridViewRow R = JobData_GridView.Rows[i];
+                        OutLine = "\"" + CellText(R, "JobdataCountColumn") + "\"";
+                        OutLine += ",\"" + CellText(R, "JobDataValueColumn") + "\"";
+                        OutLine += ",\"" + CellText(R, "JobDataFootprintColumn") + "\"";
+                        OutLine += ",\"" + CellText(R, "JobdataTapeColumn") + "\"";
+                        OutLine += ",\"" + CellText(R, "JobdataMethodColumn") + "\"";
+                        OutLine += ",\"" + CellText(R, "JobSkipColumn") + "\"";
+                        OutLine += ",\"" + CellText(R, "JobFindFastColumn") + "\"";
+                        OutLine += ",\"" + CellText(R, "JobDataNozzleColumn") + "\"";
+                        OutLine += ",\"" + CellText(R, "JobUseUpCamColumn") + "\"";
+                        OutLine += ",\"" + CellText(R, "PlacementParameterColumn") + "\"";
+                        OutLine += ",\"" + CellText(R, "JobManualAssistColumn") + "\"";
+                        OutLine += ",\"" + CellText(R, "JobdataComponentsColumn") + "\"";
                         f.WriteLine(OutLine);
                     }
                     return true;
@@ -6799,121 +7026,84 @@ namespace LitePlacer
 
 
         // =================================================================================
+        // Warn about job rows whose component is not in the component table (after both are loaded).
+        private void CheckJobComponentsExist()
+        {
+            for (int i = 0; i < JobData_GridView.RowCount; i++)
+            {
+                string Id = JobRowTapeId(i);
+                if ((Id != "") && (Tapes.FindTapeRow(Id) < 0))
+                {
+                    DisplayText("Job row " + JobData_GridView.Rows[i].Cells["JobDataValueColumn"].Value + ", "
+                        + JobData_GridView.Rows[i].Cells["JobDataFootprintColumn"].Value
+                        + ": feeder \"" + Id + "\" is not in the Feeders table", KnownColor.DarkRed, true);
+                }
+            }
+        }
+
+        private static string CellText(DataGridViewRow R, string Col)
+        {
+            object v = R.Cells[Col].Value;
+            return (v == null) ? "" : v.ToString();
+        }
+
+        private static object CheckFromText(string t)
+        {
+            if (t == "") return null;           // inherited
+            return t.ToLowerInvariant() == "true";
+        }
+
         private bool ParseJobData(String[] AllLines)
         {
             JobData_GridView.Rows.Clear();
-            string WarningMessage = "";
             bool quit = false;
-            if (AllLines[0] == "2022")
+            if (AllLines[0] != JobdataVersion)
             {
-                // format is ComponentCount, value, footprint, (pickup)Method, parameters, placement method, placement parameters, ComponentList, nozzle
-                for (int i = 1; i < AllLines.Length; i++)
-                {
-                    List<String> Line = SplitCSV(AllLines[i], ',', out quit);
-                    if (quit)
-                    {
-                        return false;
-                    }
-                    JobData_GridView.Rows.Add();
-                    int Last = JobData_GridView.RowCount - 1;
-                    JobData_GridView.Rows[Last].Cells["JobdataCountColumn"].Value = Line[0];
-                    JobData_GridView.Rows[Last].Cells["JobDataValueColumn"].Value = Line[1];
-                    JobData_GridView.Rows[Last].Cells["JobDataFootprintColumn"].Value = Line[2];
-                    JobData_GridView.Rows[Last].Cells["JobdataMethodColumn"].Value = Line[3];
-                    JobData_GridView.Rows[Last].Cells["JobdataMethodParametersColumn"].Value = Line[4];
-                    JobData_GridView.Rows[Last].Cells["PlacementMethodColumn"].Value = Line[5];
-                    JobData_GridView.Rows[Last].Cells["JobdataComponentsColumn"].Value = Line[7];
-                    JobData_GridView.Rows[Last].Cells["JobDataNozzleColumn"].Value = Line[8];
-                    JobData_GridView.Rows[Last].Cells["PlacementParameterColumn"].Value = Line[6];
-                }
+                ShowMessageBox(
+                    "This job file was written by an older version (" + AllLines[0] + ") and can't be read.\n" +
+                    "Load the CAD file again and set up the job.",
+                    "Old job file", MessageBoxButtons.OK);
+                return false;
             }
-            else if (AllLines[0] == "2020")
+            // format: count, value, footprint, component, step, skip, find fast, nozzle, use up cam, up cam alg, manual assist, components
+            for (int i = 1; i < AllLines.Length; i++)
             {
-                // format is ComponentCount value footprint GroupMethod MethodParamAllComponents ComponentList nozzle
-                for (int i = 1; i < AllLines.Length; i++)
+                if (AllLines[i].Trim() == "") continue;
+                List<String> Line = SplitCSV(AllLines[i], ',', out quit);
+                if (quit)
                 {
-                    List<String> Line = SplitCSV(AllLines[i], ',', out quit);
-                    if (quit)
-                    {
-                        return false;
-                    }
-                    JobData_GridView.Rows.Add();
-                    int Last = JobData_GridView.RowCount - 1;
-                    JobData_GridView.Rows[Last].Cells["JobdataCountColumn"].Value = Line[0];
-                    JobData_GridView.Rows[Last].Cells["JobDataValueColumn"].Value = Line[1];
-                    JobData_GridView.Rows[Last].Cells["JobDataFootprintColumn"].Value = Line[2];
-                    JobData_GridView.Rows[Last].Cells["JobdataMethodColumn"].Value = Line[3];
-                    JobData_GridView.Rows[Last].Cells["JobdataMethodParametersColumn"].Value = Line[4];
-                    JobData_GridView.Rows[Last].Cells["JobdataComponentsColumn"].Value = Line[5];
-                    JobData_GridView.Rows[Last].Cells["JobDataNozzleColumn"].Value = Line[6];
-                    JobData_GridView.Rows[Last].Cells["PlacementMethodColumn"].Value = "--";
-                    JobData_GridView.Rows[Last].Cells["PlacementParameterColumn"].Value = VideoAlgorithms.AllAlgorithms[0].Name;
+                    return false;
                 }
-            }
-            else
-            {
-                // format is ComponentCount ComponentType GroupMethod MethodParamAllComponents ComponentList nozzle
-                int LineNo = 1;
-                foreach (string LineIn in AllLines)
+                if (Line.Count < 12)
                 {
-                    List<String> Line = SplitCSV(LineIn, ',', out quit);
-                    if (quit)
-                    {
-                        return false;
-                    }
-                    JobData_GridView.Rows.Add();
-                    int Last = JobData_GridView.RowCount - 1;
-                    JobData_GridView.Rows[Last].Cells["JobdataCountColumn"].Value = Line[0];
-                    string ComponentType = Line[1];
-                    if (ComponentType.Contains(" | "))
-                    {
-                        int i = ComponentType.IndexOf('|');
-                        JobData_GridView.Rows[Last].Cells["JobDataValueColumn"].Value = ComponentType.Substring(0, i - 2);
-                        JobData_GridView.Rows[Last].Cells["JobDataFootprintColumn"].Value = 
-                            ComponentType.Substring(i + 3, ComponentType.Length - i - 3);
-
-                    }
-                    JobData_GridView.Rows[Last].Cells["JobdataMethodColumn"].Value = Line[2];
-                    if (Line[2] == "Fiducials")
-                    {
-                        // Does the saved algorithm stil exist?
-                        string AlgName = Line[3];
-                        if (VideoAlgorithms.AlgorithmExists(AlgName))
-                        {
-                            JobData_GridView.Rows[Last].Cells["JobdataMethodParametersColumn"].Value = AlgName;
-                        }
-                        else
-                        {
-                            WarningMessage = WarningMessage + "Algorithm " + AlgName + " used on job data file " +
-                                "as a parameter for method " + Line[2] + " does not exist.\n\r";
-                            JobData_GridView.Rows[Last].Cells["JobdataMethodParametersColumn"].Value = "--";
-                        }
-                    }
-                    else
-                    {
-                        JobData_GridView.Rows[Last].Cells["JobdataMethodParametersColumn"].Value = Line[3];
-                    }
-                    JobData_GridView.Rows[Last].Cells["JobdataComponentsColumn"].Value = Line[4];
-                    if (Line.Count>5)
-                    {
-                        JobData_GridView.Rows[Last].Cells["JobDataNozzleColumn"].Value = Line[5];
-                    }
-                    JobData_GridView.Rows[Last].Cells["PlacementMethodColumn"].Value = "--";
-                    JobData_GridView.Rows[Last].Cells["PlacementParameterColumn"].Value = VideoAlgorithms.AllAlgorithms[0].Name;
-                    LineNo++;
+                    DisplayText("Job file line " + i.ToString() + ": expected 12 fields, got " + Line.Count.ToString(), KnownColor.DarkRed, true);
+                    return false;
                 }
+                JobData_GridView.Rows.Add();
+                DataGridViewRow R = JobData_GridView.Rows[JobData_GridView.RowCount - 1];
+                R.Cells["JobdataCountColumn"].Value = Line[0];
+                R.Cells["JobDataValueColumn"].Value = Line[1];
+                R.Cells["JobDataFootprintColumn"].Value = Line[2];
+                R.Cells["JobdataTapeColumn"].Value = Line[3];
+                R.Cells["JobdataMethodColumn"].Value = Line[4];
+                R.Cells["JobSkipColumn"].Value = (Line[5].ToLowerInvariant() == "true");
+                R.Cells["JobFindFastColumn"].Value = CheckFromText(Line[6]);
+                R.Cells["JobDataNozzleColumn"].Value = (Line[7] == "") ? FROM_TAPE : Line[7];
+                R.Cells["JobUseUpCamColumn"].Value = CheckFromText(Line[8]);
+                R.Cells["PlacementParameterColumn"].Value = (Line[9] == "") ? FROM_TAPE : Line[9];
+                R.Cells["JobManualAssistColumn"].Value = CheckFromText(Line[10]);
+                R.Cells["JobdataComponentsColumn"].Value = Line[11];
             }
 
             JobData_GridView.ClearSelection();
             Update_GridView(JobData_GridView);
+            if (!StartingUp)
+            {
+                CheckJobComponentsExist();
+            }
             return true;
         }
 
-        // =================================================================================
-        // JobData_GridView and CadData_GridView handling
-        // JobData_GridView has the components of same type grouped to one component type per line.
-        // Public, as it is called from panelize process, too.
-        // =================================================================================
         public void FillJobData_GridView()
         {
             string CurrentComponentValue = "";
@@ -6945,11 +7135,9 @@ namespace LitePlacer
                     OutRow.Cells["JobdataCountColumn"].Value = "1";
                     OutRow.Cells["JobDataValueColumn"].Value = CurrentComponentValue;
                     OutRow.Cells["JobDataFootprintColumn"].Value = CurrentComponentFootprint;
-                    OutRow.Cells["JobdataMethodColumn"].Value = "?";
-                    OutRow.Cells["JobdataMethodParametersColumn"].Value = "--";
                     OutRow.Cells["JobdataComponentsColumn"].Value = InRow.Cells["CADdataComponentColumn"].Value.ToString();
-                    OutRow.Cells["PlacementMethodColumn"].Value = "--";
-                    OutRow.Cells["PlacementParameterColumn"].Value = VideoAlgorithms.AllAlgorithms[0].Name;
+                    // No component yet: a "?" step until one is chosen
+                    SetJobRowStep(OutRow.Index, "?");
                 }
                 else
                 {
@@ -6968,17 +7156,8 @@ namespace LitePlacer
 
         public void FillDefaultJobValues()
         {
-            foreach (DataGridViewRow JobRow in JobData_GridView.Rows)
-            {
-                if (JobRow.Cells["JobdataMethodColumn"].Value.ToString() != "Fiducials")
-                {
-                    JobRow.Cells["JobdataMethodColumn"].Value = "Place Fast";
-                    if (Setting.Nozzles_Enabled)
-                    {
-                        JobRow.Cells["JobDataNozzleColumn"].Value = Setting.Nozzles_default.ToString(CultureInfo.InvariantCulture);
-                    }
-                }
-            }
+            // Rows start as "?" (choose a component). Nothing to fill in: every placement setting
+            // comes from the component once one is chosen.
         }
 
 
@@ -7038,12 +7217,8 @@ namespace LitePlacer
             JobData_GridView.Rows[index].Cells["JobDataValueColumn"].Value = "--";
             JobData_GridView.Rows[index].Cells["JobDataFootprintColumn"].Value = "--";
             JobData_GridView.Rows[index].Cells["JobdataCountColumn"].Value = "--";
-            JobData_GridView.Rows[index].Cells["JobdataMethodColumn"].Value = "?";
-            JobData_GridView.Rows[index].Cells["JobdataMethodParametersColumn"].Value = "--";
-            JobData_GridView.Rows[index].Cells["JobDataNozzleColumn"].Value = Setting.Nozzles_default.ToString();
             JobData_GridView.Rows[index].Cells["JobdataComponentsColumn"].Value = "--";
-            JobData_GridView.Rows[index].Cells["PlacementMethodColumn"].Value = "--";
-            JobData_GridView.Rows[index].Cells["PlacementParameterColumn"].Value = VideoAlgorithms.AllAlgorithms[0].Name;
+            SetJobRowStep(index, "?");
         }
 
         private void AddCadDataRow_button_Click(object sender, EventArgs e)
@@ -7109,17 +7284,315 @@ namespace LitePlacer
         public string SelectedMethod { get; set; }
         public string PlacementMethod { get; set; }
 
+        // =================================================================================
+        // Job rows and components.
+        //
+        // A job row either names a component (JobdataTapeColumn: a row of the Tapes tab, which is the
+        // component table: Source = Tape / Loose / Fiducial) or is a process step (component blank;
+        // Step = "?", "Pause", "Change Nozzle", "Recalibrate").
+        //
+        // For a component row, Find fast / Nozzle / Use up cam / Up cam alg. / Manual assist are taken
+        // from the component unless the cell holds an override. An inherited cell holds FROM_TAPE
+        // (text cells) or null (checkbox cells) and is drawn grey; the run loop reads everything
+        // through the Resolve* functions below, never the cells directly.
+        public const string FROM_TAPE = "(feeder)";
+
+        // Vocabulary of JobRowMethod(), which the run loop switches on:
+        //   "Place", "Place Fast", "Place Assisted" (component rows; Place Assisted = manual assist on),
+        //   "Fiducials" (component with Source = Fiducial), "?", "Pause", "Change Nozzle", "Recalibrate".
+
+        public static readonly string[] ProcessSteps = { "?", "Pause", "Change Nozzle", "Recalibrate" };
+
+        private static readonly string[] InheritedTextColumns = { "JobDataNozzleColumn", "PlacementParameterColumn" };
+        private static readonly string[] InheritedCheckColumns = { "JobFindFastColumn", "JobUseUpCamColumn", "JobManualAssistColumn" };
+
+        // Component row for a job row, or -1. Silent.
+        private int JobRowTape(int row)
+        {
+            object idObj = JobData_GridView.Rows[row].Cells["JobdataTapeColumn"].Value;
+            if ((idObj == null) || (Tapes == null)) return -1;
+            return Tapes.FindTapeRow(idObj.ToString());
+        }
+
+        public string JobRowTapeId(int row)
+        {
+            object v = JobData_GridView.Rows[row].Cells["JobdataTapeColumn"].Value;
+            return (v == null) ? "" : v.ToString();
+        }
+
+        public bool JobRowHasComponent(int row)
+        {
+            return JobRowTapeId(row) != "";
+        }
+
+        private static bool CellIsTrue(DataGridViewCell c)
+        {
+            object v = c.Value;
+            if (v == null) return false;
+            if (v is bool) return (bool)v;
+            return v.ToString().ToLowerInvariant() == "true";
+        }
+
+        private string TapeCellString(int TapeNo, string Column)
+        {
+            object v = Tapes_dataGridView.Rows[TapeNo].Cells[Column].Value;
+            return (v == null) ? "" : v.ToString();
+        }
+
+        public bool JobRowIsFiducials(int row)
+        {
+            int t = JobRowTape(row);
+            return (t >= 0) && TapeIsFiducial(t);
+        }
+
+        public bool JobRowSkipped(int row)
+        {
+            return CellIsTrue(JobData_GridView.Rows[row].Cells["JobSkipColumn"]);
+        }
+
+        // Down cam algorithm of the fiducials row's component.
+        public string JobRowFiducialAlgorithm(int row)
+        {
+            int t = JobRowTape(row);
+            return (t >= 0) ? TapeCellString(t, "Type_Column") : "";
+        }
+
+        // Checkbox with inheritance: null = from component.
+        private bool ResolveJobCheck(int row, string JobColumn, string TapeColumn)
+        {
+            object v = JobData_GridView.Rows[row].Cells[JobColumn].Value;
+            if (v != null)
+            {
+                return CellIsTrue(JobData_GridView.Rows[row].Cells[JobColumn]);
+            }
+            int t = JobRowTape(row);
+            return (t >= 0) && CellIsTrue(Tapes_dataGridView.Rows[t].Cells[TapeColumn]);
+        }
+
+        public bool JobRowFindFast(int row) { return ResolveJobCheck(row, "JobFindFastColumn", "FindFast_Column"); }
+        public bool JobRowManualAssist(int row) { return ResolveJobCheck(row, "JobManualAssistColumn", "ManualAssist_Column"); }
+
+        public string JobRowUpCamAlgorithm(int row)
+        {
+            object v = JobData_GridView.Rows[row].Cells["PlacementParameterColumn"].Value;
+            string s = (v == null) ? FROM_TAPE : v.ToString();
+            if (s != FROM_TAPE) return s;
+            int t = JobRowTape(row);
+            string Alg = (t >= 0) ? TapeCellString(t, "UpCamAlg_Column") : "";
+            return (Alg == "") ? NO_UPCAM_ALG : Alg;
+        }
+
+        // Use up cam is only meaningful with an algorithm
+        public bool JobRowUseUpCam(int row)
+        {
+            string Alg = JobRowUpCamAlgorithm(row);
+            if ((Alg == "") || (Alg == NO_UPCAM_ALG)) return false;
+            return ResolveJobCheck(row, "JobUseUpCamColumn", "UseUpCam_Column");
+        }
+
+        // Nozzle number, or 0 for "program default"
+        public int JobRowNozzle(int row)
+        {
+            object v = JobData_GridView.Rows[row].Cells["JobDataNozzleColumn"].Value;
+            string s = (v == null) ? FROM_TAPE : v.ToString();
+            if (s == FROM_TAPE)
+            {
+                int t = JobRowTape(row);
+                s = (t >= 0) ? TapeCellString(t, "Nozzle_Column") : "";
+            }
+            int n;
+            return int.TryParse(s, out n) ? n : 0;
+        }
+
+        // What the run loop does with this row. See the vocabulary above.
+        public string JobRowMethod(int row)
+        {
+            int t = JobRowTape(row);
+            if (t < 0)
+            {
+                object v = JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value;
+                string Step = (v == null) ? "?" : v.ToString();
+                return (Array.IndexOf(ProcessSteps, Step) >= 0) ? Step : "?";
+            }
+            if (TapeIsFiducial(t)) return "Fiducials";
+            if (JobRowManualAssist(row)) return "Place Assisted";
+            return (JobRowFindFast(row) && !TapeIsLoose(t)) ? "Place Fast" : "Place";
+        }
+
+        // Make a row a component row: set the component, clear every override.
+        private void SetJobRowComponent(int row, string ComponentId)
+        {
+            JobData_GridView.Rows[row].Cells["JobdataTapeColumn"].Value = ComponentId;
+            JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value = "";
+            foreach (string col in InheritedTextColumns) JobData_GridView.Rows[row].Cells[col].Value = FROM_TAPE;
+            foreach (string col in InheritedCheckColumns) JobData_GridView.Rows[row].Cells[col].Value = null;
+        }
+
+        // Make a row a process step row.
+        private void SetJobRowStep(int row, string Step)
+        {
+            JobData_GridView.Rows[row].Cells["JobdataTapeColumn"].Value = "";
+            JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value = Step;
+            foreach (string col in InheritedTextColumns) JobData_GridView.Rows[row].Cells[col].Value = "";
+            foreach (string col in InheritedCheckColumns) JobData_GridView.Rows[row].Cells[col].Value = null;
+        }
+
+        // Make a job row the fiducials row (default Fiducial component, created if needed).
+        public void AssignFiducialComponent(int row)
+        {
+            int t = JobRowTape(row);
+            if ((t >= 0) && TapeIsFiducial(t))
+            {
+                SetJobRowComponent(row, JobRowTapeId(row));
+                return;
+            }
+            string DefaultAlg = VideoAlgorithms.AlgorithmExists("Fiducials") ? "Fiducials" : VideoAlgorithms.AllAlgorithms[0].Name;
+            EnsureFiducialSourceRow(FIDUCIAL_SOURCE_ID, DefaultAlg);
+            SetJobRowComponent(row, FIDUCIAL_SOURCE_ID);
+        }
+
+        // Drawing: inherited cells show the component's value in grey; Step on component rows is derived.
+        private void JobData_GridView_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if ((e.RowIndex < 0) || (e.ColumnIndex < 0) || StartingUp || LoadingDataGrid)
+            {
+                return;
+            }
+            string Col = JobData_GridView.Columns[e.ColumnIndex].Name;
+            int row = e.RowIndex;
+            bool HasComp = JobRowHasComponent(row);
+
+            if (Col == "JobdataMethodColumn")
+            {
+                if (HasComp)
+                {
+                    e.Value = JobRowMethod(row) + " " + FROM_TAPE;
+                    e.CellStyle.ForeColor = Color.Gray;
+                    e.FormattingApplied = true;
+                }
+                return;
+            }
+            if (Array.IndexOf(InheritedCheckColumns, Col) >= 0)
+            {
+                if (!HasComp)
+                {
+                    e.Value = false;
+                    e.CellStyle.BackColor = SystemColors.ControlLight;
+                    e.FormattingApplied = true;
+                    return;
+                }
+                if (e.Value == null)
+                {
+                    switch (Col)
+                    {
+                        case "JobFindFastColumn": e.Value = JobRowFindFast(row); break;
+                        case "JobUseUpCamColumn": e.Value = ResolveJobCheck(row, "JobUseUpCamColumn", "UseUpCam_Column"); break;
+                        case "JobManualAssistColumn": e.Value = JobRowManualAssist(row); break;
+                    }
+                    e.CellStyle.BackColor = SystemColors.ControlLight;   // grey background = inherited
+                    e.FormattingApplied = true;
+                }
+                return;
+            }
+            if (Array.IndexOf(InheritedTextColumns, Col) >= 0)
+            {
+                if (!HasComp)
+                {
+                    e.Value = "";
+                    e.FormattingApplied = true;
+                    return;
+                }
+                if ((e.Value != null) && (e.Value.ToString() == FROM_TAPE))
+                {
+                    string Resolved = (Col == "JobDataNozzleColumn")
+                        ? ((JobRowNozzle(row) == 0) ? Setting.Nozzles_default.ToString(CultureInfo.InvariantCulture) : JobRowNozzle(row).ToString(CultureInfo.InvariantCulture))
+                        : JobRowUpCamAlgorithm(row);
+                    e.Value = Resolved + " " + FROM_TAPE;
+                    e.CellStyle.ForeColor = Color.Gray;
+                    e.FormattingApplied = true;
+                }
+            }
+        }
+
+        // Right-click on an inherited-capable cell of a component row: back to "from component".
+        private void JobData_GridView_CellMouseDown(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if ((e.Button != MouseButtons.Right) || (e.RowIndex < 0) || (e.ColumnIndex < 0)) return;
+            string Col = JobData_GridView.Columns[e.ColumnIndex].Name;
+            if (!JobRowHasComponent(e.RowIndex)) return;
+            if (Array.IndexOf(InheritedCheckColumns, Col) >= 0)
+            {
+                MakeJobDataDirty();
+                JobData_GridView.Rows[e.RowIndex].Cells[Col].Value = null;
+                JobData_GridView.InvalidateRow(e.RowIndex);
+            }
+            else if (Array.IndexOf(InheritedTextColumns, Col) >= 0)
+            {
+                MakeJobDataDirty();
+                JobData_GridView.Rows[e.RowIndex].Cells[Col].Value = FROM_TAPE;
+                JobData_GridView.InvalidateRow(e.RowIndex);
+            }
+        }
+
+        // Left-click on a checkbox of a component row: override with the opposite of the current value.
+        // (Handled here rather than by the grid's own toggle, because an inherited cell holds null.)
+        private bool JobGrid_HandleCheckClick(int row, string Col)
+        {
+            if (Array.IndexOf(InheritedCheckColumns, Col) < 0 && Col != "JobSkipColumn") return false;
+            if (Col == "JobSkipColumn")
+            {
+                MakeJobDataDirty();
+                JobData_GridView.Rows[row].Cells[Col].Value = !CellIsTrue(JobData_GridView.Rows[row].Cells[Col]);
+                JobData_GridView.InvalidateRow(row);
+                return true;
+            }
+            if (!JobRowHasComponent(row)) return true;   // meaningless on a step row
+            bool Current;
+            switch (Col)
+            {
+                case "JobFindFastColumn": Current = JobRowFindFast(row); break;
+                case "JobUseUpCamColumn": Current = ResolveJobCheck(row, "JobUseUpCamColumn", "UseUpCam_Column"); break;
+                default: Current = JobRowManualAssist(row); break;
+            }
+            MakeJobDataDirty();
+            JobData_GridView.Rows[row].Cells[Col].Value = !Current;
+            JobData_GridView.InvalidateRow(row);
+            return true;
+        }
+
         private void JobData_GridView_CellClick(object sender, DataGridViewCellEventArgs e)
         {
-            if (e.RowIndex == -1)
+            if ((e.RowIndex < 0) || (e.ColumnIndex < 0))
             {
                 // user clicked header, most likely to sort for nozzles
                 return;
             }
+            int row = e.RowIndex;
+            string Col = JobData_GridView.Columns[e.ColumnIndex].Name;
 
-            if (JobData_GridView.CurrentCell.OwningColumn.Name == "JobdataMethodColumn")
+            if (Col == "JobdataTapeColumn")
             {
-                // For method, show a form with explanation texts
+                // Component: pick one from the component table. Everything on the row then follows it.
+                MakeJobDataDirty();
+                string Id = SelectTape("Select feeder for " + JobData_GridView.Rows[row].Cells["JobDataValueColumn"].Value.ToString()
+                    + ", " + JobData_GridView.Rows[row].Cells["JobDataFootprintColumn"].Value.ToString());
+                if (Id == "none")
+                {
+                    return;     // user closed it
+                }
+                SetJobRowComponent(row, Id);
+                JobData_GridView.ClearSelection();
+                Update_GridView(JobData_GridView);
+                return;
+            }
+
+            if (Col == "JobdataMethodColumn")
+            {
+                if (JobRowHasComponent(row))
+                {
+                    return;     // derived from the component; change the component instead
+                }
+                // Process step row: choose the step
                 MakeJobDataDirty();
                 MethodSelectionForm MethodDialog = new MethodSelectionForm(this);
                 MethodDialog.ShowCheckBox = false;
@@ -7128,83 +7601,28 @@ namespace LitePlacer
                 {
                     foreach (DataGridViewCell cell in JobData_GridView.SelectedCells)
                     {
-                        JobData_GridView.Rows[cell.RowIndex].Cells["JobdataMethodColumn"].Value = SelectedMethod;
-                        // JobData_GridView.Rows[cell.RowIndex].Cells["JobdataMethodParametersColumn"].Value = "--";
-                        if ((SelectedMethod == "Fiducials") || (SelectedMethod == "LoosePart") || (SelectedMethod == "LoosePart Assisted"))
+                        if (!JobRowHasComponent(cell.RowIndex))
                         {
-                            string FidAlg = SelectFiducialAlgorithm("--");
-                            JobData_GridView.Rows[cell.RowIndex].Cells["JobdataMethodParametersColumn"].Value = FidAlg;
+                            SetJobRowStep(cell.RowIndex, SelectedMethod);
                         }
                     }
                 }
                 JobData_GridView.ClearSelection();
                 Update_GridView(JobData_GridView);
                 return;
-            };
+            }
 
-            if (JobData_GridView.CurrentCell.OwningColumn.Name == "JobdataMethodParametersColumn")
+            if (JobGrid_HandleCheckClick(row, Col))
             {
-                // For method parameter, show the tape selection form if method is place of some sort;
-                MakeJobDataDirty();
-                string TapeID;
-                int TapeNo;
-                int row = JobData_GridView.CurrentCell.RowIndex;
-                if ((JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value.ToString() == "Place") ||
-                     (JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value.ToString() == "Place Assisted") ||
-                     (JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value.ToString() == "Place Fast"))
-                {
-                    TapeID = SelectTape("Select tape for " + JobData_GridView.Rows[row].Cells["JobDataValueColumn"].Value.ToString()
-                        + ", " + JobData_GridView.Rows[row].Cells["JobDataFootprintColumn"].Value.ToString());
-                    if (TapeID == "none")
-                    {
-                        // user closed it
-                        return;
-                    }
-                    JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value = TapeID;
-                    if (Tapes.IdValidates_m(TapeID, out TapeNo))
-                    {
-                        JobData_GridView.Rows[row].Cells["JobDataNozzleColumn"].Value =
-                            Tapes_dataGridView.Rows[TapeNo].Cells["Nozzle_Column"].Value.ToString();
-                    }
-                }
-                // Auto fill the visual algorithm
-                if ((JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value.ToString() == "Fiducials") ||
-                     (JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value.ToString() == "LoosePart") ||
-                     (JobData_GridView.Rows[row].Cells["JobdataMethodColumn"].Value.ToString() == "LoosePart Assisted"))
-                {
-                    JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value =
-                        SelectFiducialAlgorithm(JobData_GridView.Rows[row].Cells["JobdataMethodParametersColumn"].Value.ToString());
-                }
-                JobData_GridView.ClearSelection();
-                Update_GridView(JobData_GridView);
                 return;
             }
 
-            if (JobData_GridView.CurrentCell.OwningColumn.Name == "PlacementMethodColumn")
+            if (Col == "PlacementParameterColumn")
             {
-                // as above, but for placement method
+                if (!JobRowHasComponent(row)) return;
                 MakeJobDataDirty();
-                PlacementMethod = "--";
-                PlacementMethodSelectionForm MethodDialog = new PlacementMethodSelectionForm(this);
-                MethodDialog.StartPosition = FormStartPosition.CenterParent;
-                MethodDialog.ShowDialog(this);
-                foreach (DataGridViewCell cell in JobData_GridView.SelectedCells)
-                {
-                    JobData_GridView.Rows[cell.RowIndex].Cells["PlacementMethodColumn"].Value = PlacementMethod;
-                    // Auto fill the visual algorithm
-                    if (JobData_GridView.Rows[cell.RowIndex].Cells["PlacementMethodColumn"].Value.ToString() == "Up Cam Assisted")
-                    {
-                        JobData_GridView.Rows[cell.RowIndex].Cells["PlacementParameterColumn"].Value =
-                            SelectFiducialAlgorithm(JobData_GridView.Rows[cell.RowIndex].Cells["PlacementParameterColumn"].Value.ToString());
-                    }
-                }
-                JobData_GridView.ClearSelection();
-                Update_GridView(JobData_GridView);
-                return;
-            }
-            if (JobData_GridView.CurrentCell.OwningColumn.Name == "PlacementParameterColumn")
-            {
-                JobData_GridView.CurrentCell.Value = SelectFiducialAlgorithm(JobData_GridView.CurrentCell.Value.ToString());
+                JobData_GridView.Rows[row].Cells[Col].Value = SelectFiducialAlgorithm(JobRowUpCamAlgorithm(row));
+                JobData_GridView.InvalidateRow(row);
             }
         }
 
@@ -7222,6 +7640,19 @@ namespace LitePlacer
                 int row = JobData_GridView.CurrentCell.RowIndex;
                 JobData_GridView.Rows[row].Cells["JobdataCountColumn"].Value = Line.Count.ToString(CultureInfo.InvariantCulture);
                 Update_GridView(JobData_GridView);
+            }
+            else if (JobData_GridView.Columns[col].Name == "JobDataNozzleColumn")
+            {
+                // Nozzle: a number is a per-job override; clearing the cell makes it follow the component again.
+                MakeJobDataDirty();
+                int row = JobData_GridView.CurrentCell.RowIndex;
+                object v = JobData_GridView.CurrentCell.Value;
+                string t = (v == null) ? "" : v.ToString().Trim();
+                int n;
+                if (!JobRowHasComponent(row) || !int.TryParse(t, out n))
+                {
+                    JobData_GridView.CurrentCell.Value = JobRowHasComponent(row) ? FROM_TAPE : "";
+                }
             }
         }
 
@@ -7243,6 +7674,7 @@ namespace LitePlacer
 
         private void PlaceThese_button_Click(object sender, EventArgs e)
         {
+            if (PlacementSuspended) { MovementIsBusy_m(); return; }
             if (!CheckPositionConfidence()) return;
 
             this.ActiveControl = null; // User might need press enter during the process, which would run this again...
@@ -7365,6 +7797,7 @@ namespace LitePlacer
         // and then that row is processed.
         private void PlaceOne_button_Click(object sender, EventArgs e)
         {
+            if (PlacementSuspended) { MovementIsBusy_m(); return; }
             if (!CheckPositionConfidence()) return;
 
             this.ActiveControl = null; // User might need press enter during the process, which would run this again...
@@ -7539,47 +7972,34 @@ namespace LitePlacer
 
             string[] Components;  // This array has the list of components to place:
             string NewID = "";
-            bool RestoreRow = false;
-            // RestoreRow: If we'll replace the jobdata row with new data at the end. 
-            // There isn't any new data, unless method is "?".
 
-            // If the Method is "?", ask the user what to do:
-            DataGridViewRow tempRow = (DataGridViewRow)JobData_GridView.Rows[RowNo].Clone();
-            if (JobData_GridView.Rows[RowNo].Cells["JobdataMethodColumn"].Value.ToString() == "?")
+            if (JobRowSkipped(RowNo))
             {
-                // We'll now get new data from the user. By default, we don't mess with the data we have
-                // So, take a copy of current row
-                RestoreRow = true;
-                for (int i = 0; i < tempRow.Cells.Count; i++)
-                {
-                    tempRow.Cells[i].Value = JobData_GridView.Rows[RowNo].Cells[i].Value;
-                }
+                DisplayText("Row skipped");
+                return true;
+            }
 
-                // Display Method selection form:
+            // If the Step is "?", ask the user what to do. The answer is stored in the job grid:
+            // this dialog is how the job table gets filled in on the first run.
+            if (JobRowMethod(RowNo) == "?")
+            {
+                // Ask for a component (or a process step)
                 bool UserHasNotDecided = false;
                 MethodSelectionForm MethodDialog = new MethodSelectionForm(this);
                 do
                 {
+                    UserHasNotDecided = false;
                     MethodDialog.ShowCheckBox = true;
                     MethodDialog.HeaderString = CurrentGroup_label.Text;
                     MethodDialog.ShowDialog(this);
-                    if (Setting.Placement_UpdateJobGridAtRuntime)
+                    if (SelectedMethod == "Place")
                     {
-                        RestoreRow = false;
-                    };
-                    if ((SelectedMethod == "Place") || (SelectedMethod == "Place Assisted") || (SelectedMethod == "Place Fast"))
-                    {
-                        // show the tape selection dialog
-                        NewID = SelectTape("Select tape for " + JobData_GridView.Rows[RowNo].Cells["JobDataValueColumn"].Value.ToString()
+                        // pick the component
+                        NewID = SelectTape("Select feeder for " + JobData_GridView.Rows[RowNo].Cells["JobDataValueColumn"].Value.ToString()
                             + ", " + JobData_GridView.Rows[RowNo].Cells["JobDataFootprintColumn"].Value.ToString());
-                        if (!Setting.Placement_UpdateJobGridAtRuntime)
-                        {
-                            RestoreRow = true;   // In case user unselected it at the tape selection dialog
-                        };
-
                         if (NewID == "none")
                         {
-                            UserHasNotDecided = true; // User did select "Place", but didn't select TapeNumber, we'll ask again.
+                            UserHasNotDecided = true; // User did select "Place", but didn't select a component, we'll ask again.
                         }
                         else if (NewID == "Ignore")
                         {
@@ -7592,22 +8012,40 @@ namespace LitePlacer
                             NewID = "";
                             AbortPlacement = true;
                             AbortPlacementShown = true;
-                            RestoreRow = true;		// something went astray, keep method at "?"
                         }
                     }
-
                 } while (UserHasNotDecided);
-                if (string.IsNullOrEmpty(SelectedMethod))
+                if (string.IsNullOrEmpty(SelectedMethod) || (SelectedMethod == "Abort"))
                 {
-                    return false;   // user pressed x
+                    // Abort job button, or dialog closed with X: stop the whole run, leave the row as "?"
+                    MethodDialog.Dispose();
+                    AbortPlacement = true;
+                    AbortPlacementShown = true;
+                    DisplayText("Job aborted by operator", KnownColor.DarkRed, true);
+                    return false;
                 }
                 // Put the values to JobData_GridView
-                JobData_GridView.Rows[RowNo].Cells["JobdataMethodColumn"].Value = SelectedMethod;
-                JobData_GridView.Rows[RowNo].Cells["JobdataMethodParametersColumn"].Value = NewID;
+                if (SelectedMethod == "Place")
+                {
+                    SetJobRowComponent(RowNo, NewID);
+                }
+                else if (SelectedMethod == "Ignore")
+                {
+                    JobData_GridView.Rows[RowNo].Cells["JobSkipColumn"].Value = true;
+                }
+                else
+                {
+                    SetJobRowStep(RowNo, SelectedMethod);
+                }
                 Update_GridView(JobData_GridView);
                 MethodDialog.Dispose();
+                if (SelectedMethod == "Ignore")
+                {
+                    DisplayText("Row skipped");
+                    return !AbortPlacement;
+                }
             }
-            // Method is now selected, even if it was ?. If user quits the operation, PlaceComponent_m() notices.
+            // Step is now decided, even if it was ?. If user quits the operation, PlaceComponent_m() notices.
 
             // The place operation does not necessarily have any components for it (such as a manual nozzle change).
             // Make sure there is valid data at ComponentList anyway.
@@ -7626,13 +8064,13 @@ namespace LitePlacer
             bool ReturnValue = true;
 
             // Prepare for placement
-            string method = JobData_GridView.Rows[RowNo].Cells["JobdataMethodColumn"].Value.ToString();
+            string method = JobRowMethod(RowNo);
             int nozzle;
             // Check, that the row isn't placed already
             bool EverythingPlaced = true;
             bool thisPlaced = true;
             int placedCount = 0;
-            if ((method == "Place Fast") || (method == "Place") || (method == "LoosePart") || (method == "LoosePart Assisted") || (method == "Place Assisted"))
+            if ((method == "Place Fast") || (method == "Place") || (method == "Place Assisted"))
             {
                 foreach (string component in Components)
                 {
@@ -7659,24 +8097,16 @@ namespace LitePlacer
             // Check nozzle, change if needed
             // if we are using a method that potentially needs a nozzle and automatic change is enabled:
             if (
-                ((method == "Place Fast") || (method == "Place") || (method == "LoosePart") || (method == "LoosePart Assisted") || (method == "Place Assisted"))
+                ((method == "Place Fast") || (method == "Place") || (method == "Place Assisted"))
                 && Setting.Nozzles_Enabled)
             {
-                if (JobData_GridView.Rows[RowNo].Cells["JobDataNozzleColumn"].Value == null)
+                nozzle = JobRowNozzle(RowNo);
+                if (nozzle == 0)
                 {
                     nozzle = Setting.Nozzles_default;
                 }
                 else
                 {
-                    if (!int.TryParse(JobData_GridView.Rows[RowNo].Cells["JobDataNozzleColumn"].Value.ToString(), out nozzle))
-                    {
-                        ShowMessageBox(
-                            "Bad data at Nozzle column for " + JobData_GridView.Rows[RowNo].Cells["JobDataValueColumn"].Value.ToString()
-                            + ", " + JobData_GridView.Rows[RowNo].Cells["JobDataFootprintColumn"].Value.ToString(),
-                            "Nozzle?",
-                            MessageBoxButtons.OK);
-                        return false;
-                    }
                     if ((nozzle < 1) || (nozzle > Setting.Nozzles_count))
                     {
                         ShowMessageBox(
@@ -7696,7 +8126,7 @@ namespace LitePlacer
             bool FirstInRow = true;
             if (method == "Place Fast")
             {
-                string TapeID = JobData_GridView.Rows[RowNo].Cells["JobdataMethodParametersColumn"].Value.ToString();
+                string TapeID = JobRowTapeId(RowNo);
                 int count;
                 if (!int.TryParse(JobData_GridView.Rows[RowNo].Cells["JobdataCountColumn"].Value.ToString(), out count))
                 {
@@ -7736,14 +8166,6 @@ namespace LitePlacer
             Tapes.FastParametersOk = false;
 
             // restore the row if needed
-            if (RestoreRow)
-            {
-                for (int i = 0; i < tempRow.Cells.Count; i++)
-                {
-                    JobData_GridView.Rows[RowNo].Cells[i].Value = tempRow.Cells[i].Value;
-                }
-                Update_GridView(JobData_GridView);
-            };
 
             JobData_GridView.Rows[RowNo].Selected = false;
             return ReturnValue;
@@ -7754,6 +8176,7 @@ namespace LitePlacer
         // All rows:
         private void PlaceAll_button_Click(object sender, EventArgs e)
         {
+            if (PlacementSuspended) { MovementIsBusy_m(); return; }
             if (!CheckPositionConfidence()) return;
             
             this.ActiveControl = null; // User might need press enter during the process, which would run this again...
@@ -7931,7 +8354,7 @@ namespace LitePlacer
             PartAboveCam = false;
             DisplayText("PlaceComponent_m: Component: " + Component + ", Row:" + GroupRow.ToString(CultureInfo.InvariantCulture), KnownColor.Blue);
             // Skip fiducials
-            if (JobData_GridView.Rows[GroupRow].Cells["JobdataMethodColumn"].Value.ToString() == "Fiducials")
+            if (JobRowIsFiducials(GroupRow))
             {
                 DisplayText("PlaceComponent_m(): Skip fiducials");
                 return true;
@@ -7967,7 +8390,6 @@ namespace LitePlacer
             double Y_machine = 0;
             double A_machine = 0;
             string Method = "";
-            string MethodParameter = "";
 
             if (Component != "--") // if component exists:
             {
@@ -8031,17 +8453,11 @@ namespace LitePlacer
                 }
             }
 
-            Method = JobData_GridView.Rows[GroupRow].Cells["JobdataMethodColumn"].Value.ToString();
-            // Even if component is not specified, Method data should be there:
-            // it is not an error if method does not have parameters.
-            if (JobData_GridView.Rows[GroupRow].Cells["JobdataMethodParametersColumn"].Value != null)
-            {
-                MethodParameter = JobData_GridView.Rows[GroupRow].Cells["JobdataMethodParametersColumn"].Value.ToString();
-            };
+            Method = JobRowMethod(GroupRow);
 
             // Data is now validated, all variables have values that check out. Place the component.
             // Update "Now placing" labels:
-            if ((Method == "LoosePart") || (Method == "LoosePart Assisted") || (Method == "Place") || (Method == "Place Assisted") || (Method == "Place Fast"))
+            if ((Method == "Place") || (Method == "Place Assisted") || (Method == "Place Fast"))
             {
                 PlacedComponent_label.Text = Component;
                 PlacedComponent_label.Update();
@@ -8068,7 +8484,6 @@ namespace LitePlacer
             // Component is at CadData_GridView.Rows[CADdataRow]. 
             // What to do to it is at  JobData_GridView.Rows[GroupRow].
 
-            int time;
             switch (Method)
             {
                 case "?":
@@ -8085,10 +8500,6 @@ namespace LitePlacer
                         MessageBoxButtons.OK);
                     return true;
 
-                case "DownCam Snapshot":
-                case "UpCam Snapshot":
-                case "LoosePart":
-                case "LoosePart Assisted":
                 case "Place Fast":
                 case "Place":
                 case "Place Assisted":
@@ -8140,15 +8551,6 @@ namespace LitePlacer
                     break;
 
                 case "Ignore":
-                    // Optionally, method parameter specifies pause time (used in debugging, I can't think of a real-life use case for that)
-                    if (int.TryParse(JobData_GridView.Rows[GroupRow].Cells["JobdataMethodParametersColumn"].Value.ToString(), out time))
-                    {
-                        for (int z = 0; z < time / 5; z++)
-                        {
-                            Application.DoEvents();  // keeping video running
-                            Thread.Sleep(5);
-                        }
-                    };
                     return true;  // To next row...
                 // break;
 
@@ -8162,29 +8564,16 @@ namespace LitePlacer
                     // Shows the component and its footprint(if known)...
                     CNC_XYA_m(X_machine, Y_machine, Cnc.CurrentA);
 
-                    // ... either for the time specified in method parameter
-                    if (int.TryParse(JobData_GridView.Rows[GroupRow].Cells["JobdataMethodParametersColumn"].Value.ToString(), out time))
-                    {
-                        for (int z = 0; z < time / 5; z++)
-                        {
-                            Application.DoEvents();  // keeping video running
-                            Thread.Sleep(5);
-                        }
-                    }
-                    else
-                    {
-                        // If no time specified, show a dialog:
-                        ShowMessageBox(
-                            "This is " + Component,
-                            "Locate Component",
-                            MessageBoxButtons.OK);
-                    }
+                    ShowMessageBox(
+                        "This is " + Component,
+                        "Locate Component",
+                        MessageBoxButtons.OK);
                     DownCamera.DrawBox = false;
                     break;
 
                 default:
                     ShowMessageBox(
-                        "No code for method " + JobData_GridView.Rows[GroupRow].Cells["JobdataMethodColumn"].Value.ToString(),
+                        "No code for method " + Method,
                         "Lazy programmer error",
                         MessageBoxButtons.OK);
                     return false;
@@ -8800,7 +9189,9 @@ namespace LitePlacer
         private double LoosePartPickupZ = 0.0;
         private double LoosePartPlaceZ = 0.0;
 
-        private bool PickUpLoosePart_m(bool Probe, bool Snapshot, int CADdataRow, int JobDataRow, string Component)
+        // Loose part pickup: TapeNum is a tape row with Source = Loose. The pickup location is its First X/Y
+        // and the part is found with its down cam algorithm (Type_Column).
+        private bool PickUpLoosePart_m(bool Probe, bool Snapshot, int CADdataRow, int JobDataRow, string Component, int TapeNum)
         {
             if (!Check_HeightCalibrationDone_m()) return false;
 
@@ -8808,21 +9199,32 @@ namespace LitePlacer
                 + Snapshot.ToString(CultureInfo.InvariantCulture) + ", "
                 + CADdataRow.ToString(CultureInfo.InvariantCulture) + ", "
                 + JobDataRow.ToString(CultureInfo.InvariantCulture) + ", "
-                + Component, KnownColor.Blue);
+                + Component + ", source row " + TapeNum.ToString(CultureInfo.InvariantCulture), KnownColor.Blue);
 
             VideoAlgorithmsCollection.FullAlgorithmDescription PartAlg = new VideoAlgorithmsCollection.FullAlgorithmDescription();
-            string VidAlgName = JobData_GridView.Rows[JobDataRow].Cells["JobdataMethodParametersColumn"].Value.ToString();
+            object AlgObj = Tapes_dataGridView.Rows[TapeNum].Cells["Type_Column"].Value;
+            string VidAlgName = (AlgObj == null) ? "" : AlgObj.ToString();
             DisplayText("Using algorithm " + VidAlgName);
             if (!VideoAlgorithms.FindAlgorithm(VidAlgName, out PartAlg))
             {
-                DisplayText("*** Fiducial algorithm (" + VidAlgName + ") not found", KnownColor.DarkRed, true);
+                DisplayText("*** Part algorithm (" + VidAlgName + ") not found", KnownColor.DarkRed, true);
                 return false;
             }
             DownCamera.BuildMeasurementFunctionsList(PartAlg.FunctionList);
-            DownCamera.MeasurementParameters = PartAlg.MeasurementParameters;            
-            
-            // goto pickup
-            if (!CNC_XYA_m(Setting.General_PickupCenterX, Setting.General_PickupCenterY, Cnc.CurrentA))
+            DownCamera.MeasurementParameters = PartAlg.MeasurementParameters;
+
+            // goto pickup: the Loose source's First X/Y
+            double PickX, PickY;
+            if (!double.TryParse(Tapes_dataGridView.Rows[TapeNum].Cells["FirstX_Column"].Value.ToString().Replace(',', '.'), out PickX) ||
+                !double.TryParse(Tapes_dataGridView.Rows[TapeNum].Cells["FirstY_Column"].Value.ToString().Replace(',', '.'), out PickY))
+            {
+                ShowMessageBox(
+                    "Loose part source " + Tapes_dataGridView.Rows[TapeNum].Cells["Id_Column"].Value.ToString()
+                    + ": First X/Y (the pickup location) is not set.",
+                    "No pickup location", MessageBoxButtons.OK);
+                return false;
+            }
+            if (!CNC_XYA_m(PickX, PickY, Cnc.CurrentA))
             {
                 return false;
             }
@@ -8957,8 +9359,9 @@ namespace LitePlacer
                 AbortPlacement = false;
                 return false;
             };
-            string id = JobData_GridView.Rows[JobDataRow].Cells["JobdataMethodParametersColumn"].Value.ToString();
-            string Method = JobData_GridView.Rows[JobDataRow].Cells["JobdataMethodColumn"].Value.ToString();
+            string Method = JobRowMethod(JobDataRow);
+            string id = JobRowTapeId(JobDataRow);
+            bool ManualAssist = JobRowManualAssist(JobDataRow);
 
             int TapeNum = 0;
             string Component = CadData_GridView.Rows[CADdataRow].Cells["CADdataComponentColumn"].Value.ToString();
@@ -8989,37 +9392,35 @@ namespace LitePlacer
                     break;
             };
 
+            // A tape row with Source = Loose: one part at a time at a fixed location, found by the down cam.
+            bool LooseSource = ((Method == "Place") || (Method == "Place Assisted") || (Method == "Place Fast")) && TapeIsLoose(TapeNum);
+
             // Pickup:
             switch (Method)
             {
                 case "Place":
                 case "Place Assisted":
-                    if (!PickUpPartWithHoleMeasurement_m(TapeNum))
-                    {
-                        return false;
-                    }
-                    break;
-
                 case "Place Fast":
-                    if (!PickUpPartFast_m(TapeNum))
+                    if (LooseSource)
                     {
-                        return false;
+                        if (!PickUpLoosePart_m(FirstInRow, false, CADdataRow, JobDataRow, Component, TapeNum))
+                        {
+                            return false;
+                        }
                     }
-                    break;
-
-                case "LoosePart":
-                case "LoosePart Assisted":
-                    if (!PickUpLoosePart_m(FirstInRow, false, CADdataRow, JobDataRow, Component))
+                    else if (Method == "Place Fast")
                     {
-                        return false;
+                        if (!PickUpPartFast_m(TapeNum))
+                        {
+                            return false;
+                        }
                     }
-                    break;
-
-                case "DownCam Snapshot":
-                case "UpCam Snapshot":
-                    if (!PickUpLoosePart_m(FirstInRow, true, CADdataRow, JobDataRow, Component))
+                    else
                     {
-                        return false;
+                        if (!PickUpPartWithHoleMeasurement_m(TapeNum))
+                        {
+                            return false;
+                        }
                     }
                     break;
 
@@ -9095,7 +9496,7 @@ namespace LitePlacer
             };
             */
 
-            string PlacementMethod = JobData_GridView.Rows[JobDataRow].Cells["PlacementMethodColumn"].Value.ToString();
+            string PlacementMethod = JobRowUseUpCam(JobDataRow) ? "Up Cam Assisted" : "--";
 
             if (PlacementMethod== "--")
             {
@@ -9129,32 +9530,36 @@ namespace LitePlacer
                 switch (Method)
                 {
                     case "Place Assisted": // For parts from tapes allows manually correction of part position before placing them
-                                           // since for tape parts id contains the Tape index, we use here a fixed stop distance above board
-                        if (!PutLoosePartDownAssisted_m("2.5"))
+                    case "Place":          // (manual assist is a tape flag, independent of fast/slow pickup)
+                    case "Place Fast":
+                        if (ManualAssist)
                         {
-                            // VacuumOff();  if this failed CNC seems to be down; low chances that VacuumOff() would go thru either. 
-                            return false;
+                            // fixed stop distance above board for the manual nudge
+                            if (!PutLoosePartDownAssisted_m("2.5"))
+                            {
+                                // VacuumOff();  if this failed CNC seems to be down; low chances that VacuumOff() would go thru either. 
+                                return false;
+                            }
+                        }
+                        else if (LooseSource)
+                        {
+                            DownCamera.Draw_Snapshot = false;
+                            UpCamera.Draw_Snapshot = false;
+                            if (!PutLoosePartDown_m(FirstInRow))
+                            {
+                                return false;
+                            }
+                        }
+                        else
+                        {
+                            if (!PutPartDown_m(TapeNum))
+                            {
+                                DownCamera.Draw_Snapshot = false;
+                                UpCamera.Draw_Snapshot = false;
+                                return false;
+                            }
                         }
                         break;
-                    case "LoosePart Assisted":
-                        if (!PutLoosePartDownAssisted_m(id)) // id contains stop distance above board
-                        {
-                            // VacuumOff();  if this failed CNC seems to be down; low chances that VacuumOff() would go thru either. 
-                            return false;
-                        }
-                        break;
-                    case "LoosePart":
-                    case "DownCam Snapshot":
-                    case "UpCam Snapshot":
-                        DownCamera.Draw_Snapshot = false;
-                        UpCamera.Draw_Snapshot = false;
-                        if (!PutLoosePartDown_m(FirstInRow))
-                        {
-                            // VacuumOff();  if this failed CNC seems to be down; low chances that VacuumOff() would go thru either. 
-                            return false;
-                        }
-                        break;
-
                     default:
                         if (!PutPartDown_m(TapeNum))
                         {
@@ -9208,7 +9613,7 @@ namespace LitePlacer
 
                 // -------------------
                 // measure it
-                string PlacementParameter = JobData_GridView.Rows[JobDataRow].Cells["PlacementParameterColumn"].Value.ToString();
+                string PlacementParameter = JobRowUpCamAlgorithm(JobDataRow);
 
                 DisplayText("Measuring part, algorithm " + PlacementParameter);
                 VideoAlgorithmsCollection.FullAlgorithmDescription Alg = new VideoAlgorithmsCollection.FullAlgorithmDescription();
@@ -9289,8 +9694,10 @@ namespace LitePlacer
                     return false;
                 }
                 PartAboveCam = false;
-                // place part
-                if (!PutPartDown_m(TapeNum))
+                // place part (with the manual pause above the board if the tape asks for it)
+                bool PutDownOk = ManualAssist ? PutLoosePartDownAssisted_m("2.5")
+                               : (LooseSource ? PutLoosePartDown_m(FirstInRow) : PutPartDown_m(TapeNum));
+                if (!PutDownOk)
                 {
                     DownCamera.Draw_Snapshot = false;
                     UpCamera.Draw_Snapshot = false;
@@ -9344,7 +9751,7 @@ namespace LitePlacer
 
             for (int i = 0; i < JobData_GridView.RowCount; i++)
             {
-                if (JobData_GridView.Rows[i].Cells["JobdataMethodColumn"].Value.ToString() == "Fiducials")
+                if (JobRowIsFiducials(i))
                 {
                     if (FiducialsFound)
                     {
@@ -9402,10 +9809,10 @@ namespace LitePlacer
                         }
                     }
                 }
-                // If fids were found, the row is unique. Mark it:
+                // If fids were found, the row is unique. Mark it by giving it the Fiducial component:
                 if (FiducialsFound)
                 {
-                    JobData_GridView.Rows[FiducialsRow].Cells["JobdataMethodColumn"].Value = "Fiducials";
+                    AssignFiducialComponent(FiducialsRow);
                 }
             }
             if (!FiducialsFound)
@@ -9548,7 +9955,7 @@ namespace LitePlacer
             // Get ready for position measurements
             DisplayText("SetFiducialsMeasurement");
             VideoAlgorithmsCollection.FullAlgorithmDescription FidAlg = new VideoAlgorithmsCollection.FullAlgorithmDescription();
-            string VidAlgName = JobData_GridView.Rows[FiducialsRow].Cells["JobdataMethodParametersColumn"].Value.ToString();
+            string VidAlgName = JobRowFiducialAlgorithm(FiducialsRow);
             if (!VideoAlgorithms.FindAlgorithm(VidAlgName, out FidAlg))
             {
                 DisplayText("*** Fiducial algorithm (" + VidAlgName + ") not found", KnownColor.DarkRed, true);
@@ -10011,6 +10418,7 @@ namespace LitePlacer
         // =================================================================================
         private void ReMeasure_button_Click(object sender, EventArgs e)
         {
+            if (PlacementSuspended) { MovementIsBusy_m(); return; }
             if (!CheckPositionConfidence()) return;
 
             ValidMeasurement_checkBox.Checked = false;
@@ -10079,6 +10487,9 @@ namespace LitePlacer
             if (PanelizeDialog.OK == true)
             {
                 DisplayText("Panelize ok.");
+                // The CAD data has changed: any fiducial measurement made before is for the single board.
+                // Machine coordinates of the new rows are Nan until the panel is measured.
+                ValidMeasurement_checkBox.Checked = false;
                 Update_GridView(CadData_GridView);
                 Update_GridView(JobData_GridView);
             }
@@ -11005,6 +11416,19 @@ namespace LitePlacer
             BuildAlgorithmsCombox(out c);
             Tapes_dataGridView.Rows[index].Cells["Type_Column"] = c;
             Tapes_dataGridView.Rows[index].Cells["Type_Column"].Value = VideoAlgorithms.AllAlgorithms[0].Name;
+            // Recipe defaults for jobs using this tape:
+            Tapes_dataGridView.Rows[index].Cells["Source_Column"].Value = "Tape";
+            Tapes_dataGridView.Rows[index].Cells["FindFast_Column"].Value = true;
+            Tapes_dataGridView.Rows[index].Cells["UseUpCam_Column"].Value = true;
+            Tapes_dataGridView.Rows[index].Cells["ManualAssist_Column"].Value = false;
+            DataGridViewComboBoxCell uc = new DataGridViewComboBoxCell();
+            uc.Items.Add(NO_UPCAM_ALG);
+            foreach (VideoAlgorithmsCollection.FullAlgorithmDescription Alg in VideoAlgorithms.AllAlgorithms)
+            {
+                uc.Items.Add(Alg.Name);
+            }
+            Tapes_dataGridView.Rows[index].Cells["UpCamAlg_Column"] = uc;
+            Tapes_dataGridView.Rows[index].Cells["UpCamAlg_Column"].Value = NO_UPCAM_ALG;
             // Tapes_dataGridView.Rows[index].Cells["Type_Column"].Value = VideoAlgorithms.AllAlgorithms[1].Name;
             // NextPart_Column tells the part number of next part. 
             // NextX, NextY tell the approximate hole location for the next part. Incremented when a part is picked up.

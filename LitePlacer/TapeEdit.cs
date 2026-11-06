@@ -107,6 +107,28 @@ namespace LitePlacer
                 MainForm.DefaultNozzle_label.Text = "--";
             }
 
+            // Placement recipe for jobs using this tape:
+            FindFast_checkBox.Checked = (Row.Cells["FindFast_Column"].Value == null) ? true :
+                (Row.Cells["FindFast_Column"].Value.ToString().ToLowerInvariant() == "true");
+
+            UpCamAlg_comboBox.Items.Clear();
+            UpCamAlg_comboBox.Items.Add(FormMain.NO_UPCAM_ALG);
+            foreach (VideoAlgorithmsCollection.FullAlgorithmDescription Alg in MainForm.VideoAlgorithms.AllAlgorithms)
+            {
+                UpCamAlg_comboBox.Items.Add(Alg.Name);
+            }
+            string AlgName = FormMain.NO_UPCAM_ALG;
+            if (Row.Cells["UpCamAlg_Column"].Value != null)
+            {
+                AlgName = Row.Cells["UpCamAlg_Column"].Value.ToString();
+            }
+            UpCamAlg_comboBox.SelectedItem = UpCamAlg_comboBox.Items.Contains(AlgName) ? AlgName : FormMain.NO_UPCAM_ALG;
+
+            UseUpCam_checkBox.Checked = (Row.Cells["UseUpCam_Column"].Value == null) ? true :
+                (Row.Cells["UseUpCam_Column"].Value.ToString().ToLowerInvariant() == "true");
+            ManualAssist_checkBox.Checked = (Row.Cells["ManualAssist_Column"].Value != null) &&
+                (Row.Cells["ManualAssist_Column"].Value.ToString().ToLowerInvariant() == "true");
+
             if (Row.Cells["Width_Column"].Value != null)
             {
                 TapeWidth_comboBox.Text = Row.Cells["Width_Column"].Value.ToString();
@@ -348,6 +370,10 @@ namespace LitePlacer
             Row.Cells["Orientation_Column"].Value = TapeOrientation_comboBox.SelectedItem;
             Row.Cells["Rotation_Column"].Value = TapeRotation_comboBox.SelectedItem;
             Row.Cells["Nozzle_Column"].Value = Nozzle_numericUpDown.Value.ToString(CultureInfo.InvariantCulture);
+            Row.Cells["FindFast_Column"].Value = FindFast_checkBox.Checked;
+            Row.Cells["UpCamAlg_Column"].Value = (UpCamAlg_comboBox.SelectedItem == null) ? FormMain.NO_UPCAM_ALG : UpCamAlg_comboBox.SelectedItem.ToString();
+            Row.Cells["UseUpCam_Column"].Value = UseUpCam_checkBox.Checked;
+            Row.Cells["ManualAssist_Column"].Value = ManualAssist_checkBox.Checked;
             Row.Cells["NextPart_Column"].Value = NextPart_textBox.Text;
             // Row.Cells["Capacity_Column"].Value = Capacity_textBox.Text;
             Row.Cells["Width_Column"].Value = TapeWidth_comboBox.Text;

@@ -81,6 +81,13 @@
             this.ResetPlacementZ_button = new System.Windows.Forms.Button();
             this.ResetTrayID_button = new System.Windows.Forms.Button();
             this.DrawGrid_checkBox = new System.Windows.Forms.CheckBox();
+            this.PlacementDefaults_groupBox = new System.Windows.Forms.GroupBox();
+            this.FindFast_checkBox = new System.Windows.Forms.CheckBox();
+            this.UpCamAlg_label = new System.Windows.Forms.Label();
+            this.UpCamAlg_comboBox = new System.Windows.Forms.ComboBox();
+            this.UseUpCam_checkBox = new System.Windows.Forms.CheckBox();
+            this.ManualAssist_checkBox = new System.Windows.Forms.CheckBox();
+            this.PlacementDefaults_groupBox.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.Nozzle_numericUpDown)).BeginInit();
             this.SuspendLayout();
             // 
@@ -363,7 +370,7 @@
             this.label11.Size = new System.Drawing.Size(31, 13);
             this.label11.TabIndex = 23;
             this.label11.Tag = "https://liteplacer.com/edit-tape-parameters-dialog/";
-            this.label11.Text = "Type";
+            this.label11.Text = "Down cam alg.";
             this.toolTip1.SetToolTip(this.label11, "What optical filter set is used");
             // 
             // label12
@@ -683,6 +690,67 @@
             this.ResetTrayID_button.UseVisualStyleBackColor = true;
             this.ResetTrayID_button.Click += new System.EventHandler(this.ResetTrayID_button_Click);
             // 
+            // PlacementDefaults_groupBox
+            // 
+            this.PlacementDefaults_groupBox.Controls.Add(this.FindFast_checkBox);
+            this.PlacementDefaults_groupBox.Controls.Add(this.UpCamAlg_label);
+            this.PlacementDefaults_groupBox.Controls.Add(this.UpCamAlg_comboBox);
+            this.PlacementDefaults_groupBox.Controls.Add(this.UseUpCam_checkBox);
+            this.PlacementDefaults_groupBox.Controls.Add(this.ManualAssist_checkBox);
+            this.PlacementDefaults_groupBox.Location = new System.Drawing.Point(258, 252);
+            this.PlacementDefaults_groupBox.Name = "PlacementDefaults_groupBox";
+            this.PlacementDefaults_groupBox.Size = new System.Drawing.Size(188, 142);
+            this.PlacementDefaults_groupBox.TabIndex = 60;
+            this.PlacementDefaults_groupBox.TabStop = false;
+            this.PlacementDefaults_groupBox.Text = "Placement (job rows follow these)";
+            // 
+            // FindFast_checkBox
+            // 
+            this.FindFast_checkBox.AutoSize = true;
+            this.FindFast_checkBox.Location = new System.Drawing.Point(11, 20);
+            this.FindFast_checkBox.Name = "FindFast_checkBox";
+            this.FindFast_checkBox.Size = new System.Drawing.Size(70, 17);
+            this.FindFast_checkBox.TabIndex = 61;
+            this.FindFast_checkBox.Text = "Find fast (measure holes once per row)";
+            this.FindFast_checkBox.UseVisualStyleBackColor = true;
+            // 
+            // UpCamAlg_label
+            // 
+            this.UpCamAlg_label.AutoSize = true;
+            this.UpCamAlg_label.Location = new System.Drawing.Point(8, 44);
+            this.UpCamAlg_label.Name = "UpCamAlg_label";
+            this.UpCamAlg_label.Size = new System.Drawing.Size(103, 13);
+            this.UpCamAlg_label.Text = "Up camera algorithm";
+            // 
+            // UpCamAlg_comboBox
+            // 
+            this.UpCamAlg_comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.UpCamAlg_comboBox.FormattingEnabled = true;
+            this.UpCamAlg_comboBox.Location = new System.Drawing.Point(11, 60);
+            this.UpCamAlg_comboBox.Name = "UpCamAlg_comboBox";
+            this.UpCamAlg_comboBox.Size = new System.Drawing.Size(165, 21);
+            this.UpCamAlg_comboBox.TabIndex = 62;
+            // 
+            // UseUpCam_checkBox
+            // 
+            this.UseUpCam_checkBox.AutoSize = true;
+            this.UseUpCam_checkBox.Location = new System.Drawing.Point(11, 90);
+            this.UseUpCam_checkBox.Name = "UseUpCam_checkBox";
+            this.UseUpCam_checkBox.Size = new System.Drawing.Size(80, 17);
+            this.UseUpCam_checkBox.TabIndex = 63;
+            this.UseUpCam_checkBox.Text = "Use up cam";
+            this.UseUpCam_checkBox.UseVisualStyleBackColor = true;
+            // 
+            // ManualAssist_checkBox
+            // 
+            this.ManualAssist_checkBox.AutoSize = true;
+            this.ManualAssist_checkBox.Location = new System.Drawing.Point(11, 113);
+            this.ManualAssist_checkBox.Name = "ManualAssist_checkBox";
+            this.ManualAssist_checkBox.Size = new System.Drawing.Size(90, 17);
+            this.ManualAssist_checkBox.TabIndex = 64;
+            this.ManualAssist_checkBox.Text = "Manual assist";
+            this.ManualAssist_checkBox.UseVisualStyleBackColor = true;
+            // 
             // DrawGrid_checkBox
             // 
             this.DrawGrid_checkBox.AutoSize = true;
@@ -700,6 +768,7 @@
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(456, 464);
+            this.Controls.Add(this.PlacementDefaults_groupBox);
             this.Controls.Add(this.DrawGrid_checkBox);
             this.Controls.Add(this.UseNozzleCoordinates_checkBox);
             this.Controls.Add(this.label9);
@@ -756,6 +825,8 @@
             this.Text = "Edit Tape Parameters";
             this.Load += new System.EventHandler(this.TapeEditForm_Load);
             ((System.ComponentModel.ISupportInitialize)(this.Nozzle_numericUpDown)).EndInit();
+            this.PlacementDefaults_groupBox.ResumeLayout(false);
+            this.PlacementDefaults_groupBox.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -814,5 +885,11 @@
         private System.Windows.Forms.TextBox RotationDirect_textBox;
         private System.Windows.Forms.CheckBox UseNozzleCoordinates_checkBox;
         private System.Windows.Forms.CheckBox DrawGrid_checkBox;
+        private System.Windows.Forms.GroupBox PlacementDefaults_groupBox;
+        private System.Windows.Forms.CheckBox FindFast_checkBox;
+        private System.Windows.Forms.Label UpCamAlg_label;
+        private System.Windows.Forms.ComboBox UpCamAlg_comboBox;
+        private System.Windows.Forms.CheckBox UseUpCam_checkBox;
+        private System.Windows.Forms.CheckBox ManualAssist_checkBox;
     }
 }

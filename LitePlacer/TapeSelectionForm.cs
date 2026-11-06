@@ -44,8 +44,9 @@ namespace LitePlacer
             // obtained with debugger.
             Grid.Size = new Size(1250 - GridSizeXtrim, 875 - GridSizeYtrim);
 
-			// Add a CellClick handler to handle clicks in the button column.
+			// Add a CellClick handler to handle clicks in the button column, and double-click anywhere on a row.
 			Grid.CellClick += new DataGridViewCellEventHandler(Grid_CellClick);
+			Grid.CellDoubleClick += new DataGridViewCellEventHandler(Grid_CellDoubleClick);
 		}
 
 		private void ResizeGrid()
@@ -61,11 +62,21 @@ namespace LitePlacer
             }
             Grid.Size = GridSizeSave;
 			Grid.CellClick -= new DataGridViewCellEventHandler(Grid_CellClick);
+			Grid.CellDoubleClick -= new DataGridViewCellEventHandler(Grid_CellDoubleClick);
 			this.Close();
+		}
+
+		// Ignore clicks that arrive in the first moments after opening: the second click of a
+		// double-click on the job grid otherwise lands on whatever feeder row is under the pointer.
+		private DateTime OpenedAt;
+		private bool TooSoon()
+		{
+			return (DateTime.Now - OpenedAt).TotalMilliseconds < 400;
 		}
 
 		private void TapeSelectionForm_Load(object sender, EventArgs e)
 		{
+			OpenedAt = DateTime.Now;
             this.Text = HeaderString;
             UpdateJobData_checkBox.Checked = MainForm.Setting.Placement_UpdateJobGridAtRuntime;
 		}
@@ -82,13 +93,25 @@ namespace LitePlacer
 			MainForm.Setting.Placement_UpdateJobGridAtRuntime = UpdateJobData_checkBox.Checked;
 		}
 
+		private void Grid_CellDoubleClick(object sender, DataGridViewCellEventArgs e)
+		{
+			if ((e.RowIndex < 0) || TooSoon()) return;
+			SelectRow(e.RowIndex);
+		}
+
 		private void Grid_CellClick(object sender, DataGridViewCellEventArgs e)
 		{
 			// Ignore clicks that are not on button cell  Id_Column
-			if ((e.RowIndex < 0) || (e.ColumnIndex != Grid.Columns["SelectButton_Column"].Index))
+			if ((e.RowIndex < 0) || (e.ColumnIndex != Grid.Columns["SelectButton_Column"].Index) || TooSoon())
 			{
 				return;
 			}
+			SelectRow(e.RowIndex);
+		}
+
+		private void SelectRow(int RowIndex)
+		{
+			DataGridViewCellEventArgs e = new DataGridViewCellEventArgs(0, RowIndex);
 			ID = Grid.Rows[e.RowIndex].Cells["Id_Column"].Value.ToString();
             if (Grid.Rows[e.RowIndex].Cells["Nozzle_Column"].Value == null)
             {

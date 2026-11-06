@@ -233,7 +233,7 @@ namespace LitePlacer
                 bool found = false;
                 foreach (DataGridViewRow Row in JobData.Rows)
                 {
-                    if (Row.Cells["JobdataMethodColumn"].Value.ToString() == "Fiducials")
+                    if (MainForm.JobRowIsFiducials(Row.Index))
                     {
                         found = true;
                         break;
@@ -330,7 +330,7 @@ namespace LitePlacer
             int FiducialIndex = -1;
             foreach (DataGridViewRow Row in JobData.Rows)
             {
-                if (Row.Cells["JobdataMethodColumn"].Value.ToString() == "Fiducials")
+                if (MainForm.JobRowIsFiducials(Row.Index))
                 {
                     FiducialIndex = Row.Index;
                     break;
@@ -455,8 +455,8 @@ namespace LitePlacer
         // data and resets every row to "?". Rows are keyed by value + footprint, which panelizing
         // doesn't change, so we snapshot the per-row settings first and put them back afterwards.
         private static readonly string[] JobSettingColumns = {
-            "JobdataMethodColumn", "JobdataMethodParametersColumn", "JobDataNozzleColumn",
-            "PlacementMethodColumn", "PlacementParameterColumn" };
+            "JobdataTapeColumn", "JobdataMethodColumn", "JobSkipColumn", "JobFindFastColumn", "JobDataNozzleColumn",
+            "JobUseUpCamColumn", "PlacementParameterColumn", "JobManualAssistColumn" };
 
         private static string JobRowKey(DataGridViewRow Row)
         {
@@ -497,10 +497,7 @@ namespace LitePlacer
                 {
                     for (int i = 0; i < JobSettingColumns.Length; i++)
                     {
-                        if (Values[i] != null)
-                        {
-                            Row.Cells[JobSettingColumns[i]].Value = Values[i];
-                        }
+                        Row.Cells[JobSettingColumns[i]].Value = Values[i];   // null = inherited, keep it
                     }
                 }
                 // Panel fiducials added by this form:
@@ -508,7 +505,7 @@ namespace LitePlacer
                 object f = Row.Cells["JobDataFootprintColumn"].Value;
                 if ((v != null) && (f != null) && (v.ToString() == "Fiducial") && (f.ToString() == "On panel"))
                 {
-                    Row.Cells["JobdataMethodColumn"].Value = "Fiducials";
+                    MainForm.AssignFiducialComponent(Row.Index);
                 }
             }
         }
@@ -810,7 +807,7 @@ namespace LitePlacer
             }
             JobData.Rows[FiducialIndex].Cells["JobdataComponentsColumn"].Value = LowLeft + "," + HighLeft + "," + LowRight + "," + HighRight;
             JobData.Rows[FiducialIndex].Cells["JobdataCountColumn"].Value = "4";
-            JobData.Rows[FiducialIndex].Cells["JobdataMethodColumn"].Value = "Fiducials";   // keep the indication; FillJobData_GridView reset it to "?"
+            MainForm.AssignFiducialComponent(FiducialIndex);   // keep the indication; FillJobData_GridView reset it
             return true;
         }
 

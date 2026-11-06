@@ -24,19 +24,33 @@ namespace LitePlacer
 
         private void MethodSelectionForm_Load(object sender, EventArgs e)
 		{
-			UpdateJobGrid_checkBox.Visible = ShowCheckBox;
+			UpdateJobGrid_checkBox.Visible = false;
+			// "Choose component" only makes sense at run time; on the job page the Component column does that.
+			Place_button.Visible = ShowCheckBox;
+			label2.Visible = ShowCheckBox;
+			Ignore_button.Visible = ShowCheckBox;
+			label5.Visible = ShowCheckBox;
+			AbortJob_button.Visible = ShowCheckBox;
+			AbortJob_label.Visible = ShowCheckBox;
 			if (ShowCheckBox)
 			{
 				// The form is raised at run time, because method was ?. That can't be selected again.
 				Question_button.Enabled = false;
 				this.Text = "Place " + HeaderString;
 			}
-			UpdateJobGrid_checkBox.Checked = MainForm.Setting.Placement_UpdateJobGridAtRuntime;
 		}
 
-		private void UpdateJobGrid_checkBox_CheckedChanged(object sender, EventArgs e)
+
+		private void AbortJob_button_Click(object sender, EventArgs e)
 		{
-            MainForm.Setting.Placement_UpdateJobGridAtRuntime = UpdateJobGrid_checkBox.Checked;
+			 MainForm.SelectedMethod = "Abort";
+			 this.Close();
+		}
+
+		private void FromTape_button_Click(object sender, EventArgs e)
+		{
+			 MainForm.SelectedMethod = FormMain.FROM_TAPE;
+			 this.Close();
 		}
 
 		private void Question_button_Click(object sender, EventArgs e)

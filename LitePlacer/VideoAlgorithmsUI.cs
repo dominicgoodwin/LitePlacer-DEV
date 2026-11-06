@@ -341,6 +341,7 @@ namespace LitePlacer
                 Tapes_dataGridView.Rows[i].Cells["Type_Column"] = c;
                 Tapes_dataGridView.Rows[i].Cells["Type_Column"].Value = OrgValue;
             }
+            RefreshUpCamAlgCombos();
         }
 
         private void AddAlgorithm_button_Click(object sender, EventArgs e)
@@ -445,9 +446,10 @@ namespace LitePlacer
             // Fiducials on the job table
             foreach (DataGridViewRow row in JobData_GridView.Rows)
             {
-                if (row.Cells["JobdataMethodColumn"].Value.ToString() == "Fiducials")
+                object pv = row.Cells["PlacementParameterColumn"].Value;
+                if ((pv != null) && (pv.ToString() == OldName))
                 {
-                    row.Cells["JobdataMethodParametersColumn"].Value = NewName;
+                    row.Cells["PlacementParameterColumn"].Value = NewName;
                 }
             }
             // Tapes data table
@@ -472,6 +474,16 @@ namespace LitePlacer
                     row.Cells["Type_Column"].Value = NewName;
                 }
             }
+            // up cam algorithm column: same rename
+            foreach (DataGridViewRow row in Tapes_dataGridView.Rows)
+            {
+                object v = row.Cells["UpCamAlg_Column"].Value;
+                if ((v != null) && (v.ToString() == OldName))
+                {
+                    row.Cells["UpCamAlg_Column"].Value = NewName;
+                }
+            }
+            RefreshUpCamAlgCombos();
             // Nozzles
 
         }
@@ -531,9 +543,9 @@ namespace LitePlacer
             bool ret = false;
             for (int i = 0; i < JobData_GridView.RowCount; i++)
             {
-                if (JobData_GridView.Rows[i].Cells["JobdataMethodParametersColumn"].Value != null)
+                if (JobData_GridView.Rows[i].Cells["PlacementParameterColumn"].Value != null)
                 {
-                    if (JobData_GridView.Rows[i].Cells["JobdataMethodParametersColumn"].Value.ToString() == Alg)
+                    if (JobData_GridView.Rows[i].Cells["PlacementParameterColumn"].Value.ToString() == Alg)
                     {
                         DisplayText("Algorithm \"" + Alg + "\" used in Job data, row " + (i + 1).ToString());
                         ret = true;
@@ -548,6 +560,14 @@ namespace LitePlacer
                     if (Tapes_dataGridView.Rows[i].Cells["Type_Column"].Value.ToString() == Alg)
                     {
                         DisplayText("Algorithm \"" + Alg + "\" used in Tapes data, row " + (i + 1).ToString());
+                        ret = true;
+                    }
+                }
+                if (Tapes_dataGridView.Rows[i].Cells["UpCamAlg_Column"].Value != null)
+                {
+                    if (Tapes_dataGridView.Rows[i].Cells["UpCamAlg_Column"].Value.ToString() == Alg)
+                    {
+                        DisplayText("Algorithm \"" + Alg + "\" used as up cam algorithm in Tapes data, row " + (i + 1).ToString());
                         ret = true;
                     }
                 }
@@ -575,11 +595,11 @@ namespace LitePlacer
             // Job data
             for (int i = 0; i < JobData_GridView.RowCount; i++)
             {
-                if (JobData_GridView.Rows[i].Cells["JobdataMethodParametersColumn"].Value != null)
+                if (JobData_GridView.Rows[i].Cells["PlacementParameterColumn"].Value != null)
                 {
-                    if (JobData_GridView.Rows[i].Cells["JobdataMethodParametersColumn"].Value.ToString() == Alg)
+                    if (JobData_GridView.Rows[i].Cells["PlacementParameterColumn"].Value.ToString() == Alg)
                     {
-                        JobData_GridView.Rows[i].Cells["JobdataMethodParametersColumn"].Value = VideoAlgorithms.AllAlgorithms[0].Name;
+                        JobData_GridView.Rows[i].Cells["PlacementParameterColumn"].Value = FormMain.FROM_TAPE;
                     }
                 }
             }
@@ -601,6 +621,7 @@ namespace LitePlacer
                     Tapes_dataGridView.Rows[i].Cells["Type_Column"].Value = OrgValue;
                 }
             }
+            RefreshUpCamAlgCombos();
 
             // Nozzles
             for (int i = 0; i < NozzlesParameters_dataGridView.RowCount; i++)

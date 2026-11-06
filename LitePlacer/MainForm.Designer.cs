@@ -124,6 +124,11 @@
             this.NextPart_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Orientation_Column = new System.Windows.Forms.DataGridViewComboBoxColumn();
             this.Nozzle_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Source_Column = new System.Windows.Forms.DataGridViewComboBoxColumn();
+            this.FindFast_Column = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.UpCamAlg_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.UseUpCam_Column = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.ManualAssist_Column = new System.Windows.Forms.DataGridViewCheckBoxColumn();
             this.Capacity_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.TrayID_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Rotation_Column = new System.Windows.Forms.DataGridViewComboBoxColumn();
@@ -636,9 +641,12 @@
             this.JobDataFootprintColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.JobdataCountColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.JobdataMethodColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.JobdataMethodParametersColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.JobSkipColumn = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.JobFindFastColumn = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.JobUseUpCamColumn = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.JobManualAssistColumn = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            this.JobdataTapeColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.JobDataNozzleColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.PlacementMethodColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.PlacementParameterColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.JobdataComponentsColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Bottom_checkBox = new System.Windows.Forms.CheckBox();
@@ -1397,7 +1405,7 @@
             this.Tapes_tabPage.Size = new System.Drawing.Size(1245, 635);
             this.Tapes_tabPage.TabIndex = 6;
             this.Tapes_tabPage.Tag = "https://liteplacer.com/tape-positions-page/";
-            this.Tapes_tabPage.Text = "Tape Positions";
+            this.Tapes_tabPage.Text = "Feeders";
             this.Tapes_tabPage.UseVisualStyleBackColor = true;
             // 
             // label230
@@ -1988,13 +1996,18 @@
             this.Tapes_dataGridView.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.Id_Column,
             this.SelectButton_Column,
+            this.Source_Column,
+            this.Type_Column,
+            this.FindFast_Column,
+            this.Nozzle_Column,
+            this.UpCamAlg_Column,
+            this.UseUpCam_Column,
+            this.ManualAssist_Column,
             this.NextPart_Column,
             this.Orientation_Column,
-            this.Nozzle_Column,
             this.Capacity_Column,
             this.TrayID_Column,
             this.Rotation_Column,
-            this.Type_Column,
             this.Width_Column,
             this.Pitch_Column,
             this.OffsetX_Column,
@@ -2072,6 +2085,50 @@
             this.Nozzle_Column.Name = "Nozzle_Column";
             this.Nozzle_Column.Width = 64;
             // 
+            // Source_Column
+            // 
+            this.Source_Column.HeaderText = "Source";
+            this.Source_Column.Items.AddRange(new object[] {
+            "Tape",
+            "Loose",
+            "Fiducial"});
+            this.Source_Column.MinimumWidth = 6;
+            this.Source_Column.Name = "Source_Column";
+            this.Source_Column.ToolTipText = "Tape: parts in a tape, found by the holes. Loose: one part at a time at First X/Y, found by the down cam algorithm. Fiducial: board fiducials, found by the down cam algorithm";
+            this.Source_Column.Width = 60;
+            // 
+            // FindFast_Column
+            // 
+            this.FindFast_Column.HeaderText = "Find fast";
+            this.FindFast_Column.MinimumWidth = 6;
+            this.FindFast_Column.Name = "FindFast_Column";
+            this.FindFast_Column.ToolTipText = "Tape: measure the first and last hole once per job row and interpolate, instead of measuring the hole before every pick";
+            this.FindFast_Column.Width = 40;
+            // 
+            // UpCamAlg_Column
+            // 
+            this.UpCamAlg_Column.HeaderText = "Up cam alg.";
+            this.UpCamAlg_Column.MinimumWidth = 6;
+            this.UpCamAlg_Column.Name = "UpCamAlg_Column";
+            this.UpCamAlg_Column.ToolTipText = "Up camera algorithm for part measurement before placement, or -- for none";
+            this.UpCamAlg_Column.Width = 90;
+            // 
+            // UseUpCam_Column
+            // 
+            this.UseUpCam_Column.HeaderText = "Use up cam";
+            this.UseUpCam_Column.MinimumWidth = 6;
+            this.UseUpCam_Column.Name = "UseUpCam_Column";
+            this.UseUpCam_Column.ToolTipText = "Measure the part with the up camera before placing (ignored if Up cam alg. is --)";
+            this.UseUpCam_Column.Width = 50;
+            // 
+            // ManualAssist_Column
+            // 
+            this.ManualAssist_Column.HeaderText = "Manual assist";
+            this.ManualAssist_Column.MinimumWidth = 6;
+            this.ManualAssist_Column.Name = "ManualAssist_Column";
+            this.ManualAssist_Column.ToolTipText = "Pause above the board before placing, for a manual nudge; Enter places the part";
+            this.ManualAssist_Column.Width = 50;
+            // 
             // Capacity_Column
             // 
             this.Capacity_Column.HeaderText = "Capacity";
@@ -2103,14 +2160,15 @@
             // 
             // Type_Column
             // 
-            this.Type_Column.HeaderText = "Type";
+            this.Type_Column.HeaderText = "Down cam alg.";
             this.Type_Column.Items.AddRange(new object[] {
             "Paper (White)",
             "Black Plastic",
             "Clear Plastic"});
             this.Type_Column.MinimumWidth = 6;
             this.Type_Column.Name = "Type_Column";
-            this.Type_Column.Width = 37;
+            this.Type_Column.ToolTipText = "Down camera algorithm for tape hole / part recognition";
+            this.Type_Column.Width = 90;
             // 
             // Width_Column
             // 
@@ -8230,11 +8288,14 @@
             this.JobDataValueColumn,
             this.JobDataFootprintColumn,
             this.JobdataCountColumn,
+            this.JobdataTapeColumn,
             this.JobdataMethodColumn,
-            this.JobdataMethodParametersColumn,
+            this.JobSkipColumn,
+            this.JobFindFastColumn,
             this.JobDataNozzleColumn,
-            this.PlacementMethodColumn,
+            this.JobUseUpCamColumn,
             this.PlacementParameterColumn,
+            this.JobManualAssistColumn,
             this.JobdataComponentsColumn});
             this.JobData_GridView.Location = new System.Drawing.Point(784, 364);
             this.JobData_GridView.Name = "JobData_GridView";
@@ -8247,6 +8308,8 @@
             this.JobData_GridView.CellClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.JobData_GridView_CellClick);
             this.JobData_GridView.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.JobData_GridView_CellContentClick);
             this.JobData_GridView.CellEndEdit += new System.Windows.Forms.DataGridViewCellEventHandler(this.JobData_GridView_CellEndEdit);
+            this.JobData_GridView.CellFormatting += new System.Windows.Forms.DataGridViewCellFormattingEventHandler(this.JobData_GridView_CellFormatting);
+            this.JobData_GridView.CellMouseDown += new System.Windows.Forms.DataGridViewCellMouseEventHandler(this.JobData_GridView_CellMouseDown);
             this.JobData_GridView.DataError += new System.Windows.Forms.DataGridViewDataErrorEventHandler(this.JobData_GridView_DataError);
             // 
             // JobDataValueColumn
@@ -8270,49 +8333,78 @@
             this.JobdataCountColumn.Name = "JobdataCountColumn";
             this.JobdataCountColumn.Width = 40;
             // 
+            // JobdataTapeColumn
+            // 
+            this.JobdataTapeColumn.HeaderText = "Feeder";
+            this.JobdataTapeColumn.MinimumWidth = 6;
+            this.JobdataTapeColumn.Name = "JobdataTapeColumn";
+            this.JobdataTapeColumn.ReadOnly = true;
+            this.JobdataTapeColumn.ToolTipText = "Feeder (Feeders tab): tape, loose part source or fiducial. Click to select. Blank for a process step row.";
+            this.JobdataTapeColumn.Width = 70;
+            // 
             // JobdataMethodColumn
             // 
-            this.JobdataMethodColumn.HeaderText = "Main Method";
+            this.JobdataMethodColumn.HeaderText = "Step";
             this.JobdataMethodColumn.MinimumWidth = 6;
             this.JobdataMethodColumn.Name = "JobdataMethodColumn";
             this.JobdataMethodColumn.ReadOnly = true;
             this.JobdataMethodColumn.Resizable = System.Windows.Forms.DataGridViewTriState.True;
-            this.JobdataMethodColumn.ToolTipText = "Main method";
+            this.JobdataMethodColumn.ToolTipText = "Derived from the feeder (Place / Fiducials). For a row with no feeder: a process step (? = ask at runtime, Pause, Change nozzle, Recalibrate). Click to choose.";
             this.JobdataMethodColumn.Width = 80;
             // 
-            // JobdataMethodParametersColumn
+            // JobSkipColumn
             // 
-            this.JobdataMethodParametersColumn.HeaderText = "Parameters";
-            this.JobdataMethodParametersColumn.MinimumWidth = 6;
-            this.JobdataMethodParametersColumn.Name = "JobdataMethodParametersColumn";
-            this.JobdataMethodParametersColumn.ToolTipText = "Parameters for main method, if any. Usually, vision algorithm for pickup";
-            this.JobdataMethodParametersColumn.Width = 80;
+            this.JobSkipColumn.HeaderText = "Skip";
+            this.JobSkipColumn.MinimumWidth = 6;
+            this.JobSkipColumn.Name = "JobSkipColumn";
+            this.JobSkipColumn.ReadOnly = true;
+            this.JobSkipColumn.ToolTipText = "Leave this row out of the run";
+            this.JobSkipColumn.Width = 36;
+            // 
+            // JobFindFastColumn
+            // 
+            this.JobFindFastColumn.HeaderText = "Find fast";
+            this.JobFindFastColumn.MinimumWidth = 6;
+            this.JobFindFastColumn.Name = "JobFindFastColumn";
+            this.JobFindFastColumn.ReadOnly = true;
+            this.JobFindFastColumn.ToolTipText = "Tape: measure first and last hole once per row and interpolate, instead of measuring before every pick. Grey = from feeder; click to override, right-click to reset.";
+            this.JobFindFastColumn.Width = 40;
             // 
             // JobDataNozzleColumn
             // 
             this.JobDataNozzleColumn.HeaderText = "Nozzle";
             this.JobDataNozzleColumn.MinimumWidth = 6;
             this.JobDataNozzleColumn.Name = "JobDataNozzleColumn";
-            this.JobDataNozzleColumn.ToolTipText = "Nozzle used for these components. Click header to arrange rows to minimize nozzle" +
-    " changes.";
+            this.JobDataNozzleColumn.ToolTipText = "Nozzle used for these components. Grey = from feeder; type a number to override, clear to reset. Click header to arrange rows to minimize nozzle changes.";
             this.JobDataNozzleColumn.Width = 50;
             // 
-            // PlacementMethodColumn
+            // JobUseUpCamColumn
             // 
-            this.PlacementMethodColumn.HeaderText = "Placement Method";
-            this.PlacementMethodColumn.MinimumWidth = 6;
-            this.PlacementMethodColumn.Name = "PlacementMethodColumn";
-            this.PlacementMethodColumn.ToolTipText = "Placement methdod (currently none or up camera corrected)";
-            this.PlacementMethodColumn.Width = 80;
+            this.JobUseUpCamColumn.HeaderText = "Use up cam";
+            this.JobUseUpCamColumn.MinimumWidth = 6;
+            this.JobUseUpCamColumn.Name = "JobUseUpCamColumn";
+            this.JobUseUpCamColumn.ReadOnly = true;
+            this.JobUseUpCamColumn.ToolTipText = "Measure the part with the up camera before placing (needs an up cam algorithm). Grey = from feeder; click to override, right-click to reset.";
+            this.JobUseUpCamColumn.Width = 40;
             // 
             // PlacementParameterColumn
             // 
-            this.PlacementParameterColumn.HeaderText = "Placement algorithm";
+            this.PlacementParameterColumn.HeaderText = "Up cam alg.";
             this.PlacementParameterColumn.MinimumWidth = 6;
             this.PlacementParameterColumn.Name = "PlacementParameterColumn";
+            this.PlacementParameterColumn.ReadOnly = true;
             this.PlacementParameterColumn.Resizable = System.Windows.Forms.DataGridViewTriState.True;
-            this.PlacementParameterColumn.ToolTipText = "Vision algorithm for up looking camera";
+            this.PlacementParameterColumn.ToolTipText = "Vision algorithm for the up looking camera. Grey = from feeder; click to override.";
             this.PlacementParameterColumn.Width = 80;
+            // 
+            // JobManualAssistColumn
+            // 
+            this.JobManualAssistColumn.HeaderText = "Manual assist";
+            this.JobManualAssistColumn.MinimumWidth = 6;
+            this.JobManualAssistColumn.Name = "JobManualAssistColumn";
+            this.JobManualAssistColumn.ReadOnly = true;
+            this.JobManualAssistColumn.ToolTipText = "Pause above the board for a manual nudge before placing; Enter places. Grey = from feeder; click to override, right-click to reset.";
+            this.JobManualAssistColumn.Width = 44;
             // 
             // JobdataComponentsColumn
             // 
@@ -12120,6 +12212,11 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn NextPart_Column;
         private System.Windows.Forms.DataGridViewComboBoxColumn Orientation_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn Nozzle_Column;
+        private System.Windows.Forms.DataGridViewComboBoxColumn Source_Column;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn FindFast_Column;
+        private System.Windows.Forms.DataGridViewTextBoxColumn UpCamAlg_Column;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn UseUpCam_Column;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn ManualAssist_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn Capacity_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn TrayID_Column;
         private System.Windows.Forms.DataGridViewComboBoxColumn Rotation_Column;
@@ -12279,9 +12376,12 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn JobDataFootprintColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn JobdataCountColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn JobdataMethodColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn JobdataMethodParametersColumn;
+        private System.Windows.Forms.DataGridViewTextBoxColumn JobdataTapeColumn;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn JobSkipColumn;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn JobFindFastColumn;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn JobUseUpCamColumn;
+        private System.Windows.Forms.DataGridViewCheckBoxColumn JobManualAssistColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn JobDataNozzleColumn;
-        private System.Windows.Forms.DataGridViewTextBoxColumn PlacementMethodColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn PlacementParameterColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn JobdataComponentsColumn;
         private System.Windows.Forms.Button SetNoOfNozzles_button;

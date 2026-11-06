@@ -30,6 +30,8 @@
 		{
             this.components = new System.ComponentModel.Container();
             this.Question_button = new System.Windows.Forms.Button();
+            this.FromTape_button = new System.Windows.Forms.Button();
+            this.FromTape_label = new System.Windows.Forms.Label();
             this.Place_button = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
@@ -41,6 +43,8 @@
             this.Ignore_button = new System.Windows.Forms.Button();
             this.label6 = new System.Windows.Forms.Label();
             this.Fiducials_button = new System.Windows.Forms.Button();
+            this.AbortJob_button = new System.Windows.Forms.Button();
+            this.AbortJob_label = new System.Windows.Forms.Label();
             this.label7 = new System.Windows.Forms.Label();
             this.Pause_button = new System.Windows.Forms.Button();
             this.UpdateJobGrid_checkBox = new System.Windows.Forms.CheckBox();
@@ -59,6 +63,28 @@
             this.Method_toolTip = new System.Windows.Forms.ToolTip(this.components);
             this.SuspendLayout();
             // 
+            // FromTape_button
+            // 
+            this.FromTape_button.Location = new System.Drawing.Point(9, 15);
+            this.FromTape_button.Margin = new System.Windows.Forms.Padding(4);
+            this.FromTape_button.Name = "FromTape_button";
+            this.FromTape_button.Visible = false;
+            this.FromTape_button.Size = new System.Drawing.Size(120, 28);
+            this.FromTape_button.TabIndex = 30;
+            this.FromTape_button.Text = "From feeder";
+            this.FromTape_button.UseVisualStyleBackColor = true;
+            this.FromTape_button.Click += new System.EventHandler(this.FromTape_button_Click);
+            // 
+            // FromTape_label
+            // 
+            this.FromTape_label.AutoSize = true;
+            this.FromTape_label.Location = new System.Drawing.Point(9, 46);
+            this.FromTape_label.Name = "FromTape_label";
+            this.FromTape_label.Visible = false;
+            this.FromTape_label.Size = new System.Drawing.Size(120, 16);
+            this.FromTape_label.TabIndex = 31;
+            this.FromTape_label.Text = "Use the feeder's method";
+            // 
             // Question_button
             // 
             this.Question_button.Location = new System.Drawing.Point(317, 15);
@@ -72,12 +98,12 @@
             // 
             // Place_button
             // 
-            this.Place_button.Location = new System.Drawing.Point(317, 86);
+            this.Place_button.Location = new System.Drawing.Point(317, 50);
             this.Place_button.Margin = new System.Windows.Forms.Padding(4);
             this.Place_button.Name = "Place_button";
             this.Place_button.Size = new System.Drawing.Size(181, 28);
             this.Place_button.TabIndex = 1;
-            this.Place_button.Text = "Place";
+            this.Place_button.Text = "Choose feeder";
             this.Method_toolTip.SetToolTip(this.Place_button, "Slow placement measures tape hole postion\r\nfor each part separately. Use this if " +
         "the vision\r\nmeasurement targets parts, not holes");
             this.Place_button.UseVisualStyleBackColor = true;
@@ -96,18 +122,18 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(203, 92);
+            this.label2.Location = new System.Drawing.Point(203, 56);
             this.label2.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(102, 16);
             this.label2.TabIndex = 3;
-            this.label2.Text = "Slow placement";
+            this.label2.Text = "Pick a feeder";
             this.Method_toolTip.SetToolTip(this.label2, "Slow placement measures tape hole postion\r\nfor each part separately. Use this if " +
         "the vision\r\nmeasurement targets parts, not holes");
             // 
             // ChangeNozzle_button
             // 
-            this.ChangeNozzle_button.Location = new System.Drawing.Point(317, 229);
+            this.ChangeNozzle_button.Location = new System.Drawing.Point(317, 129);
             this.ChangeNozzle_button.Margin = new System.Windows.Forms.Padding(4);
             this.ChangeNozzle_button.Name = "ChangeNozzle_button";
             this.ChangeNozzle_button.Size = new System.Drawing.Size(181, 28);
@@ -119,7 +145,7 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(142, 235);
+            this.label3.Location = new System.Drawing.Point(142, 135);
             this.label3.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(156, 16);
@@ -129,7 +155,7 @@
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Location = new System.Drawing.Point(76, 271);
+            this.label4.Location = new System.Drawing.Point(76, 171);
             this.label4.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label4.Name = "label4";
             this.label4.Size = new System.Drawing.Size(216, 16);
@@ -138,7 +164,7 @@
             // 
             // Recalibrate_button
             // 
-            this.Recalibrate_button.Location = new System.Drawing.Point(317, 265);
+            this.Recalibrate_button.Location = new System.Drawing.Point(317, 165);
             this.Recalibrate_button.Margin = new System.Windows.Forms.Padding(4);
             this.Recalibrate_button.Name = "Recalibrate_button";
             this.Recalibrate_button.Size = new System.Drawing.Size(181, 28);
@@ -150,21 +176,23 @@
             // label5
             // 
             this.label5.AutoSize = true;
-            this.label5.Location = new System.Drawing.Point(220, 306);
+            this.label5.Location = new System.Drawing.Point(220, 206);
             this.label5.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label5.Name = "label5";
+            this.label5.Visible = false;
             this.label5.Size = new System.Drawing.Size(81, 16);
             this.label5.TabIndex = 9;
             this.label5.Text = "Skip this row";
             // 
             // Ignore_button
             // 
-            this.Ignore_button.Location = new System.Drawing.Point(317, 300);
+            this.Ignore_button.Location = new System.Drawing.Point(317, 200);
             this.Ignore_button.Margin = new System.Windows.Forms.Padding(4);
             this.Ignore_button.Name = "Ignore_button";
+            this.Ignore_button.Visible = false;
             this.Ignore_button.Size = new System.Drawing.Size(181, 28);
             this.Ignore_button.TabIndex = 8;
-            this.Ignore_button.Text = "Ignore";
+            this.Ignore_button.Text = "Skip row";
             this.Ignore_button.UseVisualStyleBackColor = true;
             this.Ignore_button.Click += new System.EventHandler(this.Ignore_button_Click);
             // 
@@ -174,15 +202,36 @@
             this.label6.Location = new System.Drawing.Point(149, 378);
             this.label6.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label6.Name = "label6";
+            this.label6.Visible = false;
             this.label6.Size = new System.Drawing.Size(149, 16);
             this.label6.TabIndex = 11;
             this.label6.Text = "Fiducials are on this row";
+            // 
+            // AbortJob_label
+            // 
+            this.AbortJob_label.AutoSize = true;
+            this.AbortJob_label.Location = new System.Drawing.Point(149, 278);
+            this.AbortJob_label.Name = "AbortJob_label";
+            this.AbortJob_label.Size = new System.Drawing.Size(120, 16);
+            this.AbortJob_label.Text = "Stop the whole job";
+            // 
+            // AbortJob_button
+            // 
+            this.AbortJob_button.Location = new System.Drawing.Point(317, 272);
+            this.AbortJob_button.Margin = new System.Windows.Forms.Padding(4);
+            this.AbortJob_button.Name = "AbortJob_button";
+            this.AbortJob_button.Size = new System.Drawing.Size(181, 28);
+            this.AbortJob_button.TabIndex = 32;
+            this.AbortJob_button.Text = "Abort job";
+            this.AbortJob_button.UseVisualStyleBackColor = true;
+            this.AbortJob_button.Click += new System.EventHandler(this.AbortJob_button_Click);
             // 
             // Fiducials_button
             // 
             this.Fiducials_button.Location = new System.Drawing.Point(317, 372);
             this.Fiducials_button.Margin = new System.Windows.Forms.Padding(4);
             this.Fiducials_button.Name = "Fiducials_button";
+            this.Fiducials_button.Visible = false;
             this.Fiducials_button.Size = new System.Drawing.Size(181, 28);
             this.Fiducials_button.TabIndex = 10;
             this.Fiducials_button.Text = "Fiducials";
@@ -192,7 +241,7 @@
             // label7
             // 
             this.label7.AutoSize = true;
-            this.label7.Location = new System.Drawing.Point(213, 342);
+            this.label7.Location = new System.Drawing.Point(213, 242);
             this.label7.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label7.Name = "label7";
             this.label7.Size = new System.Drawing.Size(88, 16);
@@ -201,7 +250,7 @@
             // 
             // Pause_button
             // 
-            this.Pause_button.Location = new System.Drawing.Point(317, 336);
+            this.Pause_button.Location = new System.Drawing.Point(317, 236);
             this.Pause_button.Margin = new System.Windows.Forms.Padding(4);
             this.Pause_button.Name = "Pause_button";
             this.Pause_button.Size = new System.Drawing.Size(181, 28);
@@ -213,14 +262,13 @@
             // UpdateJobGrid_checkBox
             // 
             this.UpdateJobGrid_checkBox.AutoSize = true;
-            this.UpdateJobGrid_checkBox.Location = new System.Drawing.Point(333, 437);
+            this.UpdateJobGrid_checkBox.Location = new System.Drawing.Point(317, 312);
             this.UpdateJobGrid_checkBox.Margin = new System.Windows.Forms.Padding(4);
             this.UpdateJobGrid_checkBox.Name = "UpdateJobGrid_checkBox";
             this.UpdateJobGrid_checkBox.Size = new System.Drawing.Size(132, 20);
             this.UpdateJobGrid_checkBox.TabIndex = 14;
             this.UpdateJobGrid_checkBox.Text = "Update Job Data";
             this.UpdateJobGrid_checkBox.UseVisualStyleBackColor = true;
-            this.UpdateJobGrid_checkBox.CheckedChanged += new System.EventHandler(this.UpdateJobGrid_checkBox_CheckedChanged);
             // 
             // ManualUpCam_button
             // 
@@ -237,7 +285,7 @@
             // label8
             // 
             this.label8.AutoSize = true;
-            this.label8.Location = new System.Drawing.Point(5, 454);
+            this.label8.Location = new System.Drawing.Point(5, 354);
             this.label8.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label8.Name = "label8";
             this.label8.Size = new System.Drawing.Size(268, 16);
@@ -250,6 +298,7 @@
             this.LoosePart_button.Location = new System.Drawing.Point(315, 158);
             this.LoosePart_button.Margin = new System.Windows.Forms.Padding(4);
             this.LoosePart_button.Name = "LoosePart_button";
+            this.LoosePart_button.Visible = false;
             this.LoosePart_button.Size = new System.Drawing.Size(181, 28);
             this.LoosePart_button.TabIndex = 17;
             this.LoosePart_button.Text = "Loose Part Pickup";
@@ -262,6 +311,7 @@
             this.label9.Location = new System.Drawing.Point(60, 164);
             this.label9.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label9.Name = "label9";
+            this.label9.Visible = false;
             this.label9.Size = new System.Drawing.Size(233, 16);
             this.label9.TabIndex = 18;
             this.label9.Text = "Pickup from loose part pickup position";
@@ -272,6 +322,7 @@
             this.label10.Location = new System.Drawing.Point(205, 56);
             this.label10.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label10.Name = "label10";
+            this.label10.Visible = false;
             this.label10.Size = new System.Drawing.Size(99, 16);
             this.label10.TabIndex = 20;
             this.label10.Text = "Fast placement";
@@ -283,6 +334,7 @@
             this.PlaceFast_button.Location = new System.Drawing.Point(317, 50);
             this.PlaceFast_button.Margin = new System.Windows.Forms.Padding(4);
             this.PlaceFast_button.Name = "PlaceFast_button";
+            this.PlaceFast_button.Visible = false;
             this.PlaceFast_button.Size = new System.Drawing.Size(181, 28);
             this.PlaceFast_button.TabIndex = 19;
             this.PlaceFast_button.Text = "Place Fast";
@@ -294,7 +346,7 @@
             // label11
             // 
             this.label11.AutoSize = true;
-            this.label11.Location = new System.Drawing.Point(5, 438);
+            this.label11.Location = new System.Drawing.Point(5, 338);
             this.label11.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label11.Name = "label11";
             this.label11.Size = new System.Drawing.Size(285, 16);
@@ -320,6 +372,7 @@
             this.label12.Location = new System.Drawing.Point(177, 128);
             this.label12.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label12.Name = "label12";
+            this.label12.Visible = false;
             this.label12.Size = new System.Drawing.Size(125, 16);
             this.label12.TabIndex = 24;
             this.label12.Text = "Assisted placement";
@@ -331,6 +384,7 @@
             this.PlaceAssisted_button.Location = new System.Drawing.Point(315, 122);
             this.PlaceAssisted_button.Margin = new System.Windows.Forms.Padding(4);
             this.PlaceAssisted_button.Name = "PlaceAssisted_button";
+            this.PlaceAssisted_button.Visible = false;
             this.PlaceAssisted_button.Size = new System.Drawing.Size(181, 28);
             this.PlaceAssisted_button.TabIndex = 23;
             this.PlaceAssisted_button.Text = "Place Assisted";
@@ -344,6 +398,7 @@
             this.LoosePartAssisted_button.Location = new System.Drawing.Point(315, 193);
             this.LoosePartAssisted_button.Margin = new System.Windows.Forms.Padding(4);
             this.LoosePartAssisted_button.Name = "LoosePartAssisted_button";
+            this.LoosePartAssisted_button.Visible = false;
             this.LoosePartAssisted_button.Size = new System.Drawing.Size(181, 28);
             this.LoosePartAssisted_button.TabIndex = 25;
             this.LoosePartAssisted_button.Text = "Loose Part Assisted";
@@ -358,6 +413,7 @@
             this.label13.Location = new System.Drawing.Point(141, 199);
             this.label13.Margin = new System.Windows.Forms.Padding(4, 0, 4, 0);
             this.label13.Name = "label13";
+            this.label13.Visible = false;
             this.label13.Size = new System.Drawing.Size(159, 16);
             this.label13.TabIndex = 26;
             this.label13.Text = "Place loose part assisted";
@@ -368,7 +424,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(512, 405);
+            this.ClientSize = new System.Drawing.Size(512, 345);
             this.Controls.Add(this.label13);
             this.Controls.Add(this.LoosePartAssisted_button);
             this.Controls.Add(this.label12);
@@ -395,6 +451,10 @@
             this.Controls.Add(this.label2);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.Place_button);
+            this.Controls.Add(this.AbortJob_button);
+            this.Controls.Add(this.AbortJob_label);
+            this.Controls.Add(this.FromTape_button);
+            this.Controls.Add(this.FromTape_label);
             this.Controls.Add(this.Question_button);
             this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "MethodSelectionForm";
@@ -409,6 +469,10 @@
 		#endregion
 
 		private System.Windows.Forms.Button Question_button;
+		private System.Windows.Forms.Button FromTape_button;
+		private System.Windows.Forms.Button AbortJob_button;
+		private System.Windows.Forms.Label AbortJob_label;
+		private System.Windows.Forms.Label FromTape_label;
 		private System.Windows.Forms.Button Place_button;
 		private System.Windows.Forms.Label label1;
 		private System.Windows.Forms.Label label2;

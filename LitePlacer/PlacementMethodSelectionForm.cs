@@ -29,5 +29,11 @@ namespace LitePlacer
             MainForm.PlacementMethod = "Up Cam Assisted";
             this.Close();
         }
+
+        private void FromTape_button_Click(object sender, EventArgs e)
+        {
+            MainForm.PlacementMethod = FormMain.FROM_TAPE;
+            this.Close();
+        }
     }
 }

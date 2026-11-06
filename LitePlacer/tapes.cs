@@ -59,6 +59,21 @@ namespace LitePlacer
 		// ========================================================================================
 		// IdValidates_m(): Checks that tape with description of "Id" exists.
 		// TapeNumber is set to the corresponding row of the grid.
+        // Row index of the tape with this ID, or -1. No dialogs (safe to call from paint/format handlers).
+        public int FindTapeRow(string Id)
+        {
+            if (Id == null) return -1;
+            for (int i = 0; i < Grid.Rows.Count; i++)
+            {
+                object v = Grid.Rows[i].Cells["Id_Column"].Value;
+                if ((v != null) && (v.ToString() == Id))
+                {
+                    return i;
+                }
+            }
+            return -1;
+        }
+
 		public bool IdValidates_m(string Id, out int Tape)
 		{
 			Tape = -1;
@@ -606,8 +621,18 @@ namespace LitePlacer
                     HoleX = HoleX - (double)Pitch;
                     break;
             };
-            Grid.Rows[Tape].Cells["Next_X_Column"].Value = HoleX.ToString(CultureInfo.InvariantCulture);
-            Grid.Rows[Tape].Cells["Next_Y_Column"].Value = HoleY.ToString(CultureInfo.InvariantCulture);
+            if ((HoleX < -1.0) || (HoleY < -1.0) || (HoleX > MainForm.Setting.General_MachineSizeX + 1.0) || (HoleY > MainForm.Setting.General_MachineSizeY + 1.0))
+            {
+                MainForm.ShowMessageBox(
+                    "Tape " + Grid.Rows[Tape].Cells["Id_Column"].Value.ToString() + ": next hole would be at ("
+                    + HoleX.ToString("0.00", CultureInfo.InvariantCulture) + ", " + HoleY.ToString("0.00", CultureInfo.InvariantCulture)
+                    + "), outside the machine. Not stored.",
+                    "Implausible tape hole position",
+                    MessageBoxButtons.OK);
+                return false;
+            }
+            Grid.Rows[Tape].Cells["Next_X_Column"].Value = HoleX.ToString("0.000", CultureInfo.InvariantCulture);
+            Grid.Rows[Tape].Cells["Next_Y_Column"].Value = HoleY.ToString("0.000", CultureInfo.InvariantCulture);
             // increment next count
             pos++;
             Grid.Rows[Tape].Cells["NextPart_Column"].Value = pos.ToString(CultureInfo.InvariantCulture);
@@ -769,6 +794,22 @@ namespace LitePlacer
 			// The hole locations are:
             HoleX = Cnc.CurrentX + HoleX;
             HoleY = Cnc.CurrentY + HoleY;
+
+            // Sanity: the hole we accept must be close to where we expected it. A measurement made while
+            // the machine position was wrong (e.g. after homing with the retry dialog open) would otherwise
+            // be stored as the tape's next hole and corrupt the tape data.
+            if ((Math.Abs(HoleX - NextX) > 3.0) || (Math.Abs(HoleY - NextY) > 3.0))
+            {
+                MainForm.ShowMessageBox(
+                    "Tape " + Grid.Rows[TapeNumber].Cells["Id_Column"].Value.ToString() + ": hole found at ("
+                    + HoleX.ToString("0.00", CultureInfo.InvariantCulture) + ", " + HoleY.ToString("0.00", CultureInfo.InvariantCulture)
+                    + ") but expected near (" + NextX.ToString("0.00", CultureInfo.InvariantCulture) + ", "
+                    + NextY.ToString("0.00", CultureInfo.InvariantCulture) + ").\n"
+                    + "Machine position may be wrong (re-home and check the tape's Next part), or the tape's Next X/Y is wrong.",
+                    "Implausible tape hole position",
+                    MessageBoxButtons.OK);
+                return false;
+            }
 
 			// ==================================================
 			// find the part location and go there:
