@@ -10487,6 +10487,9 @@ namespace LitePlacer
             if (PanelizeDialog.OK == true)
             {
                 DisplayText("Panelize ok.");
+                // The CAD data has changed: any fiducial measurement made before is for the single board.
+                // Machine coordinates of the new rows are Nan until the panel is measured.
+                ValidMeasurement_checkBox.Checked = false;
                 Update_GridView(CadData_GridView);
                 Update_GridView(JobData_GridView);
             }
