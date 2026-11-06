@@ -119,13 +119,13 @@ namespace LitePlacer
             DialogForm.Button3Txt = str3;
             MessageboxDone = false;
             DialogForm.Show(this);
-            // The wait loop below pumps messages, so the main window would stay fully live while a
-            // placement is suspended: a Home click (for instance) would run in the middle of the
-            // placement and the placement would then carry on from the home position. Keep the main
-            // window disabled while this dialog is up; the dialog is owned, not modal, so it stays usable.
-            bool WasEnabled = this.Enabled;
-            this.Enabled = false;
-            DialogForm.Focus();
+            this.Focus();   // get focus back to main screen, saving the user a click
+            // The wait loop below pumps messages, so the main window stays live: that is wanted (look at
+            // the camera, edit the algorithm, then Retry), but a Home or Place click would run in the
+            // middle of the suspended placement. PlacementSuspended makes MovementIsBusy_m() and the
+            // job buttons refuse until the dialog is answered.
+            bool WasSuspended = PlacementSuspended;
+            PlacementSuspended = true;
             try
             {
                 while (!MessageboxDone)
@@ -136,8 +136,7 @@ namespace LitePlacer
             }
             finally
             {
-                this.Enabled = WasEnabled;
-                this.Focus();
+                PlacementSuspended = WasSuspended;
             }
             return NonModalMessageBox_result;
         }
@@ -1672,8 +1671,18 @@ namespace LitePlacer
             Grid.Refresh();
         }
 
+        // True while a placement is suspended in a Retry/Cancel dialog. The main window stays live
+        // (so the camera view and the algorithm editor can be used to see why a measurement failed),
+        // but nothing that moves the machine or starts a job is allowed until the dialog is answered.
+        public bool PlacementSuspended = false;
+
         public bool MovementIsBusy_m()
         {
+            if (PlacementSuspended)
+            {
+                DisplayText("A placement is waiting for Retry/Cancel; answer that first", KnownColor.DarkRed, true);
+                return true;
+            }
             if (JoggingBusy || StartingUp || CNCstarting)
             {
                 DisplayText("Other operations are underway, please try again", KnownColor.DarkGreen, true);
@@ -7665,6 +7674,7 @@ namespace LitePlacer
 
         private void PlaceThese_button_Click(object sender, EventArgs e)
         {
+            if (PlacementSuspended) { MovementIsBusy_m(); return; }
             if (!CheckPositionConfidence()) return;
 
             this.ActiveControl = null; // User might need press enter during the process, which would run this again...
@@ -7787,6 +7797,7 @@ namespace LitePlacer
         // and then that row is processed.
         private void PlaceOne_button_Click(object sender, EventArgs e)
         {
+            if (PlacementSuspended) { MovementIsBusy_m(); return; }
             if (!CheckPositionConfidence()) return;
 
             this.ActiveControl = null; // User might need press enter during the process, which would run this again...
@@ -8165,6 +8176,7 @@ namespace LitePlacer
         // All rows:
         private void PlaceAll_button_Click(object sender, EventArgs e)
         {
+            if (PlacementSuspended) { MovementIsBusy_m(); return; }
             if (!CheckPositionConfidence()) return;
             
             this.ActiveControl = null; // User might need press enter during the process, which would run this again...
@@ -10406,6 +10418,7 @@ namespace LitePlacer
         // =================================================================================
         private void ReMeasure_button_Click(object sender, EventArgs e)
         {
+            if (PlacementSuspended) { MovementIsBusy_m(); return; }
             if (!CheckPositionConfidence()) return;
 
             ValidMeasurement_checkBox.Checked = false;
