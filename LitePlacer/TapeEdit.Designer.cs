@@ -702,7 +702,7 @@
             this.PlacementDefaults_groupBox.Size = new System.Drawing.Size(188, 142);
             this.PlacementDefaults_groupBox.TabIndex = 60;
             this.PlacementDefaults_groupBox.TabStop = false;
-            this.PlacementDefaults_groupBox.Text = "Placement (jobs follow these)";
+            this.PlacementDefaults_groupBox.Text = "Placement (job rows follow these)";
             // 
             // FindFast_checkBox
             // 

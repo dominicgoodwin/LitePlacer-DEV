@@ -1350,7 +1350,7 @@ namespace LitePlacer
         {
             int r = Tapes.FindTapeRow(Id);
             if (r >= 0) return r;
-            DisplayText("Creating component \"" + Id + "\" (Source = Fiducial, algorithm " + AlgName + ")");
+            DisplayText("Creating feeder \"" + Id + "\" (Source = Fiducial, algorithm " + AlgName + ")");
             Tapes_dataGridView.Rows.Add();
             int index = Tapes_dataGridView.Rows.Count - 1;
             DataGridViewRow R = Tapes_dataGridView.Rows[index];
@@ -1399,7 +1399,7 @@ namespace LitePlacer
             {
                 if (!Row.IsNewRow && TapeIsLoose(Row.Index)) return;   // some loose row exists under another name
             }
-            DisplayText("Creating tape row \"" + LOOSE_SOURCE_ID + "\" (Source = Loose) from the loose part pickup location setting");
+            DisplayText("Creating feeder \"" + LOOSE_SOURCE_ID + "\" (Source = Loose) from the loose part pickup location setting");
             Tapes_dataGridView.Rows.Add();
             int index = Tapes_dataGridView.Rows.Count - 1;
             if (Tapes_dataGridView.AllowUserToAddRows) index--;
@@ -7036,7 +7036,7 @@ namespace LitePlacer
                 {
                     DisplayText("Job row " + JobData_GridView.Rows[i].Cells["JobDataValueColumn"].Value + ", "
                         + JobData_GridView.Rows[i].Cells["JobDataFootprintColumn"].Value
-                        + ": component \"" + Id + "\" is not in the component table", KnownColor.DarkRed, true);
+                        + ": feeder \"" + Id + "\" is not in the Feeders table", KnownColor.DarkRed, true);
                 }
             }
         }
@@ -7295,7 +7295,7 @@ namespace LitePlacer
         // from the component unless the cell holds an override. An inherited cell holds FROM_TAPE
         // (text cells) or null (checkbox cells) and is drawn grey; the run loop reads everything
         // through the Resolve* functions below, never the cells directly.
-        public const string FROM_TAPE = "(comp)";
+        public const string FROM_TAPE = "(feeder)";
 
         // Vocabulary of JobRowMethod(), which the run loop switches on:
         //   "Place", "Place Fast", "Place Assisted" (component rows; Place Assisted = manual assist on),
@@ -7574,7 +7574,7 @@ namespace LitePlacer
             {
                 // Component: pick one from the component table. Everything on the row then follows it.
                 MakeJobDataDirty();
-                string Id = SelectTape("Select component for " + JobData_GridView.Rows[row].Cells["JobDataValueColumn"].Value.ToString()
+                string Id = SelectTape("Select feeder for " + JobData_GridView.Rows[row].Cells["JobDataValueColumn"].Value.ToString()
                     + ", " + JobData_GridView.Rows[row].Cells["JobDataFootprintColumn"].Value.ToString());
                 if (Id == "none")
                 {
@@ -7995,7 +7995,7 @@ namespace LitePlacer
                     if (SelectedMethod == "Place")
                     {
                         // pick the component
-                        NewID = SelectTape("Select component for " + JobData_GridView.Rows[RowNo].Cells["JobDataValueColumn"].Value.ToString()
+                        NewID = SelectTape("Select feeder for " + JobData_GridView.Rows[RowNo].Cells["JobDataValueColumn"].Value.ToString()
                             + ", " + JobData_GridView.Rows[RowNo].Cells["JobDataFootprintColumn"].Value.ToString());
                         if (NewID == "none")
                         {

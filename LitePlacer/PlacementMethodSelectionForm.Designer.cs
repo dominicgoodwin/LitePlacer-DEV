@@ -89,7 +89,7 @@
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(241, 16);
             this.label3.TabIndex = 5;
-            this.label3.Text = "Use the default set on the component (follows edits to it)";
+            this.label3.Text = "Use the default set on the feeder (follows edits to it)";
             // 
             // FromTape_button
             // 
@@ -97,8 +97,8 @@
             this.FromTape_button.Name = "FromTape_button";
             this.FromTape_button.Size = new System.Drawing.Size(169, 28);
             this.FromTape_button.TabIndex = 4;
-            this.FromTape_button.Text = "From component";
-            this.PlacementMethod_toolTip.SetToolTip(this.FromTape_button, "Placement method and up camera algorithm come from the component\r\nassigned to this row, and change when it is edited.");
+            this.FromTape_button.Text = "From feeder";
+            this.PlacementMethod_toolTip.SetToolTip(this.FromTape_button, "Placement method and up camera algorithm come from the feeder\r\nassigned to this row, and change when it is edited.");
             this.FromTape_button.UseVisualStyleBackColor = true;
             this.FromTape_button.Click += new System.EventHandler(this.FromTape_button_Click);
             // 

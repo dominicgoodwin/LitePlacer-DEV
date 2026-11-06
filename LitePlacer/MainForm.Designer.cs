@@ -1405,7 +1405,7 @@
             this.Tapes_tabPage.Size = new System.Drawing.Size(1245, 635);
             this.Tapes_tabPage.TabIndex = 6;
             this.Tapes_tabPage.Tag = "https://liteplacer.com/tape-positions-page/";
-            this.Tapes_tabPage.Text = "Tape Positions";
+            this.Tapes_tabPage.Text = "Feeders";
             this.Tapes_tabPage.UseVisualStyleBackColor = true;
             // 
             // label230
@@ -8335,11 +8335,11 @@
             // 
             // JobdataTapeColumn
             // 
-            this.JobdataTapeColumn.HeaderText = "Component";
+            this.JobdataTapeColumn.HeaderText = "Feeder";
             this.JobdataTapeColumn.MinimumWidth = 6;
             this.JobdataTapeColumn.Name = "JobdataTapeColumn";
             this.JobdataTapeColumn.ReadOnly = true;
-            this.JobdataTapeColumn.ToolTipText = "Component definition (Tapes tab): tape, loose part source or fiducial. Click to select. Blank for a process step row.";
+            this.JobdataTapeColumn.ToolTipText = "Feeder (Feeders tab): tape, loose part source or fiducial. Click to select. Blank for a process step row.";
             this.JobdataTapeColumn.Width = 70;
             // 
             // JobdataMethodColumn
@@ -8349,7 +8349,7 @@
             this.JobdataMethodColumn.Name = "JobdataMethodColumn";
             this.JobdataMethodColumn.ReadOnly = true;
             this.JobdataMethodColumn.Resizable = System.Windows.Forms.DataGridViewTriState.True;
-            this.JobdataMethodColumn.ToolTipText = "Derived from the component (Place / Fiducials). For a row with no component: a process step (? = ask at runtime, Pause, Change nozzle, Recalibrate). Click to choose.";
+            this.JobdataMethodColumn.ToolTipText = "Derived from the feeder (Place / Fiducials). For a row with no feeder: a process step (? = ask at runtime, Pause, Change nozzle, Recalibrate). Click to choose.";
             this.JobdataMethodColumn.Width = 80;
             // 
             // JobSkipColumn
@@ -8367,7 +8367,7 @@
             this.JobFindFastColumn.MinimumWidth = 6;
             this.JobFindFastColumn.Name = "JobFindFastColumn";
             this.JobFindFastColumn.ReadOnly = true;
-            this.JobFindFastColumn.ToolTipText = "Tape: measure first and last hole once per row and interpolate, instead of measuring before every pick. Grey = from component; click to override, right-click to reset.";
+            this.JobFindFastColumn.ToolTipText = "Tape: measure first and last hole once per row and interpolate, instead of measuring before every pick. Grey = from feeder; click to override, right-click to reset.";
             this.JobFindFastColumn.Width = 40;
             // 
             // JobDataNozzleColumn
@@ -8375,7 +8375,7 @@
             this.JobDataNozzleColumn.HeaderText = "Nozzle";
             this.JobDataNozzleColumn.MinimumWidth = 6;
             this.JobDataNozzleColumn.Name = "JobDataNozzleColumn";
-            this.JobDataNozzleColumn.ToolTipText = "Nozzle used for these components. Grey = from component; type a number to override, clear to reset. Click header to arrange rows to minimize nozzle changes.";
+            this.JobDataNozzleColumn.ToolTipText = "Nozzle used for these components. Grey = from feeder; type a number to override, clear to reset. Click header to arrange rows to minimize nozzle changes.";
             this.JobDataNozzleColumn.Width = 50;
             // 
             // JobUseUpCamColumn
@@ -8384,7 +8384,7 @@
             this.JobUseUpCamColumn.MinimumWidth = 6;
             this.JobUseUpCamColumn.Name = "JobUseUpCamColumn";
             this.JobUseUpCamColumn.ReadOnly = true;
-            this.JobUseUpCamColumn.ToolTipText = "Measure the part with the up camera before placing (needs an up cam algorithm). Grey = from component; click to override, right-click to reset.";
+            this.JobUseUpCamColumn.ToolTipText = "Measure the part with the up camera before placing (needs an up cam algorithm). Grey = from feeder; click to override, right-click to reset.";
             this.JobUseUpCamColumn.Width = 40;
             // 
             // PlacementParameterColumn
@@ -8394,7 +8394,7 @@
             this.PlacementParameterColumn.Name = "PlacementParameterColumn";
             this.PlacementParameterColumn.ReadOnly = true;
             this.PlacementParameterColumn.Resizable = System.Windows.Forms.DataGridViewTriState.True;
-            this.PlacementParameterColumn.ToolTipText = "Vision algorithm for the up looking camera. Grey = from component; click to override.";
+            this.PlacementParameterColumn.ToolTipText = "Vision algorithm for the up looking camera. Grey = from feeder; click to override.";
             this.PlacementParameterColumn.Width = 80;
             // 
             // JobManualAssistColumn
@@ -8403,7 +8403,7 @@
             this.JobManualAssistColumn.MinimumWidth = 6;
             this.JobManualAssistColumn.Name = "JobManualAssistColumn";
             this.JobManualAssistColumn.ReadOnly = true;
-            this.JobManualAssistColumn.ToolTipText = "Pause above the board for a manual nudge before placing; Enter places. Grey = from component; click to override, right-click to reset.";
+            this.JobManualAssistColumn.ToolTipText = "Pause above the board for a manual nudge before placing; Enter places. Grey = from feeder; click to override, right-click to reset.";
             this.JobManualAssistColumn.Width = 44;
             // 
             // JobdataComponentsColumn

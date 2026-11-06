@@ -71,7 +71,7 @@
             this.FromTape_button.Visible = false;
             this.FromTape_button.Size = new System.Drawing.Size(120, 28);
             this.FromTape_button.TabIndex = 30;
-            this.FromTape_button.Text = "From component";
+            this.FromTape_button.Text = "From feeder";
             this.FromTape_button.UseVisualStyleBackColor = true;
             this.FromTape_button.Click += new System.EventHandler(this.FromTape_button_Click);
             // 
@@ -83,7 +83,7 @@
             this.FromTape_label.Visible = false;
             this.FromTape_label.Size = new System.Drawing.Size(120, 16);
             this.FromTape_label.TabIndex = 31;
-            this.FromTape_label.Text = "Use the component's method";
+            this.FromTape_label.Text = "Use the feeder's method";
             // 
             // Question_button
             // 
@@ -103,7 +103,7 @@
             this.Place_button.Name = "Place_button";
             this.Place_button.Size = new System.Drawing.Size(181, 28);
             this.Place_button.TabIndex = 1;
-            this.Place_button.Text = "Choose component";
+            this.Place_button.Text = "Choose feeder";
             this.Method_toolTip.SetToolTip(this.Place_button, "Slow placement measures tape hole postion\r\nfor each part separately. Use this if " +
         "the vision\r\nmeasurement targets parts, not holes");
             this.Place_button.UseVisualStyleBackColor = true;
@@ -127,7 +127,7 @@
             this.label2.Name = "label2";
             this.label2.Size = new System.Drawing.Size(102, 16);
             this.label2.TabIndex = 3;
-            this.label2.Text = "Pick a component";
+            this.label2.Text = "Pick a feeder";
             this.Method_toolTip.SetToolTip(this.label2, "Slow placement measures tape hole postion\r\nfor each part separately. Use this if " +
         "the vision\r\nmeasurement targets parts, not holes");
             // 

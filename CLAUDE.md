@@ -31,7 +31,7 @@ and customer CAD data out of the repo.
   "Next" value changed; `Tapes.UpdateNextCoordinates` recomputes from first hole + pitch and
   must not run after "Set part no." (which stores a measured position). Tape buttons call
   `TapesGrid_CommitAndGetRow()` first.
-- The Tapes tab is the **component** table. Columns: ID, `Source_Column` (Tape / Loose /
+- The Tapes tab (shown as "Feeders") is the **feeder** table. Columns: ID, `Source_Column` (Tape / Loose /
   Fiducial), Down cam alg. (`Type_Column`: holes for Tape, the part for Loose, fiducials for
   Fiducial), `FindFast_Column`, Nozzle, `UpCamAlg_Column` ("--" or algorithm), `UseUpCam_Column`,
   `ManualAssist_Column`, then tape geometry. Algorithm combos are rebuilt per row
@@ -39,18 +39,18 @@ and customer CAD data out of the repo.
   after algorithm add/remove/rename. `EnsureLooseSourceRow()` migrates the old global pickup
   location into a Loose row named `LOOSE_SOURCE_ID`; `EnsureFiducialSourceRow()` creates a
   Fiducial component.
-- Job grid columns: Value, Footprint, Count, **Component** (`JobdataTapeColumn`; blank = process
+- Job grid columns: Value, Footprint, Count, **Feeder** (`JobdataTapeColumn`; blank = process
   step row), **Step** (`JobdataMethodColumn`; only meaningful on blank-component rows: "?",
   Pause, Change Nozzle, Recalibrate; derived and greyed on component rows), Skip, Find fast,
   Nozzle, Use up cam, Up cam alg. (`PlacementParameterColumn`), Manual assist, Components.
-  Inherited cells hold `FormMain.FROM_TAPE` ("(comp)") for text or null for checkboxes and
+  Inherited cells hold `FormMain.FROM_TAPE` ("(feeder)") for text or null for checkboxes and
   draw grey; left-click a checkbox overrides, right-click resets. The run loop reads rows ONLY
   through `JobRowMethod(row)` (vocabulary: Place / Place Fast / Place Assisted / Fiducials /
   ? / Pause / Change Nozzle / Recalibrate), `JobRowSkipped`, `JobRowNozzle`, `JobRowUseUpCam`,
   `JobRowUpCamAlgorithm`, `JobRowManualAssist`, `JobRowFindFast`, `JobRowIsFiducials`.
   `SetJobRowComponent` / `SetJobRowStep` are the only writers of a row's kind.
 - `.lpj` format "2026": 12 quoted CSV fields per row in the column order above; inherited
-  cells saved as "" (checkbox) or "(comp)" (text). Older formats are refused.
+  cells saved as "" (checkbox) or "(feeder)" (text). Older formats are refused.
 - Panelize (`PanelizeForm`) replaces CAD data; the single-board rows and fiducial list are kept
   on `MainForm.SingleBoardCadRows` / `SingleBoardFiducials` so it can be re-run. Job row
   settings survive the job-grid rebuild via a value+footprint keyed snapshot.
