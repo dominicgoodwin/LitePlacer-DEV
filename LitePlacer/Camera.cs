@@ -1801,8 +1801,10 @@ namespace LitePlacer
             int FrameCenterY = image.Height / 2;
             int MeasurementCenterX = CameraResolution.X / 2;
             int MeasurementCenterY = CameraResolution.Y / 2;
-            double XmmPpix = XmmPerPixel / Zoom;
-            double YmmPpix = YmmPerPixel / Zoom;
+            // Distance from centre in mm: the shape positions are in measurement-frame pixels, which are
+            // ProcessingZoom times finer than camera pixels (sizes below are divided the same way).
+            double XmmPpix = XmmPerPixel / Zoom / ProcessingZoom;
+            double YmmPpix = YmmPerPixel / Zoom / ProcessingZoom;
             double Xmin = MainForm.VideoAlgorithms.CurrentAlgorithm.MeasurementParameters.Xmin;
             double Xmax = MainForm.VideoAlgorithms.CurrentAlgorithm.MeasurementParameters.Xmax;
             double Ymin = MainForm.VideoAlgorithms.CurrentAlgorithm.MeasurementParameters.Ymin;
@@ -1922,8 +1924,10 @@ namespace LitePlacer
             int FrameCenterY = bitmap.Height / 2;
             int MeasurementCenterX = CameraResolution.X / 2;
             int MeasurementCenterY = CameraResolution.Y / 2;
-            double XmmPpix = XmmPerPixel / Zoom;
-            double YmmPpix = YmmPerPixel / Zoom;
+            // Distance from centre in mm: the shape positions are in measurement-frame pixels, which are
+            // ProcessingZoom times finer than camera pixels (sizes below are divided the same way).
+            double XmmPpix = XmmPerPixel / Zoom / ProcessingZoom;
+            double YmmPpix = YmmPerPixel / Zoom / ProcessingZoom;
             double Xmin = MainForm.VideoAlgorithms.CurrentAlgorithm.MeasurementParameters.Xmin;
             double Xmax = MainForm.VideoAlgorithms.CurrentAlgorithm.MeasurementParameters.Xmax;
             double XUniqueDistance = MainForm.VideoAlgorithms.CurrentAlgorithm.MeasurementParameters.XUniqueDistance;
@@ -2045,8 +2049,10 @@ namespace LitePlacer
             int FrameCenterY = image.Height / 2;
             int MeasurementCenterX = CameraResolution.X / 2;
             int MeasurementCenterY = CameraResolution.Y / 2;
-            double XmmPpix = XmmPerPixel / Zoom;
-            double YmmPpix = YmmPerPixel / Zoom;
+            // Distance from centre in mm: the shape positions are in measurement-frame pixels, which are
+            // ProcessingZoom times finer than camera pixels (sizes below are divided the same way).
+            double XmmPpix = XmmPerPixel / Zoom / ProcessingZoom;
+            double YmmPpix = YmmPerPixel / Zoom / ProcessingZoom;
             double Xmin = MainForm.VideoAlgorithms.CurrentAlgorithm.MeasurementParameters.Xmin;
             double Xmax = MainForm.VideoAlgorithms.CurrentAlgorithm.MeasurementParameters.Xmax;
             double Ymin = MainForm.VideoAlgorithms.CurrentAlgorithm.MeasurementParameters.Ymin;
