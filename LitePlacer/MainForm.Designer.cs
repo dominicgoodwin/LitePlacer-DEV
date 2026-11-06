@@ -672,6 +672,7 @@
             this.IntParameterDown10_button = new System.Windows.Forms.Button();
             this.IntParameterUp10_button = new System.Windows.Forms.Button();
             this.Measure10x_button = new System.Windows.Forms.Button();
+            this.SaveFrame_button = new System.Windows.Forms.Button();
             this.panel1 = new System.Windows.Forms.Panel();
             this.NozzleHeightCancel_button = new System.Windows.Forms.Button();
             this.ZDown_button = new System.Windows.Forms.Button();
@@ -8619,6 +8620,7 @@
             this.Algorithms_tabPage.Controls.Add(this.IntParameterDown10_button);
             this.Algorithms_tabPage.Controls.Add(this.IntParameterUp10_button);
             this.Algorithms_tabPage.Controls.Add(this.Measure10x_button);
+            this.Algorithms_tabPage.Controls.Add(this.SaveFrame_button);
             this.Algorithms_tabPage.Controls.Add(this.panel1);
             this.Algorithms_tabPage.Controls.Add(this.ShowVideoResults_radioButton);
             this.Algorithms_tabPage.Controls.Add(this.ShowVideoProcessing_radioButton);
@@ -8731,6 +8733,17 @@
             this.toolTip1.SetToolTip(this.Measure10x_button, "Does 10 meaurements, displays max and min results in log window.");
             this.Measure10x_button.UseVisualStyleBackColor = true;
             this.Measure10x_button.Click += new System.EventHandler(this.Measure10x_button_Click);
+            // 
+            // SaveFrame_button
+            // 
+            this.SaveFrame_button.Location = new System.Drawing.Point(658, 506);
+            this.SaveFrame_button.Name = "SaveFrame_button";
+            this.SaveFrame_button.Size = new System.Drawing.Size(75, 23);
+            this.SaveFrame_button.TabIndex = 317;
+            this.SaveFrame_button.Text = "Save frame";
+            this.toolTip1.SetToolTip(this.SaveFrame_button, "Saves the current camera frame to the Frames folder next to the exe,\r\nboth raw and after this algorithm\'s processing steps (PNG).");
+            this.SaveFrame_button.UseVisualStyleBackColor = true;
+            this.SaveFrame_button.Click += new System.EventHandler(this.SaveFrame_button_Click);
             // 
             // panel1
             // 
@@ -11987,6 +12000,7 @@
         private System.Windows.Forms.Button Ato0_button;
         private System.Windows.Forms.TabPage Algorithms_tabPage;
         private System.Windows.Forms.Button Algorithm_Measure_button;
+        private System.Windows.Forms.Button SaveFrame_button;
         private System.Windows.Forms.CheckBox SearchComponentOutlines_checkBox;
         private System.Windows.Forms.CheckBox SearchRectangles_checkBox;
         private System.Windows.Forms.CheckBox SearchRound_checkBox;
