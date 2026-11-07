@@ -130,23 +130,30 @@ namespace LitePlacer
 
         public void Close()
         {
-            if (!(VideoSource == null))
+            // Take the source out of the field first: the wait loop below pumps messages, so a second
+            // Stop click (or a tab change) can re-enter Close() while we wait. With the field already
+            // null the nested call just logs "already stopped" instead of nulling it under our feet.
+            VideoCaptureDevice Source = VideoSource;
+            VideoSource = null;
+            if (!(Source == null))
             {
                 MainForm.DisplayText("Stopping " + Name + ": " + MonikerString);
-                VideoSource.SignalToStop();
+                Source.SignalToStop();
                 // VideoSource.WaitForStop();  // problem?
                 // Wait 400ms to see if asking nicely will stop it
                 int i = 0;
-                while (VideoSource.IsRunning && i < 20)
+                while (Source.IsRunning && i < 20)
                 {
                     Thread.Sleep(20);
                     Application.DoEvents();
                     i++;
                 }
-                // if it didn't stop, quit anyway
-                MainForm.DisplayText("** " + Name + " did not stop on OS level, forcing stop.");
-                VideoSource.NewFrame -= new NewFrameEventHandler(Video_NewFrame);
-                VideoSource = null;
+                if (Source.IsRunning)
+                {
+                    // if it didn't stop, quit anyway
+                    MainForm.DisplayText("** " + Name + " did not stop on OS level, forcing stop.");
+                }
+                Source.NewFrame -= new NewFrameEventHandler(Video_NewFrame);
                 MonikerString = "Stopped";
                 MainForm.DisplayText(Name + " stopped.");
             }
