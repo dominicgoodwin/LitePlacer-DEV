@@ -4064,40 +4064,99 @@ namespace LitePlacer
                 getDownCamList();
                 return;
             }
-            if (Monikers[DownCam_comboBox.SelectedIndex] == Setting.UpcamMoniker)
+            string NewMoniker = Monikers[DownCam_comboBox.SelectedIndex];
+            if (NewMoniker == Setting.UpcamMoniker)
             {
-                DisplayText("Down camera selection refused: that is the up camera's device.", KnownColor.DarkRed, true);
-                ShowMessageBox(
-                    "That device is already selected as the up camera.\n\n" +
-                    "Select a different device, or change the up camera first.",
-                    "Camera selection issue",
-                    MessageBoxButtons.OK);
-                getDownCamList();   // put the combo back to the saved selection
+                // The operator wants the up camera's device as the down camera: offer to swap the two.
+                DialogResult res = ShowMessageBox(
+                    "That device is currently the up camera.\n\n" +
+                    "Swap the two cameras (the present down camera becomes the up camera)?",
+                    "Swap cameras?",
+                    MessageBoxButtons.YesNo);
+                if (res != DialogResult.Yes)
+                {
+                    getDownCamList();   // put the combo back to the saved selection
+                    return;
+                }
+                SwapCameraSelections();
                 return;
             }
             Setting.Downcam_Name = DownCam_comboBox.SelectedItem.ToString();
-            Setting.DowncamMoniker = Monikers[DownCam_comboBox.SelectedIndex];
-            DownCamera.MonikerString = Monikers[DownCam_comboBox.SelectedIndex];
+            Setting.DowncamMoniker = NewMoniker;
             DisplayText("Down camera: " + Setting.Downcam_Name);
+            ApplyCameraSelection(DownCamera);
+        }
 
-            DownCamera.DesiredResolutionX = Setting.DownCam_DesiredX;
-            DownCamera.DesiredResolutionY = Setting.DownCam_DesiredY;
-
-            // StartDownCamera_m();
-            SelectCamera(DownCamera);
-            if (DownCamera.IsRunning())
+        // Restarts cam on its (possibly new) moniker and makes it the displayed camera. SelectCamera() won't
+        // do that: a camera that is already running keeps streaming the device it was started with.
+        private void ApplyCameraSelection(Camera cam)
+        {
+            if (cam.IsRunning())
             {
-                SetDownCameraParameters();
+                cam.Close();
+            }
+            Camera other = (cam == DownCamera) ? UpCamera : DownCamera;
+            if (!KeepActive_checkBox.Checked && other.IsRunning())
+            {
+                other.Close();
+            }
+            cam.MonikerString = (cam == DownCamera) ? Setting.DowncamMoniker : Setting.UpcamMoniker;
+            bool ok;
+            if (cam == DownCamera)
+            {
+                DownCamera.DesiredResolutionX = Setting.DownCam_DesiredX;
+                DownCamera.DesiredResolutionY = Setting.DownCam_DesiredY;
+                ok = StartDownCamera_m();
+                if (ok && DownCamera.IsRunning())
+                {
+                    SetDownCameraParameters();
+                }
             }
             else
             {
-                ShowMessageBox(
-                    "Problem starting this camera",
-                    "Problem starting camera",
-                    MessageBoxButtons.OK);
+                UpCamera.DesiredResolutionX = Setting.UpCam_DesiredX;
+                UpCamera.DesiredResolutionY = Setting.UpCam_DesiredY;
+                ok = StartUpCamera_m();
+                if (ok && UpCamera.IsRunning())
+                {
+                    SetUpCameraParameters();
+                }
+            }
+            if (!cam.IsRunning())
+            {
+                DisplayText(cam.Name + " did not start.", KnownColor.DarkRed, true);
             }
             UpdateUpCameraStatusLabel();
             UpdateDownCameraStatusLabel();
+        }
+
+        // Exchanges the two cameras' devices, restarts both, and shows the down camera.
+        private void SwapCameraSelections()
+        {
+            string OldDown = Setting.DowncamMoniker;
+            string OldUp = Setting.UpcamMoniker;
+            if (DownCamera.IsRunning())
+            {
+                DownCamera.Close();
+            }
+            if (UpCamera.IsRunning())
+            {
+                UpCamera.Close();
+            }
+            Setting.DowncamMoniker = OldUp;
+            Setting.UpcamMoniker = OldDown;
+            DownCamera.MonikerString = Setting.DowncamMoniker;
+            UpCamera.MonikerString = Setting.UpcamMoniker;
+            getDownCamList();   // re-selects by moniker
+            getUpCamList();
+            Setting.Downcam_Name = DownCam_comboBox.SelectedItem.ToString();
+            Setting.Upcam_Name = UpCam_comboBox.SelectedItem.ToString();
+            DisplayText("Cameras swapped. Down camera: " + Setting.Downcam_Name + ", up camera: " + Setting.Upcam_Name);
+            if (KeepActive_checkBox.Checked)
+            {
+                ApplyCameraSelection(UpCamera);
+            }
+            ApplyCameraSelection(DownCamera);
         }
 
         // ====
@@ -4128,40 +4187,41 @@ namespace LitePlacer
                 UpCamera.MonikerString = "-no camera-";
                 return;
             }
-            if ((UpCam_comboBox.SelectedIndex > 0) && (Monikers[UpCam_comboBox.SelectedIndex] == Setting.DowncamMoniker))
+            string NewMoniker = Monikers[UpCam_comboBox.SelectedIndex];
+            if (UpCam_comboBox.SelectedIndex == 0)
             {
-                DisplayText("Up camera selection refused: that is the down camera's device.", KnownColor.DarkRed, true);
-                ShowMessageBox(
-                    "That device is already selected as the down camera.\n\n" +
-                    "Select a different device, or change the down camera first.",
-                    "Camera selection issue",
-                    MessageBoxButtons.OK);
-                getUpCamList();   // put the combo back to the saved selection
+                // "-- none --": release the up camera's device
+                if (UpCamera.IsRunning())
+                {
+                    UpCamera.Close();
+                }
+                UpCamera.Active = false;
+                Setting.Upcam_Name = UpCam_comboBox.SelectedItem.ToString();
+                Setting.UpcamMoniker = "-no camera-";
+                UpCamera.MonikerString = "-no camera-";
+                DisplayText("Up camera: none");
+                UpdateUpCameraStatusLabel();
+                return;
+            }
+            if (NewMoniker == Setting.DowncamMoniker)
+            {
+                DialogResult res = ShowMessageBox(
+                    "That device is currently the down camera.\n\n" +
+                    "Swap the two cameras (the present up camera becomes the down camera)?",
+                    "Swap cameras?",
+                    MessageBoxButtons.YesNo);
+                if (res != DialogResult.Yes)
+                {
+                    getUpCamList();   // put the combo back to the saved selection
+                    return;
+                }
+                SwapCameraSelections();
                 return;
             }
             Setting.Upcam_Name = UpCam_comboBox.SelectedItem.ToString();
-            Setting.UpcamMoniker = Monikers[UpCam_comboBox.SelectedIndex];
-            UpCamera.MonikerString = Monikers[UpCam_comboBox.SelectedIndex];
+            Setting.UpcamMoniker = NewMoniker;
             DisplayText("Up camera: " + Setting.Upcam_Name);
-
-            UpCamera.DesiredResolutionX = Setting.UpCam_DesiredX;
-            UpCamera.DesiredResolutionY = Setting.UpCam_DesiredY;
-
-            // StartUpCamera_m();
-            SelectCamera(UpCamera);
-            if (UpCamera.IsRunning())
-            {
-                SetUpCameraParameters();
-            }
-            else
-            {
-                ShowMessageBox(
-                    "Problem starting this camera",
-                    "Problem starting camera",
-                    MessageBoxButtons.OK);
-            }
-            UpdateUpCameraStatusLabel();
-            UpdateDownCameraStatusLabel();
+            ApplyCameraSelection(UpCamera);
         }
 
         // =================================================================================
