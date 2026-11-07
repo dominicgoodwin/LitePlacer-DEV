@@ -418,6 +418,49 @@ namespace LitePlacer
             return (Monikers);
         }
 
+        // Returns the part of a DirectShow moniker that tells two cameras of the same make apart.
+        // A USB moniker looks like
+        //   @device:pnp:\\?\usb#vid_5149&pid_13d3&mi_00#7&20cb1958&0&0000#{guid}\global
+        // The third '#' field is the Windows device instance ID: the device's serial number if it reports
+        // one, otherwise a hash of the hub and port it is plugged into (the "7&20cb1958&0&0000" form, of
+        // which the middle token is the only interesting part). Either way it is stable as long as the
+        // camera stays in the same socket, which is exactly what the operator needs to see.
+        public static string MonikerTag(string moniker)
+        {
+            if (string.IsNullOrEmpty(moniker))
+            {
+                return "";
+            }
+            string[] parts = moniker.Split('#');
+            if (parts.Length < 3)
+            {
+                return "";
+            }
+            string instance = parts[2];
+            string[] tokens = instance.Split('&');
+            if ((tokens.Length == 4) && (tokens[0].Length <= 2))
+            {
+                // synthesised ID, N&hash&0&0000: the hash is enough
+                return tokens[1];
+            }
+            return instance;
+        }
+
+        // Display names for the camera selection combo boxes: "name [tag]", so that two cameras
+        // with the same name can be told apart. Same order as GetMonikerStrings().
+        public List<string> GetDeviceLabels()
+        {
+            List<string> Labels = new List<string>();
+
+            FilterInfoCollection videoDevices = new FilterInfoCollection(FilterCategory.VideoInputDevice);
+            foreach (FilterInfo device in videoDevices)
+            {
+                string tag = MonikerTag(device.MonikerString);
+                Labels.Add(tag == "" ? device.Name : device.Name + " [" + tag + "]");
+            }
+            return (Labels);
+        }
+
 
 
         // ==========================================================================================================
