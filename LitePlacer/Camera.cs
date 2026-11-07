@@ -379,7 +379,13 @@ namespace LitePlacer
                 }
                 if (!ReceivingFrames)
                 {
-                    MainForm.DisplayText("Camera started, but is not sending video");
+                    // Don't leave the source open: it would report "running" with no picture, and every
+                    // Start afterwards would say "already running". Close it so the status is Off and
+                    // Start can be tried again.
+                    MainForm.DisplayText(Name + " started, but is not sending video. If two cameras share a USB hub, " +
+                        "untick \"Keep active\" so only one streams at a time, or give one its own USB socket.",
+                        KnownColor.DarkRed, true);
+                    Close();
                     return false;
                 }
                 MainForm.DisplayText("*** Camera started: " + tries.ToString(CultureInfo.InvariantCulture), KnownColor.Purple);
