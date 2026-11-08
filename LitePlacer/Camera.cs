@@ -1540,7 +1540,7 @@ namespace LitePlacer
             FilterFeaturesBySize_Distance = 2.0 + par_d;
 
             StringBuilder log = (par_int == 1) ? new StringBuilder() : null;
-            PartFinder.Part part = PartFinder.Find(pixels, width, height, LengthPx, WidthPx, tolerance, maxRot, maxCentreDistPx, 0.6, log);
+            PartFinder.Part part = PartFinder.Find(pixels, width, height, LengthPx, WidthPx, tolerance, maxRot, maxCentreDistPx, 0.65, log);
 
             // Output image
             Bitmap result = new Bitmap(width, height, PixelFormat.Format24bppRgb);

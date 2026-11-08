@@ -69,8 +69,11 @@ namespace LitePlacer
             float[] img = Downsample(grey, width, height, f, W, H);
             double L = LengthPx / f;
             double Wd = WidthPx / f;
-            double Lmax = L * (1 + Tolerance), Wmax = Wd * (1 + Tolerance);
-            double Lmin = L * (1 - Tolerance), Wmin = Wd * (1 - Tolerance);
+            // The bright blob of a saturated part blooms beyond its true edge, so the clustering works to a
+            // looser bound; the operator's tolerance is applied to the edge-refined size at the end.
+            double innerTol = Math.Min(0.5, Tolerance + 0.15);
+            double Lmax = L * (1 + innerTol), Wmax = Wd * (1 + innerTol);
+            double Lmin = L * (1 - innerTol), Wmin = Wd * (1 - innerTol);
             double cx0 = W / 2.0, cy0 = H / 2.0;
             double maxDist = MaxCentreDistPx / f + L / 2;
             double roiR = maxDist + Lmax;
@@ -99,7 +102,7 @@ namespace LitePlacer
                     members.Add(si);
                     List<double[]> hull = keep[si].Hull;
                     Rect rect = MinAreaRect(hull);
-                    Emit(members, rect, keep, thr, Lmin, Lmax, Wmin, Wmax, L, Wd, Tolerance, MaxRotation, cx0, cy0, maxDist, seen, cands);
+                    Emit(members, rect, keep, thr, Lmin, Lmax, Wmin, Wmax, L, Wd, innerTol, MaxRotation, cx0, cy0, maxDist, seen, cands);
                     bool changed = true;
                     while (changed)
                     {
@@ -126,7 +129,7 @@ namespace LitePlacer
                                 hull = newHull;
                                 rect = r;
                                 changed = true;
-                                Emit(members, rect, keep, thr, Lmin, Lmax, Wmin, Wmax, L, Wd, Tolerance, MaxRotation, cx0, cy0, maxDist, seen, cands);
+                                Emit(members, rect, keep, thr, Lmin, Lmax, Wmin, Wmax, L, Wd, innerTol, MaxRotation, cx0, cy0, maxDist, seen, cands);
                                 break;
                             }
                         }
@@ -170,12 +173,18 @@ namespace LitePlacer
                 return null;
             }
 
-            // ---- 5: refine
+            // ---- 5: refine, then the operator's size tolerance on the refined edges
             double rcx = best.Cx, rcy = best.Cy, rL = best.L, rW = best.W;
             bool accepted = best.Score >= AcceptScore;
+            string sizeNote = "";
             if (accepted)
             {
                 RefineSides(blur, gx, gy, W, H, best.Angle, ref rcx, ref rcy, ref rL, ref rW);
+                if (Math.Abs(rL - L) > L * Tolerance || Math.Abs(rW - Wd) > Wd * Tolerance)
+                {
+                    accepted = false;
+                    sizeNote = " (size out of tolerance after edge refinement)";
+                }
             }
             Part p = new Part();
             p.X = (rcx + 0.5) * f - 0.5;
@@ -201,7 +210,7 @@ namespace LitePlacer
                     + ", sym " + p.Symmetry.ToString("0.00", CultureInfo.InvariantCulture)
                     + ", outside " + p.Outside.ToString("0.00", CultureInfo.InvariantCulture)
                     + ", score " + p.Score.ToString("0.00", CultureInfo.InvariantCulture)
-                    + (accepted ? " OK" : " rejected"));
+                    + (accepted ? " OK" : " rejected" + sizeNote));
             }
             return p;
         }
@@ -280,9 +289,11 @@ namespace LitePlacer
                 foreach (Group g in groups)
                 {
                     Cand r = g.Members[0];
+                    // Same centre and angle is the same rectangle; size is allowed to drift with the threshold
+                    // (a saturated part blooms at low thresholds) since it is already within tolerance.
                     if (Hypot(c.Cx - r.Cx, c.Cy - r.Cy) <= posTol
                         && Math.Abs(NormAngle(c.Angle - r.Angle)) <= 6.0
-                        && Math.Abs(c.L - r.L) <= 0.10 * r.L && Math.Abs(c.W - r.W) <= 0.10 * r.W)
+                        && Math.Abs(c.L - r.L) <= 0.25 * r.L && Math.Abs(c.W - r.W) <= 0.25 * r.W)
                     {
                         found = g;
                         break;
