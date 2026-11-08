@@ -167,9 +167,13 @@ namespace LitePlacer
             }
         }
 
-        public void DisplayPropertyPage()
+        public void DisplayPropertyPage(IntPtr parent)
         {
-            VideoSource.DisplayPropertyPage(IntPtr.Zero);
+            if (VideoSource == null)
+            {
+                return;
+            }
+            VideoSource.DisplayPropertyPage(parent);
 
         }
 

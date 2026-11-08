@@ -34,6 +34,7 @@ namespace LitePlacer
             this.OK_button = new System.Windows.Forms.Button();
             this.Status_label = new System.Windows.Forms.Label();
             this.CheckStatus_button = new System.Windows.Forms.Button();
+            this.DriverDialog_button = new System.Windows.Forms.Button();
             this.label2 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
             this.Exposure_trackBar = new System.Windows.Forms.TrackBar();
@@ -96,6 +97,16 @@ namespace LitePlacer
             this.CheckStatus_button.Text = "Check";
             this.CheckStatus_button.UseVisualStyleBackColor = true;
             this.CheckStatus_button.Click += new System.EventHandler(this.CheckStatus_button_Click);
+            // 
+            // DriverDialog_button
+            // 
+            this.DriverDialog_button.Location = new System.Drawing.Point(110, 308);
+            this.DriverDialog_button.Name = "DriverDialog_button";
+            this.DriverDialog_button.Size = new System.Drawing.Size(120, 23);
+            this.DriverDialog_button.TabIndex = 8;
+            this.DriverDialog_button.Text = "Driver settings...";
+            this.DriverDialog_button.UseVisualStyleBackColor = true;
+            this.DriverDialog_button.Click += new System.EventHandler(this.DriverDialog_button_Click);
             // 
             // label2
             // 
@@ -259,6 +270,7 @@ namespace LitePlacer
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(376, 357);
             this.Controls.Add(this.Fps_label);
+            this.Controls.Add(this.DriverDialog_button);
             this.Controls.Add(this.Resolution_label);
             this.Controls.Add(this.FocusValue_label);
             this.Controls.Add(this.FocusAuto_checkBox);
@@ -295,6 +307,7 @@ namespace LitePlacer
         private System.Windows.Forms.Button OK_button;
         private System.Windows.Forms.Label Status_label;
         private System.Windows.Forms.Button CheckStatus_button;
+        private System.Windows.Forms.Button DriverDialog_button;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label1;
         private System.Windows.Forms.TrackBar Exposure_trackBar;
