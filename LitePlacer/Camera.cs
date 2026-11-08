@@ -615,6 +615,11 @@ namespace LitePlacer
                         f.parameter_int = usage;
                         break;
 
+                    case "Find part":
+                        f.func = FindPartFunct;
+                        f.parameter_int = usage;
+                        break;
+
                     default:
                         continue;
                         // break; 
@@ -1481,6 +1486,90 @@ namespace LitePlacer
                     MainForm.DisplayText("  (" + h.X.ToString("0.0") + ", " + h.Y.ToString("0.0") + ") r=" + h.Radius.ToString("0.0")
                         + " coverage=" + (h.Coverage * 100).ToString("0") + "% gap=" + (h.MaxGap * 100).ToString("0") + "%"
                         + (h.Accepted ? " OK" : " rejected"));
+                }
+            }
+        }
+
+        // =========================================================
+        // Find part: chip component finder (see PartFinder.cs). Replaces the frame with a black image carrying
+        // a white filled rectangle where the part is, so "Search component pads" measures a clean rectangle.
+        // par_int: usage (1 = measurement, 2 = display) -- set by BuildFunctionsList, not the user.
+        // par_d: part length, mm. par_dA: part width, mm. par_dB: size tolerance, %. par_dC: max. rotation, degrees.
+        private void FindPartFunct(ref Bitmap frame, int par_int, double par_d, int par_R, int par_G, int par_B,
+            double par_dA, double par_dB, double par_dC)
+        {
+            int width = frame.Width;
+            int height = frame.Height;
+            double zoom = (par_int == 2) ? GetProcessingZoom() : GetMeasurementZoom();
+            if (zoom < 0.1) zoom = 1.0;
+            double mmPerPixel = XmmPerPixel / zoom;
+            if (mmPerPixel <= 0.0)
+            {
+                mmPerPixel = 0.02 / zoom;   // camera not calibrated yet; a typical up cam value
+            }
+            double LengthPx = par_d / mmPerPixel;
+            double WidthPx = par_dA / mmPerPixel;
+            double tolerance = par_dB / 100.0;
+            double maxRot = par_dC;
+            if (tolerance <= 0.0) tolerance = 0.15;
+            if (maxRot <= 0.0) maxRot = 30.0;
+            double maxCentreDistPx = 2.0 / mmPerPixel;   // part centre within 2 mm (+ half length) of frame centre
+
+            // Grey bytes, stride == width
+            Bitmap grey = Grayscale.CommonAlgorithms.RMY.Apply(frame);
+            byte[] pixels = new byte[width * height];
+            BitmapData data = grey.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadOnly, PixelFormat.Format8bppIndexed);
+            try
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    System.Runtime.InteropServices.Marshal.Copy(data.Scan0 + y * data.Stride, pixels, y * width, width);
+                }
+            }
+            finally
+            {
+                grey.UnlockBits(data);
+            }
+            grey.Dispose();
+
+            // The rectangle this function outputs is the only thing worth measuring, so set the blob
+            // pre-filter of "Search component pads" to accept it; a separate Filter Features by Size step
+            // is not needed in the algorithm.
+            FilterFeaturesBySize_Min = 0.2 * par_dA;
+            FilterFeaturesBySize_Max = 1.5 * par_d * (1 + tolerance);
+            FilterFeaturesBySize_Distance = 2.0 + par_d;
+
+            StringBuilder log = (par_int == 1) ? new StringBuilder() : null;
+            PartFinder.Part part = PartFinder.Find(pixels, width, height, LengthPx, WidthPx, tolerance, maxRot, maxCentreDistPx, 0.6, log);
+
+            // Output image
+            Bitmap result = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+            using (Graphics g = Graphics.FromImage(result))
+            {
+                g.Clear(Color.Black);
+                if ((part != null) && part.Accepted)
+                {
+                    double a = part.Angle * Math.PI / 180.0;
+                    double ux = Math.Cos(a), uy = Math.Sin(a), vx = -uy, vy = ux;
+                    double hl = part.Length / 2.0, hw = part.Width / 2.0;
+                    PointF[] corners = new PointF[4];
+                    corners[0] = new PointF((float)(part.X - hl * ux - hw * vx), (float)(part.Y - hl * uy - hw * vy));
+                    corners[1] = new PointF((float)(part.X + hl * ux - hw * vx), (float)(part.Y + hl * uy - hw * vy));
+                    corners[2] = new PointF((float)(part.X + hl * ux + hw * vx), (float)(part.Y + hl * uy + hw * vy));
+                    corners[3] = new PointF((float)(part.X - hl * ux + hw * vx), (float)(part.Y - hl * uy + hw * vy));
+                    g.FillPolygon(Brushes.White, corners);
+                }
+            }
+            frame = result;
+
+            if (log != null)
+            {
+                MainForm.DisplayText(log.ToString());
+                if (part != null && part.Accepted)
+                {
+                    MainForm.DisplayText("  part " + (part.Length * mmPerPixel).ToString("0.00") + " x " + (part.Width * mmPerPixel).ToString("0.00")
+                        + " mm, offset (" + ((part.X - width / 2.0) * mmPerPixel).ToString("0.000") + ", "
+                        + ((part.Y - height / 2.0) * mmPerPixel).ToString("0.000") + ") mm, angle " + part.Angle.ToString("0.0"));
                 }
             }
         }

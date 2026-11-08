@@ -34,7 +34,7 @@ namespace LitePlacer
         enum Functions_dataGridViewColumns : int { FunctionColumn, ActiveColumn };
         public List<string> KnownFunctions = new List<string> {"Threshold", "Invert", "Meas. zoom", "Histogram",
             "Grayscale", "Edge detect", "Noise reduction", "Erosion", "Kill color", "Keep color", "Blur",
-            "Gaussian blur", "Hough circles", "Find holes", "Filter Features by Size", "Jog before measurement"};
+            "Gaussian blur", "Hough circles", "Find holes", "Find part", "Filter Features by Size", "Jog before measurement"};
 
 
         public VideoAlgorithmsCollection VideoAlgorithms;
@@ -1090,6 +1090,13 @@ namespace LitePlacer
                     funct.parameterDoubleC = 20.0;  // max. rim gap, %
                     break;
 
+                case "Find part":
+                    funct.parameterDouble = 1.6;    // part length, mm
+                    funct.parameterDoubleA = 0.8;   // part width, mm
+                    funct.parameterDoubleB = 15.0;  // size tolerance, %
+                    funct.parameterDoubleC = 30.0;  // max. rotation, degrees
+                    break;
+
                 case "Jog before measurement":
                     break;		// no parameters
 
@@ -1202,6 +1209,19 @@ namespace LitePlacer
                     EnableDouble("Intensity:");
                     FunctionExplanation_textBox.Text = "Finds partial circles with specified diameter.\r\n"
                         + "Result intensity correlates to match quality.";
+                    FunctionExplanation_textBox.Visible = true;
+                    break;
+
+                case "Find part":
+                    EnableDouble("Length (mm):");
+                    EnableDoubleA("Width (mm):");
+                    EnableDoubleB("Size tol. %:");
+                    EnableDoubleC("Max rot. deg:");
+                    FunctionExplanation_textBox.Text = "Up camera: finds a chip component (bright terminations) of the given size on the nozzle,\r\n"
+                        + "whatever the nozzle looks like and without a grey threshold. Outputs a white rectangle\r\n"
+                        + "where the part is; tick 'Search component pads' to measure it (no Filter Features by Size step needed).\r\n"
+                        + "Put it after any Meas. zoom step.\r\n"
+                        + "Max rot: how far from 0/90 degrees the part may sit. Nothing found = no part of that size on the nozzle.";
                     FunctionExplanation_textBox.Visible = true;
                     break;
 
