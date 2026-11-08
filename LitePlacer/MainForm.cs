@@ -4082,6 +4082,12 @@ namespace LitePlacer
                 return;
             }
             Setting.Downcam_Name = DownCam_comboBox.SelectedItem.ToString();
+            if ((NewMoniker == Setting.DowncamMoniker) && DownCamera.IsRunning())
+            {
+                // Same device, already running: just show it, no need to restart
+                SelectCamera(DownCamera);
+                return;
+            }
             Setting.DowncamMoniker = NewMoniker;
             DisplayText("Down camera: " + Setting.Downcam_Name);
             ApplyCameraSelection(DownCamera);
@@ -4219,6 +4225,12 @@ namespace LitePlacer
                 return;
             }
             Setting.Upcam_Name = UpCam_comboBox.SelectedItem.ToString();
+            if ((NewMoniker == Setting.UpcamMoniker) && UpCamera.IsRunning())
+            {
+                // Same device, already running: just show it, no need to restart
+                SelectCamera(UpCamera);
+                return;
+            }
             Setting.UpcamMoniker = NewMoniker;
             DisplayText("Up camera: " + Setting.Upcam_Name);
             ApplyCameraSelection(UpCamera);
