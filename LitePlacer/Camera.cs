@@ -349,6 +349,9 @@ namespace LitePlacer
                     CameraResolution = res;
                 }
 
+                MainForm.DisplayText(Name + " resolution " + CameraResolution.X.ToString(CultureInfo.InvariantCulture)
+                    + "x" + CameraResolution.Y.ToString(CultureInfo.InvariantCulture)
+                    + ", " + VideoSource.VideoResolution.AverageFrameRate.ToString(CultureInfo.InvariantCulture) + " fps");
                 VideoSource.NewFrame += new NewFrameEventHandler(Video_NewFrame);
                 ReceivingFrames = false;
 
