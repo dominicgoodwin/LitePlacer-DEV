@@ -130,24 +130,35 @@ namespace LitePlacer
 
         public void Close()
         {
-            if (!(VideoSource == null))
+            // Take the source out of the field first: the wait loop below pumps messages, so a second
+            // Stop click (or a tab change) can re-enter Close() while we wait. With the field already
+            // null the nested call just logs "already stopped" instead of nulling it under our feet.
+            VideoCaptureDevice Source = VideoSource;
+            VideoSource = null;
+            if (!(Source == null))
             {
                 MainForm.DisplayText("Stopping " + Name + ": " + MonikerString);
-                VideoSource.SignalToStop();
+                Source.SignalToStop();
                 // VideoSource.WaitForStop();  // problem?
                 // Wait 400ms to see if asking nicely will stop it
                 int i = 0;
-                while (VideoSource.IsRunning && i < 20)
+                while (Source.IsRunning && i < 20)
                 {
                     Thread.Sleep(20);
                     Application.DoEvents();
                     i++;
                 }
-                // if it didn't stop, quit anyway
-                MainForm.DisplayText("** " + Name + " did not stop on OS level, forcing stop.");
-                VideoSource.NewFrame -= new NewFrameEventHandler(Video_NewFrame);
-                VideoSource = null;
-                MonikerString = "Stopped";
+                if (Source.IsRunning)
+                {
+                    // if it didn't stop, quit anyway
+                    MainForm.DisplayText("** " + Name + " did not stop on OS level, forcing stop.");
+                }
+                Source.NewFrame -= new NewFrameEventHandler(Video_NewFrame);
+                if (VideoSource == null)
+                {
+                    // nobody restarted the camera while we waited
+                    MonikerString = "Stopped";
+                }
                 MainForm.DisplayText(Name + " stopped.");
             }
             else
@@ -342,6 +353,9 @@ namespace LitePlacer
                     CameraResolution = res;
                 }
 
+                MainForm.DisplayText(Name + " resolution " + CameraResolution.X.ToString(CultureInfo.InvariantCulture)
+                    + "x" + CameraResolution.Y.ToString(CultureInfo.InvariantCulture)
+                    + ", " + VideoSource.VideoResolution.AverageFrameRate.ToString(CultureInfo.InvariantCulture) + " fps");
                 VideoSource.NewFrame += new NewFrameEventHandler(Video_NewFrame);
                 ReceivingFrames = false;
 
@@ -372,7 +386,13 @@ namespace LitePlacer
                 }
                 if (!ReceivingFrames)
                 {
-                    MainForm.DisplayText("Camera started, but is not sending video");
+                    // Don't leave the source open: it would report "running" with no picture, and every
+                    // Start afterwards would say "already running". Close it so the status is Off and
+                    // Start can be tried again.
+                    MainForm.DisplayText(Name + " started, but is not sending video. If two cameras share a USB hub, " +
+                        "untick \"Keep active\" so only one streams at a time, or give one its own USB socket.",
+                        KnownColor.DarkRed, true);
+                    Close();
                     return false;
                 }
                 MainForm.DisplayText("*** Camera started: " + tries.ToString(CultureInfo.InvariantCulture), KnownColor.Purple);
@@ -416,6 +436,49 @@ namespace LitePlacer
                 Monikers.Add(device.MonikerString);
             }
             return (Monikers);
+        }
+
+        // Returns the part of a DirectShow moniker that tells two cameras of the same make apart.
+        // A USB moniker looks like
+        //   @device:pnp:\\?\usb#vid_5149&pid_13d3&mi_00#7&20cb1958&0&0000#{guid}\global
+        // The third '#' field is the Windows device instance ID: the device's serial number if it reports
+        // one, otherwise a hash of the hub and port it is plugged into (the "7&20cb1958&0&0000" form, of
+        // which the middle token is the only interesting part). Either way it is stable as long as the
+        // camera stays in the same socket, which is exactly what the operator needs to see.
+        public static string MonikerTag(string moniker)
+        {
+            if (string.IsNullOrEmpty(moniker))
+            {
+                return "";
+            }
+            string[] parts = moniker.Split('#');
+            if (parts.Length < 3)
+            {
+                return "";
+            }
+            string instance = parts[2];
+            string[] tokens = instance.Split('&');
+            if ((tokens.Length == 4) && (tokens[0].Length <= 2))
+            {
+                // synthesised ID, N&hash&0&0000: the hash is enough
+                return tokens[1];
+            }
+            return instance;
+        }
+
+        // Display names for the camera selection combo boxes: "name [tag]", so that two cameras
+        // with the same name can be told apart. Same order as GetMonikerStrings().
+        public List<string> GetDeviceLabels()
+        {
+            List<string> Labels = new List<string>();
+
+            FilterInfoCollection videoDevices = new FilterInfoCollection(FilterCategory.VideoInputDevice);
+            foreach (FilterInfo device in videoDevices)
+            {
+                string tag = MonikerTag(device.MonikerString);
+                Labels.Add(tag == "" ? device.Name : device.Name + " [" + tag + "]");
+            }
+            return (Labels);
         }
 
 

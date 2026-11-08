@@ -3557,18 +3557,29 @@ namespace LitePlacer
             List<string> monikers = DownCamera.GetMonikerStrings();
             if (!monikers.Contains(Setting.DowncamMoniker))
             {
-                DisplayText("Downcamera moniker not found. Moniker: " + Setting.DowncamMoniker);
+                DisplayText("Down camera not started: saved device [" + Camera.MonikerTag(Setting.DowncamMoniker)
+                    + "] is not present. Check the USB connection or re-select on the Setup Cameras tab.", KnownColor.DarkRed, true);
+                DisplayText("  Moniker: " + Setting.DowncamMoniker);
                 UpdateDownCameraStatusLabel();
                 return false;
             }
 
             if (Setting.UpcamMoniker == Setting.DowncamMoniker)
             {
+                // Must not be silent: at startup ShowMessageBox shows nothing (StartingUp), and the
+                // operator would just see both cameras refusing to start.
+                DisplayText("Down camera not started: up camera and down camera point to the same physical device ["
+                    + Camera.MonikerTag(Setting.DowncamMoniker) + "]. Re-select the cameras on the Setup Cameras tab.",
+                    KnownColor.DarkRed, true);
+                bool SaveStarting = StartingUp;
+                StartingUp = false;
                 ShowMessageBox(
-                    "Up camera and Down camera point to same physical device.",
+                    "Up camera and Down camera point to the same physical device.\n\n" +
+                    "Please re-select the cameras on the Setup Cameras tab.",
                     "Camera selection issue",
                     MessageBoxButtons.OK
                 );
+                StartingUp = SaveStarting;
                 UpdateDownCameraStatusLabel();
                 return false;
             }
@@ -3616,18 +3627,29 @@ namespace LitePlacer
             List<string> monikers = UpCamera.GetMonikerStrings();
             if (!monikers.Contains(Setting.UpcamMoniker))
             {
-                DisplayText("Upcamera moniker not found. Moniker: " + Setting.UpcamMoniker);
+                DisplayText("Up camera not started: saved device [" + Camera.MonikerTag(Setting.UpcamMoniker)
+                    + "] is not present. Check the USB connection or re-select on the Setup Cameras tab.", KnownColor.DarkRed, true);
+                DisplayText("  Moniker: " + Setting.UpcamMoniker);
                 UpdateUpCameraStatusLabel();
                 return false;
             }
 
             if (Setting.UpcamMoniker == Setting.DowncamMoniker)
             {
+                // Must not be silent: at startup ShowMessageBox shows nothing (StartingUp), and the
+                // operator would just see both cameras refusing to start.
+                DisplayText("Up camera not started: up camera and down camera point to the same physical device ["
+                    + Camera.MonikerTag(Setting.DowncamMoniker) + "]. Re-select the cameras on the Setup Cameras tab.",
+                    KnownColor.DarkRed, true);
+                bool SaveStarting = StartingUp;
+                StartingUp = false;
                 ShowMessageBox(
-                    "Up camera and Down camera point to same physical device.",
+                    "Up camera and Down camera point to the same physical device.\n\n" +
+                    "Please re-select the cameras on the Setup Cameras tab.",
                     "Camera selection issue",
                     MessageBoxButtons.OK
                 );
+                StartingUp = SaveStarting;
                 UpdateUpCameraStatusLabel();
                 return false;
             }
@@ -3794,7 +3816,11 @@ namespace LitePlacer
         // get the devices         
         private void getDownCamList()
         {
-            List<string> Devices = DownCamera.GetDeviceList();
+            // Combo entries are "i: name [tag]", where the tag is the part of the moniker that tells two
+            // identical cameras apart (see Camera.MonikerTag). The saved moniker, not the saved name,
+            // decides which entry is pre-selected: the enumeration order of identical cameras is not stable.
+            List<string> Devices = DownCamera.GetDeviceLabels();
+            List<string> Monikers = DownCamera.GetMonikerStrings();
             DownCam_comboBox.Items.Clear();
             if (Devices.Count != 0)
             {
@@ -3810,7 +3836,12 @@ namespace LitePlacer
                 UpdateDownCameraStatusLabel();
                 DownCameraStatus_label.Text = "No Cam";
             }
-            if (DownCam_comboBox.Items.Contains(Setting.Downcam_Name))
+            int Index = Monikers.IndexOf(Setting.DowncamMoniker);
+            if (Index >= 0)
+            {
+                DownCam_comboBox.SelectedIndex = Index;
+            }
+            else if (DownCam_comboBox.Items.Contains(Setting.Downcam_Name))
             {
                 DownCam_comboBox.SelectedItem = Setting.Downcam_Name;
             }
@@ -3824,7 +3855,9 @@ namespace LitePlacer
         // ====
         private void getUpCamList()
         {
-            List<string> Devices = UpCamera.GetDeviceList();
+            // As getDownCamList, with "-- none --" at index 0.
+            List<string> Devices = UpCamera.GetDeviceLabels();
+            List<string> Monikers = UpCamera.GetMonikerStrings();
             UpCam_comboBox.Items.Clear();
             UpCam_comboBox.Items.Add("-- none --");
             if (Devices.Count != 0)
@@ -3835,16 +3868,20 @@ namespace LitePlacer
                     DisplayText("Device " + i.ToString(CultureInfo.InvariantCulture) + ": " + Devices[i]);
                 }
             }
-            if (UpCam_comboBox.Items.Contains(Setting.Upcam_Name))
+            int Index = Monikers.IndexOf(Setting.UpcamMoniker);
+            if (Index >= 0)
+            {
+                UpCam_comboBox.SelectedIndex = Index + 1;
+            }
+            else if (UpCam_comboBox.Items.Contains(Setting.Upcam_Name))
             {
                 UpCam_comboBox.SelectedItem = Setting.Upcam_Name;
             }
             else
             {
-                DisplayText("UpCam_comboBox.SelectedIndex= 0");
                 UpCam_comboBox.SelectedIndex = 0;
             }
-
+            DisplayText("UpCam_comboBox.SelectedIndex= " + UpCam_comboBox.SelectedIndex.ToString(CultureInfo.InvariantCulture));
         }
 
 
@@ -4021,28 +4058,111 @@ namespace LitePlacer
                 DownCamera.MonikerString = "-no camera-";
                 return;
             }
-            Setting.Downcam_Name = DownCam_comboBox.SelectedItem.ToString();
-            Setting.DowncamMoniker = Monikers[DownCam_comboBox.SelectedIndex];
-            DownCamera.MonikerString = Monikers[DownCam_comboBox.SelectedIndex];
-
-            DownCamera.DesiredResolutionX = Setting.DownCam_DesiredX;
-            DownCamera.DesiredResolutionY = Setting.DownCam_DesiredY;
-
-            // StartDownCamera_m();
-            SelectCamera(DownCamera);
-            if (DownCamera.IsRunning())
+            if (DownCam_comboBox.SelectedIndex >= Monikers.Count)
             {
-                SetDownCameraParameters();
+                DisplayText("Camera list changed, please re-select", KnownColor.DarkRed, true);
+                getDownCamList();
+                return;
+            }
+            string NewMoniker = Monikers[DownCam_comboBox.SelectedIndex];
+            if (NewMoniker == Setting.UpcamMoniker)
+            {
+                // The operator wants the up camera's device as the down camera: offer to swap the two.
+                DialogResult res = ShowMessageBox(
+                    "That device is currently the up camera.\n\n" +
+                    "Swap the two cameras (the present down camera becomes the up camera)?",
+                    "Swap cameras?",
+                    MessageBoxButtons.YesNo);
+                if (res != DialogResult.Yes)
+                {
+                    getDownCamList();   // put the combo back to the saved selection
+                    return;
+                }
+                SwapCameraSelections();
+                return;
+            }
+            Setting.Downcam_Name = DownCam_comboBox.SelectedItem.ToString();
+            if ((NewMoniker == Setting.DowncamMoniker) && DownCamera.IsRunning())
+            {
+                // Same device, already running: just show it, no need to restart
+                SelectCamera(DownCamera);
+                return;
+            }
+            Setting.DowncamMoniker = NewMoniker;
+            DisplayText("Down camera: " + Setting.Downcam_Name);
+            ApplyCameraSelection(DownCamera);
+        }
+
+        // Restarts cam on its (possibly new) moniker and makes it the displayed camera. SelectCamera() won't
+        // do that: a camera that is already running keeps streaming the device it was started with.
+        private void ApplyCameraSelection(Camera cam)
+        {
+            if (cam.IsRunning())
+            {
+                cam.Close();
+            }
+            Camera other = (cam == DownCamera) ? UpCamera : DownCamera;
+            if (!KeepActive_checkBox.Checked && other.IsRunning())
+            {
+                other.Close();
+            }
+            cam.MonikerString = (cam == DownCamera) ? Setting.DowncamMoniker : Setting.UpcamMoniker;
+            bool ok;
+            if (cam == DownCamera)
+            {
+                DownCamera.DesiredResolutionX = Setting.DownCam_DesiredX;
+                DownCamera.DesiredResolutionY = Setting.DownCam_DesiredY;
+                ok = StartDownCamera_m();
+                if (ok && DownCamera.IsRunning())
+                {
+                    SetDownCameraParameters();
+                }
             }
             else
             {
-                ShowMessageBox(
-                    "Problem starting this camera",
-                    "Problem starting camera",
-                    MessageBoxButtons.OK);
+                UpCamera.DesiredResolutionX = Setting.UpCam_DesiredX;
+                UpCamera.DesiredResolutionY = Setting.UpCam_DesiredY;
+                ok = StartUpCamera_m();
+                if (ok && UpCamera.IsRunning())
+                {
+                    SetUpCameraParameters();
+                }
+            }
+            if (!cam.IsRunning())
+            {
+                DisplayText(cam.Name + " did not start.", KnownColor.DarkRed, true);
             }
             UpdateUpCameraStatusLabel();
             UpdateDownCameraStatusLabel();
+        }
+
+        // Exchanges the two cameras' devices, restarts both, and shows the down camera.
+        private void SwapCameraSelections()
+        {
+            string OldDown = Setting.DowncamMoniker;
+            string OldUp = Setting.UpcamMoniker;
+            if (DownCamera.IsRunning())
+            {
+                DownCamera.Close();
+            }
+            if (UpCamera.IsRunning())
+            {
+                UpCamera.Close();
+            }
+            Setting.DowncamMoniker = OldUp;
+            Setting.UpcamMoniker = OldDown;
+            DownCamera.MonikerString = Setting.DowncamMoniker;
+            UpCamera.MonikerString = Setting.UpcamMoniker;
+            getDownCamList();   // re-selects by moniker
+            getUpCamList();
+            Setting.Downcam_Name = DownCam_comboBox.SelectedItem.ToString();
+            Setting.Upcam_Name = UpCam_comboBox.SelectedItem.ToString();
+            DisplayText("Cameras swapped. Down camera: " + Setting.Downcam_Name + ", up camera: " + Setting.Upcam_Name);
+            if (KeepActive_checkBox.Checked)
+            {
+                ApplyCameraSelection(UpCamera);
+            }
+            ApplyCameraSelection(DownCamera);
         }
 
         // ====
@@ -4073,36 +4193,59 @@ namespace LitePlacer
                 UpCamera.MonikerString = "-no camera-";
                 return;
             }
+            string NewMoniker = Monikers[UpCam_comboBox.SelectedIndex];
+            if (UpCam_comboBox.SelectedIndex == 0)
+            {
+                // "-- none --": release the up camera's device
+                if (UpCamera.IsRunning())
+                {
+                    UpCamera.Close();
+                }
+                UpCamera.Active = false;
+                Setting.Upcam_Name = UpCam_comboBox.SelectedItem.ToString();
+                Setting.UpcamMoniker = "-no camera-";
+                UpCamera.MonikerString = "-no camera-";
+                DisplayText("Up camera: none");
+                UpdateUpCameraStatusLabel();
+                return;
+            }
+            if (NewMoniker == Setting.DowncamMoniker)
+            {
+                DialogResult res = ShowMessageBox(
+                    "That device is currently the down camera.\n\n" +
+                    "Swap the two cameras (the present up camera becomes the down camera)?",
+                    "Swap cameras?",
+                    MessageBoxButtons.YesNo);
+                if (res != DialogResult.Yes)
+                {
+                    getUpCamList();   // put the combo back to the saved selection
+                    return;
+                }
+                SwapCameraSelections();
+                return;
+            }
             Setting.Upcam_Name = UpCam_comboBox.SelectedItem.ToString();
-            Setting.UpcamMoniker = Monikers[UpCam_comboBox.SelectedIndex];
-            UpCamera.MonikerString = Monikers[UpCam_comboBox.SelectedIndex];
-
-            UpCamera.DesiredResolutionX = Setting.UpCam_DesiredX;
-            UpCamera.DesiredResolutionY = Setting.UpCam_DesiredY;
-
-            // StartUpCamera_m();
-            SelectCamera(UpCamera);
-            if (UpCamera.IsRunning())
+            if ((NewMoniker == Setting.UpcamMoniker) && UpCamera.IsRunning())
             {
-                SetUpCameraParameters();
+                // Same device, already running: just show it, no need to restart
+                SelectCamera(UpCamera);
+                return;
             }
-            else
-            {
-                ShowMessageBox(
-                    "Problem starting this camera",
-                    "Problem starting camera",
-                    MessageBoxButtons.OK);
-            }
-            UpdateUpCameraStatusLabel();
-            UpdateDownCameraStatusLabel();
+            Setting.UpcamMoniker = NewMoniker;
+            DisplayText("Up camera: " + Setting.Upcam_Name);
+            ApplyCameraSelection(UpCamera);
         }
 
         // =================================================================================
         private bool BoxSizeCalculationValid_m(Camera cam)
         {
+            if (!cam.IsRunning())
+            {
+                return false;   // nothing to calculate yet; not an error worth logging
+            }
             if ((cam.CameraResolution.X == 0) || (cam.CameraResolution.Y == 0))
             {
-                DisplayText("camera resolution not set.", KnownColor.DarkRed, true);
+                DisplayText(cam.Name + ": camera resolution not set.", KnownColor.DarkRed, true);
                 return false;
             }
             return true;
