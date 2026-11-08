@@ -154,7 +154,11 @@ namespace LitePlacer
                     MainForm.DisplayText("** " + Name + " did not stop on OS level, forcing stop.");
                 }
                 Source.NewFrame -= new NewFrameEventHandler(Video_NewFrame);
-                MonikerString = "Stopped";
+                if (VideoSource == null)
+                {
+                    // nobody restarted the camera while we waited
+                    MonikerString = "Stopped";
+                }
                 MainForm.DisplayText(Name + " stopped.");
             }
             else
