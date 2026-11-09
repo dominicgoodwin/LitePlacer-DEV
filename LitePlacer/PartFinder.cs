@@ -77,6 +77,14 @@ namespace LitePlacer
                 double t = LengthPx; LengthPx = WidthPx; WidthPx = t;
             }
             int f = (int)Math.Max(1, Math.Floor(LengthPx / WorkLength));
+            if (Pins > 0)
+            {
+                // Leads must stay resolvable: keep the pin pitch (estimated from the span and the pin count,
+                // two rows assumed) at least 10 working pixels so foot and knee blobs do not fuse
+                double pitchPx = Math.Max(LengthPx, WidthPx) / Math.Max(1.0, Pins / 2.0);
+                int fp = (int)Math.Max(1, Math.Floor(pitchPx / 10.0));
+                if (fp < f) f = fp;
+            }
             int W = width / f;
             int H = height / f;
             float[] img = Downsample(grey, width, height, f, W, H);
@@ -918,20 +926,14 @@ namespace LitePlacer
                     double vx1 = cuv, vy1 = e1 - cuu;   // eigenvector of e1 (du, dv)
                     if (Math.Abs(vx1) < 1e-9 && Math.Abs(vy1) < 1e-9) { vx1 = 1; vy1 = 0; }
                     bool alongU = Math.Abs(vx1) >= Math.Abs(vy1);
-                    bool touchesLongSide = rv >= ru;
-                    if (touchesLongSide == alongU) continue;
+                    // A corner pin reaches both the side and the end; only an unambiguous touch can reject
+                    bool touchesLongSide = rv >= 0.92 && ru < 0.92, touchesEnd = ru >= 0.92 && rv < 0.92;
+                    if ((touchesLongSide && alongU) || (touchesEnd && !alongU)) continue;
                 }
                 keep.Add(kv.Key);
                 pinCentres.Add(new double[] { cu, cv });
             }
             int npins = keep.Count;
-            // pin-sized bright blobs just outside the span: the span was drawn on the knees of gull-wing leads
-            // (or on one side's knees), not on the feet
-            foreach (List<double[]> pts in outsideBlobs.Values)
-            {
-                double area = pts.Count;
-                if (area >= 0.6 * refArea && area <= 1.6 * refArea) outsidePins++;
-            }
             if (npins < 2) return npins;
             // re-fit the rectangle from the pins alone
             List<double[]> all = new List<double[]>();
