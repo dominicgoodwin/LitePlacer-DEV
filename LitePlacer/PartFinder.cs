@@ -191,8 +191,10 @@ namespace LitePlacer
                 {
                     float otsu = OtsuInRect(img, W, H, g.Cx, g.Cy, g.L * 1.1, g.W * 1.1, g.Angle);
                     double sym, rowAngle;
-                    int npins = PinEvidence(img, W, H, g, otsu, Pins, out sym, out rowAngle);
+                    int outsidePins;
+                    int npins = PinEvidence(img, W, H, g, otsu, Pins, out sym, out rowAngle, out outsidePins);
                     g.PinCount = npins;
+                    g.OutsidePins = outsidePins;
                     g.RowAngle = rowAngle;
                     g.Symmetry = sym;
                     g.Edge = 0; g.MinSide = 0;
@@ -200,6 +202,7 @@ namespace LitePlacer
                     double pinfit = 1.0 - Math.Min(1.0, Math.Abs(npins - Pins) / Math.Max(1.0, Pins * 0.34));
                     score = 0.3 * Math.Max(0.0, g.Geom) + 0.3 * stab + 0.25 * sym + 0.15 * pinfit;
                     if (sym < 0.6 || g.Outside > 0.25 || pinfit < 0.5) score *= 0.5;
+                    if (outsidePins * 4 >= Pins) score *= 0.5;      // a row of pins beyond the span: wrong span
                 }
                 else
                 {
@@ -268,6 +271,7 @@ namespace LitePlacer
                     + " px, angle " + p.Angle.ToString("0.0", CultureInfo.InvariantCulture)
                     + ", levels " + p.Levels.ToString(CultureInfo.InvariantCulture)
                     + ((Pins > 0) ? ", pins " + p.PinCount.ToString(CultureInfo.InvariantCulture)
+                                    + " (+" + best.OutsidePins.ToString(CultureInfo.InvariantCulture) + " outside)"
                                   : ", edge " + p.Edge.ToString("0.00", CultureInfo.InvariantCulture)
                                     + " (min side " + best.MinSide.ToString("0.00", CultureInfo.InvariantCulture) + ")")
                     + ", sym " + p.Symmetry.ToString("0.00", CultureInfo.InvariantCulture)
@@ -306,7 +310,7 @@ namespace LitePlacer
             public double Cx, Cy, L, W, Angle, Geom, Score;
             public int NLevels;
             public double Edge, Sym180, SymL, SymW, Symmetry, Outside, MinSide;
-            public int PinCount;
+            public int PinCount, OutsidePins;
             public double RowAngle;
         }
 
@@ -810,13 +814,15 @@ namespace LitePlacer
         // the rectangle boundary, pointing inward) inside the rectangle at the Otsu level, re-fits the
         // rectangle from them (updating g), and returns the pin count, the best of the three symmetries
         // of the pin mask, and the pin-row direction.
-        static int PinEvidence(float[] img, int W, int H, Group g, float thr, int pins, out double sym, out double rowAngle)
+        static int PinEvidence(float[] img, int W, int H, Group g, float thr, int pins, out double sym, out double rowAngle, out int outsidePins)
         {
-            sym = 0; rowAngle = g.Angle;
+            sym = 0; rowAngle = g.Angle; outsidePins = 0;
             double a = g.Angle * Math.PI / 180.0;
             double ux = Math.Cos(a), uy = Math.Sin(a);
             double L1 = g.L * 1.08, W1 = g.W * 1.08;
-            double R = Hypot(L1, W1) / 2 + 2;
+            double band = Math.Max(6.0, 0.25 * g.W);        // outer band searched for pins beyond the span
+            double L2 = L1 + 2 * band, W2 = W1 + 2 * band;
+            double R = Hypot(L2, W2) / 2 + 2;
             int x0 = Math.Max(1, (int)(g.Cx - R)), x1 = Math.Min(W - 2, (int)(g.Cx + R) + 1);
             int y0 = Math.Max(1, (int)(g.Cy - R)), y1 = Math.Min(H - 2, (int)(g.Cy + R) + 1);
             int bw = x1 - x0 + 1, bh = y1 - y0 + 1;
@@ -828,7 +834,7 @@ namespace LitePlacer
                 for (int x = 0; x < bw; x++)
                 {
                     int gxp = x + x0, gyp = y + y0;
-                    if (img[gyp * W + gxp] <= thr || !InRect(gxp, gyp, g.Cx, g.Cy, L1, W1, ux, uy)) continue;
+                    if (img[gyp * W + gxp] <= thr || !InRect(gxp, gyp, g.Cx, g.Cy, L2, W2, ux, uy)) continue;
                     int i = y * bw + x;
                     int best = 0; int[] nb = new int[4]; int nn = 0;
                     if (x > 0 && lab[i - 1] > 0) nb[nn++] = lab[i - 1];
@@ -858,6 +864,18 @@ namespace LitePlacer
                 pts.Add(new double[] { i % bw + x0, i / bw + y0 });
             }
             if (blobs.Count == 0) return 0;
+            // split blobs into those inside the span (touching the 1.08x rectangle) and those wholly outside it
+            Dictionary<int, List<double[]>> outsideBlobs = new Dictionary<int, List<double[]>>();
+            List<int> toRemove = new List<int>();
+            foreach (KeyValuePair<int, List<double[]>> kv in blobs)
+            {
+                bool inside = false;
+                foreach (double[] q in kv.Value)
+                    if (InRect(q[0], q[1], g.Cx, g.Cy, L1, W1, ux, uy)) { inside = true; break; }
+                if (!inside) { outsideBlobs[kv.Key] = kv.Value; toRemove.Add(kv.Key); }
+            }
+            foreach (int k in toRemove) blobs.Remove(k);
+            if (blobs.Count == 0) return 0;
             // reference pin size: median area of the `pins` largest blobs
             List<double> areas = new List<double>();
             foreach (List<double[]> pts in blobs.Values) areas.Add(pts.Count);
@@ -886,7 +904,7 @@ namespace LitePlacer
                     su += u; sv += v; suu += u * u; svv += v * v; suv += u * v;
                 }
                 double ru = maxU / (g.L / 2), rv = maxV / (g.W / 2);
-                if (Math.Max(ru, rv) < 0.8) continue;   // a sliver inside the rectangle, not a pin
+                if (Math.Max(ru, rv) < 0.92) continue;  // inside the span (the knee of a gull-wing lead, a sliver of nozzle): not a pin tip
                 double n = pts.Count;
                 double cu = su / n, cv = sv / n;
                 double cuu = suu / n - cu * cu, cvv = svv / n - cv * cv, cuv = suv / n - cu * cv;
@@ -907,6 +925,13 @@ namespace LitePlacer
                 pinCentres.Add(new double[] { cu, cv });
             }
             int npins = keep.Count;
+            // pin-sized bright blobs just outside the span: the span was drawn on the knees of gull-wing leads
+            // (or on one side's knees), not on the feet
+            foreach (List<double[]> pts in outsideBlobs.Values)
+            {
+                double area = pts.Count;
+                if (area >= 0.6 * refArea && area <= 1.6 * refArea) outsidePins++;
+            }
             if (npins < 2) return npins;
             // re-fit the rectangle from the pins alone
             List<double[]> all = new List<double[]>();
@@ -921,6 +946,38 @@ namespace LitePlacer
                 double su2 = 0, sv2 = 0;
                 foreach (double[] q in blobs[k]) { double dx = q[0] - g.Cx, dy = q[1] - g.Cy; su2 += dx * ux + dy * uy; sv2 += -dx * uy + dy * ux; }
                 cen.Add(new double[] { su2 / blobs[k].Count, sv2 / blobs[k].Count });
+            }
+            // Pin-row direction first: the rectangle axis along which the pin centres take more distinct
+            // positions, "distinct" being relative to the pin size (fine-pitch leads are close together)
+            double pinSize = Math.Sqrt(refArea);
+            {
+                List<double> us0 = new List<double>(), vs0 = new List<double>();
+                foreach (double[] c in cen) { us0.Add(c[0]); vs0.Add(c[1]); }
+                int du = Distinct(us0, 0.5 * pinSize), dv = Distinct(vs0, 0.5 * pinSize);
+                rowAngle = (du >= dv) ? g.Angle : NormAngle(g.Angle + 90);
+            }
+            bool rowsAlongU = Math.Abs(NormAngle(rowAngle - g.Angle)) < 1.0;
+            // Part centre from the pin centroids rather than the hull extents, which the blurred outer faces
+            // of bent leads inflate unevenly. Along the rows: midpoint of the extreme pins. Across the rows:
+            // midpoint of the mean pin positions of the two sides. Both are symmetric for standard packages
+            // (SOT-23 included: its lone pin is centred along the row, its tips equidistant across).
+            {
+                double minA = double.MaxValue, maxA = double.MinValue, sumNeg = 0, sumPos = 0; int nNeg = 0, nPos = 0;
+                foreach (double[] c in cen)
+                {
+                    double along = rowsAlongU ? c[0] : c[1], across = rowsAlongU ? c[1] : c[0];
+                    if (along < minA) minA = along;
+                    if (along > maxA) maxA = along;
+                    if (across < 0) { sumNeg += across; nNeg++; } else { sumPos += across; nPos++; }
+                }
+                double dAlong = (minA + maxA) / 2;
+                double dAcross = (nNeg > 0 && nPos > 0) ? (sumNeg / nNeg + sumPos / nPos) / 2 : 0;
+                double du0 = rowsAlongU ? dAlong : dAcross, dv0 = rowsAlongU ? dAcross : dAlong;
+                if (Math.Abs(du0) > 0.3 * g.L) du0 = 0;
+                if (Math.Abs(dv0) > 0.3 * g.W) dv0 = 0;
+                g.Cx += du0 * ux - dv0 * uy;
+                g.Cy += du0 * uy + dv0 * ux;
+                foreach (double[] c in cen) { c[0] -= du0; c[1] -= dv0; }
             }
             // Pitch: median nearest-neighbour distance between pin centres
             List<double> nnDist = new List<double>();
@@ -951,13 +1008,6 @@ namespace LitePlacer
                     double best = Math.Max(s180, Math.Max(sL, sW));
                     if (best > sym) sym = best;
                 }
-            // Pin-row direction: the rectangle axis along which the pin centres take more distinct positions,
-            // "distinct" being relative to the pin size (not the part size: fine-pitch leads are close together)
-            double pinSize = Math.Sqrt(refArea);
-            List<double> us = new List<double>(), vs = new List<double>();
-            foreach (double[] c in cen) { us.Add(c[0]); vs.Add(c[1]); }
-            int du = Distinct(us, 0.5 * pinSize), dv = Distinct(vs, 0.5 * pinSize);
-            rowAngle = (du >= dv) ? g.Angle : NormAngle(g.Angle + 90);
             return npins;
         }
 
