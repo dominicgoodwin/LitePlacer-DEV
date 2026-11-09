@@ -2939,68 +2939,116 @@ namespace LitePlacer
             DownCamera.BuildMeasurementFunctionsList(HomeAlg.FunctionList);
             DownCamera.MeasurementParameters = HomeAlg.MeasurementParameters;
 
+            // Tolerance for both the positioning rounds and the final check (mm).
+            const double HomingTolerance = 0.1;
             double X;
             double Y;
             double A = 0.0;
             bool ok = true;
+            int Attempts = 0;
             do
             {
-                ok = true;
-                if (!GoToFeatureLocation_m(0.1, out X, out Y, out A))
-                {
-                    ok = false;
-                    string nl = Environment.NewLine;
-                    string answer = NonModalMessageBox(
-                        "Move to home mark failed." + nl +
-                        "Jog machine to position and/or tune the algorithm." + nl +
-                        "Click \"Retry\" to try again," + nl +
-                        "click \"Cancel\" to continue without success", "Home Mark not found",
-                        "Retry", "", "Cancel");
-                    if (answer == "Cancel")
-                    {
-                        return false;
-                    }
-                    DownCamera.BuildMeasurementFunctionsList(HomeAlg.FunctionList);
-                    DownCamera.MeasurementParameters = HomeAlg.MeasurementParameters;
-                    Thread.Sleep(100);
-                }
-            } while (!ok);
-
-            List<double> Xlist = new List<double>();
-            List<double> Ylist = new List<double>();
-            // Once on top of the homing mark, get median from 7 new measurements.
-            // (The measurement might be off by a pixel. This gets the most likely correct result.)
-            do
-            {
-                Xlist.Clear();
-                Ylist.Clear();
-                int Successes = 0;
-                int Tries = 0;
+                // ---- positioning rounds: move until the mark is within tolerance of the camera centre
                 do
                 {
-                    Tries++;
-                    if (DownCamera.Measure(out X, out Y, out double Ares, false))
+                    ok = true;
+                    if (!GoToFeatureLocation_m(HomingTolerance, out X, out Y, out A))
                     {
-                        Successes++;
-                        Xlist.Add(X);
-                        Ylist.Add(Y);
+                        ok = false;
+                        string nl = Environment.NewLine;
+                        string answer = NonModalMessageBox(
+                            "Move to home mark failed." + nl +
+                            "Jog machine to position and/or tune the algorithm." + nl +
+                            "Click \"Retry\" to try again," + nl +
+                            "click \"Cancel\" to continue without success", "Home Mark not found",
+                            "Retry", "", "Cancel");
+                        if (answer == "Cancel")
+                        {
+                            return false;
+                        }
+                        DownCamera.BuildMeasurementFunctionsList(HomeAlg.FunctionList);
+                        DownCamera.MeasurementParameters = HomeAlg.MeasurementParameters;
+                        Thread.Sleep(100);
                     }
-                }
-                while ((Successes < 7) && (Tries < 20));
-                ok = true;
-                if (Tries >= 20)
+                } while (!ok);
+
+                // ---- once on top of the homing mark, get median from 7 new measurements.
+                // (The measurement might be off by a pixel. This gets the most likely correct result.)
+                List<double> Xlist = new List<double>();
+                List<double> Ylist = new List<double>();
+                do
                 {
-                    ok = false;
-                    string nl = Environment.NewLine;
-                    string answer = NonModalMessageBox(
-                        "Secondary measurement failed, 20 measurements did not give 7 good results." + nl +
-                        "Try tuning the algorithm further." + nl +
-                        "Click \"Retry\" to try again," + nl +
-                        "Click \"Cancel\" to continue without success", "Measurement failed",
-                        "Retry", "", "Cancel");
-                    if (answer == "Cancel")
+                    Xlist.Clear();
+                    Ylist.Clear();
+                    int Successes = 0;
+                    int Tries = 0;
+                    do
                     {
-                        return false;
+                        Tries++;
+                        if (DownCamera.Measure(out X, out Y, out double Ares, false))
+                        {
+                            Successes++;
+                            Xlist.Add(X);
+                            Ylist.Add(Y);
+                        }
+                    }
+                    while ((Successes < 7) && (Tries < 20));
+                    ok = true;
+                    if (Tries >= 20)
+                    {
+                        ok = false;
+                        string nl = Environment.NewLine;
+                        string answer = NonModalMessageBox(
+                            "Secondary measurement failed, 20 measurements did not give 7 good results." + nl +
+                            "Try tuning the algorithm further." + nl +
+                            "Click \"Retry\" to try again," + nl +
+                            "Click \"Cancel\" to continue without success", "Measurement failed",
+                            "Retry", "", "Cancel");
+                        if (answer == "Cancel")
+                        {
+                            return false;
+                        }
+                        DownCamera.BuildMeasurementFunctionsList(HomeAlg.FunctionList);
+                        DownCamera.MeasurementParameters = HomeAlg.MeasurementParameters;
+                        Thread.Sleep(100);
+                    }
+                } while (!ok);
+
+                Xlist.Sort();
+                Ylist.Sort();
+                X = -Xlist[3];
+                Y = -Ylist[3];
+                double SpreadX = Xlist[6] - Xlist[0];
+                double SpreadY = Ylist[6] - Ylist[0];
+
+                // ---- sanity check: the median must agree with the positioning rounds (which ended within
+                // tolerance) and the seven measurements must agree with each other. A shift between the
+                // last positioning measurement and the averaging frames has been seen (0.3 mm, no motion
+                // in between); accepting it would set the machine origin 0.3 mm off.
+                ok = (Math.Abs(X) <= HomingTolerance) && (Math.Abs(Y) <= HomingTolerance)
+                    && (SpreadX <= HomingTolerance) && (SpreadY <= HomingTolerance);
+                if (!ok)
+                {
+                    Attempts++;
+                    DisplayText("Optical homing: final measurement (" + (-X).ToString("0.000", CultureInfo.InvariantCulture)
+                        + ", " + (-Y).ToString("0.000", CultureInfo.InvariantCulture) + ", spread "
+                        + SpreadX.ToString("0.000", CultureInfo.InvariantCulture) + "/" + SpreadY.ToString("0.000", CultureInfo.InvariantCulture)
+                        + ") disagrees with positioning; repeating (attempt " + Attempts.ToString(CultureInfo.InvariantCulture) + ")",
+                        KnownColor.DarkRed, true);
+                    if (Attempts >= 3)
+                    {
+                        string nl = Environment.NewLine;
+                        string answer = NonModalMessageBox(
+                            "Optical homing did not settle: the final measurements disagree with the positioning rounds." + nl +
+                            "Check the camera image and the Homing algorithm." + nl +
+                            "Click \"Retry\" to try again," + nl +
+                            "Click \"Cancel\" to continue without success", "Homing did not settle",
+                            "Retry", "", "Cancel");
+                        if (answer == "Cancel")
+                        {
+                            return false;
+                        }
+                        Attempts = 0;
                     }
                     DownCamera.BuildMeasurementFunctionsList(HomeAlg.FunctionList);
                     DownCamera.MeasurementParameters = HomeAlg.MeasurementParameters;
@@ -3008,10 +3056,6 @@ namespace LitePlacer
                 }
             } while (!ok);
 
-            Xlist.Sort();
-            Ylist.Sort();
-            X = -Xlist[3];
-            Y = -Ylist[3];
             Cnc.SetPosition(X: X.ToString("0.000", CultureInfo.InvariantCulture),
                 Y: Y.ToString("0.000", CultureInfo.InvariantCulture), Z: "", A: "");
             Thread.Sleep(50);
