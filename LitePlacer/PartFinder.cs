@@ -959,21 +959,56 @@ namespace LitePlacer
                 rowAngle = (du >= dv) ? g.Angle : NormAngle(g.Angle + 90);
             }
             bool rowsAlongU = Math.Abs(NormAngle(rowAngle - g.Angle)) < 1.0;
+            // Each row of pin tips lies on one line across the rows. A blob off its row's line (the knee of a
+            // gull-wing lead when the rectangle is narrow, a pin-1 dot, a split foot) is not a pin tip: drop it
+            // and re-fit the rectangle from the pins that remain.
+            {
+                List<double> neg = new List<double>(), pos = new List<double>();
+                foreach (double[] c in cen) { double across = rowsAlongU ? c[1] : c[0]; if (across < 0) neg.Add(across); else pos.Add(across); }
+                double medNeg = neg.Count > 0 ? Median(neg) : 0, medPos = pos.Count > 0 ? Median(pos) : 0;
+                double lineTol = Math.Max(2.0, 0.6 * pinSize);
+                List<int> keep2 = new List<int>();
+                for (int i = 0; i < cen.Count; i++)
+                {
+                    double across = rowsAlongU ? cen[i][1] : cen[i][0];
+                    double med = across < 0 ? medNeg : medPos;
+                    if (Math.Abs(across - med) <= lineTol) keep2.Add(keep[i]);
+                }
+                if (keep2.Count >= 2 && keep2.Count < keep.Count)
+                {
+                    keep = keep2;
+                    npins = keep.Count;
+                    all = new List<double[]>();
+                    foreach (int k in keep) all.AddRange(ConvexHull(blobs[k]));
+                    r = MinAreaRect(ConvexHull(all));
+                    g.Cx = r.Cx; g.Cy = r.Cy; g.L = r.L; g.W = r.W; g.Angle = NormAngle(r.Angle);
+                    a = g.Angle * Math.PI / 180.0; ux = Math.Cos(a); uy = Math.Sin(a);
+                    rowAngle = rowsAlongU ? g.Angle : NormAngle(g.Angle + 90);
+                    cen.Clear();
+                    foreach (int k in keep)
+                    {
+                        double su2 = 0, sv2 = 0;
+                        foreach (double[] q in blobs[k]) { double dx = q[0] - g.Cx, dy = q[1] - g.Cy; su2 += dx * ux + dy * uy; sv2 += -dx * uy + dy * ux; }
+                        cen.Add(new double[] { su2 / blobs[k].Count, sv2 / blobs[k].Count });
+                    }
+                }
+            }
             // Part centre from the pin centroids rather than the hull extents, which the blurred outer faces
             // of bent leads inflate unevenly. Along the rows: midpoint of the extreme pins. Across the rows:
-            // midpoint of the mean pin positions of the two sides. Both are symmetric for standard packages
+            // midpoint of the median pin positions of the two sides. Both are symmetric for standard packages
             // (SOT-23 included: its lone pin is centred along the row, its tips equidistant across).
             {
-                double minA = double.MaxValue, maxA = double.MinValue, sumNeg = 0, sumPos = 0; int nNeg = 0, nPos = 0;
+                double minA = double.MaxValue, maxA = double.MinValue;
+                List<double> neg = new List<double>(), pos = new List<double>();
                 foreach (double[] c in cen)
                 {
                     double along = rowsAlongU ? c[0] : c[1], across = rowsAlongU ? c[1] : c[0];
                     if (along < minA) minA = along;
                     if (along > maxA) maxA = along;
-                    if (across < 0) { sumNeg += across; nNeg++; } else { sumPos += across; nPos++; }
+                    if (across < 0) neg.Add(across); else pos.Add(across);
                 }
                 double dAlong = (minA + maxA) / 2;
-                double dAcross = (nNeg > 0 && nPos > 0) ? (sumNeg / nNeg + sumPos / nPos) / 2 : 0;
+                double dAcross = (neg.Count > 0 && pos.Count > 0) ? (Median(neg) + Median(pos)) / 2 : 0;
                 double du0 = rowsAlongU ? dAlong : dAcross, dv0 = rowsAlongU ? dAcross : dAlong;
                 if (Math.Abs(du0) > 0.3 * g.L) du0 = 0;
                 if (Math.Abs(dv0) > 0.3 * g.W) dv0 = 0;
