@@ -41,6 +41,7 @@ namespace LitePlacer
             public double Edge;       // 0..1
             public double Symmetry;   // 0..1
             public double Outside;    // 0..1
+            public int PinCount;      // leaded mode: pins found
             public bool Accepted;
         }
 
@@ -59,6 +60,18 @@ namespace LitePlacer
         public static Part Find(byte[] grey, int width, int height, double LengthPx, double WidthPx,
             double Tolerance, double MaxRotation, double MaxCentreDistPx, double AcceptScore, StringBuilder log)
         {
+            return Find(grey, width, height, LengthPx, WidthPx, Tolerance, MaxRotation, MaxCentreDistPx, AcceptScore, 0, log);
+        }
+
+        // Pins > 0 selects the leaded-part mode: the rectangle is the pin span, made of Pins bright, compact,
+        // similar-sized pins that reach its boundary. Evidence is pin count and the symmetry of the pins
+        // (180 degrees or either mirror) instead of outline edges; the rectangle is re-fitted from the pins
+        // alone. Part.Angle is then the direction of the pin rows (the axis along which the pins are spaced),
+        // and Part.PinCount the pins found.
+        public static Part Find(byte[] grey, int width, int height, double LengthPx, double WidthPx,
+            double Tolerance, double MaxRotation, double MaxCentreDistPx, double AcceptScore, int Pins, StringBuilder log)
+        {
+            string fname = (Pins > 0) ? "Find leads" : "Find part";
             if (WidthPx > LengthPx)
             {
                 double t = LengthPx; LengthPx = WidthPx; WidthPx = t;
@@ -138,11 +151,22 @@ namespace LitePlacer
             }
             if (cands.Count == 0)
             {
-                if (log != null) log.Append("Find part: no rectangle of that size at any threshold");
+                if (log != null) log.Append(fname + ": no rectangle of that size at any threshold");
                 return null;
             }
 
             // ---- 3: group across thresholds
+            if (Pins > 0)
+            {
+                // a leaded part's cluster has about Pins members (plus a few specks)
+                int lo = Math.Max(2, (int)Math.Round(Pins * 0.66)), hi = (int)Math.Round(Pins * 1.34) + 3;
+                cands = cands.FindAll(c => c.NBlobs >= lo && c.NBlobs <= hi);
+                if (cands.Count == 0)
+                {
+                    if (log != null) log.Append(fname + ": no cluster of about " + Pins.ToString(CultureInfo.InvariantCulture) + " pins of that span");
+                    return null;
+                }
+            }
             List<Group> groups = GroupCandidates(cands, Math.Max(3.0, 0.06 * L));
 
             // ---- 4: evidence and score
@@ -153,22 +177,40 @@ namespace LitePlacer
             foreach (Group g in groups)
             {
                 if (g.NLevels < 3 || g.Geom < 0.2) continue;
-                g.Edge = EdgeSupport(gx, gy, W, H, g.Cx, g.Cy, g.L, g.W, g.Angle, out g.MinSide);
-                float otsu;
-                Symmetry(img, W, H, g.Cx, g.Cy, g.L, g.W, g.Angle, out g.Sym180, out g.SymL, out g.SymW, out otsu);
-                g.Outside = OutsideBrightness(img, W, H, g.Cx, g.Cy, g.L, g.W, g.Angle, otsu);
                 double stab = Math.Min(1.0, g.NLevels / 8.0);
-                double sym = Math.Max(g.Sym180, Math.Min(g.SymL, g.SymW));
-                g.Symmetry = sym;
-                double score = 0.25 * Math.Max(0.0, g.Geom) + 0.25 * stab + 0.3 * g.Edge + 0.2 * sym;
-                if (g.Edge < 0.7 || sym < 0.55) score *= 0.5;
-                if (g.Outside > 0.25) score *= 0.5;
+                double score;
+                if (Pins > 0)
+                {
+                    float otsu = OtsuInRect(img, W, H, g.Cx, g.Cy, g.L * 1.1, g.W * 1.1, g.Angle);
+                    double sym, rowAngle;
+                    int npins = PinEvidence(img, W, H, g, otsu, Pins, out sym, out rowAngle);
+                    g.PinCount = npins;
+                    g.RowAngle = rowAngle;
+                    g.Symmetry = sym;
+                    g.Edge = 0; g.MinSide = 0;
+                    g.Outside = OutsideBrightness(img, W, H, g.Cx, g.Cy, g.L, g.W, g.Angle, otsu);
+                    double pinfit = 1.0 - Math.Min(1.0, Math.Abs(npins - Pins) / Math.Max(1.0, Pins * 0.34));
+                    score = 0.3 * Math.Max(0.0, g.Geom) + 0.3 * stab + 0.25 * sym + 0.15 * pinfit;
+                    if (sym < 0.6 || g.Outside > 0.25 || pinfit < 0.5) score *= 0.5;
+                }
+                else
+                {
+                    g.Edge = EdgeSupport(gx, gy, W, H, g.Cx, g.Cy, g.L, g.W, g.Angle, out g.MinSide);
+                    float otsu;
+                    Symmetry(img, W, H, g.Cx, g.Cy, g.L, g.W, g.Angle, out g.Sym180, out g.SymL, out g.SymW, out otsu);
+                    g.Outside = OutsideBrightness(img, W, H, g.Cx, g.Cy, g.L, g.W, g.Angle, otsu);
+                    double sym = Math.Max(g.Sym180, Math.Min(g.SymL, g.SymW));
+                    g.Symmetry = sym;
+                    score = 0.25 * Math.Max(0.0, g.Geom) + 0.25 * stab + 0.3 * g.Edge + 0.2 * sym;
+                    if (g.Edge < 0.7 || sym < 0.55) score *= 0.5;
+                    if (g.Outside > 0.25) score *= 0.5;
+                }
                 g.Score = score;
                 if (best == null || score > best.Score) best = g;
             }
             if (best == null)
             {
-                if (log != null) log.Append("Find part: " + cands.Count.ToString(CultureInfo.InvariantCulture)
+                if (log != null) log.Append(fname + ": " + cands.Count.ToString(CultureInfo.InvariantCulture)
                     + " candidates, none stable across thresholds");
                 return null;
             }
@@ -177,7 +219,7 @@ namespace LitePlacer
             double rcx = best.Cx, rcy = best.Cy, rL = best.L, rW = best.W;
             bool accepted = best.Score >= AcceptScore;
             string sizeNote = "";
-            if (accepted)
+            if (accepted && Pins == 0)
             {
                 RefineSides(blur, gx, gy, W, H, best.Angle, ref rcx, ref rcy, ref rL, ref rW);
                 RefineSides(blur, gx, gy, W, H, best.Angle, ref rcx, ref rcy, ref rL, ref rW);   // second pass from the corrected geometry
@@ -187,12 +229,22 @@ namespace LitePlacer
                     sizeNote = " (size out of tolerance after edge refinement)";
                 }
             }
+            else if (accepted)
+            {
+                // rectangle was re-fitted from the pins in PinEvidence; check its size against tolerance
+                if (Math.Abs(rL - L) > L * Tolerance || Math.Abs(rW - Wd) > Wd * Tolerance)
+                {
+                    accepted = false;
+                    sizeNote = " (pin span out of tolerance)";
+                }
+            }
             Part p = new Part();
             p.X = (rcx + 0.5) * f - 0.5;
             p.Y = (rcy + 0.5) * f - 0.5;
             p.Length = rL * f;
             p.Width = rW * f;
-            p.Angle = best.Angle;
+            p.Angle = (Pins > 0) ? best.RowAngle : best.Angle;
+            p.PinCount = best.PinCount;
             p.Score = best.Score;
             p.Levels = best.NLevels;
             p.Edge = best.Edge;
@@ -201,14 +253,15 @@ namespace LitePlacer
             p.Accepted = accepted;
             if (log != null)
             {
-                log.Append("Find part: " + cands.Count.ToString(CultureInfo.InvariantCulture) + " candidates in "
+                log.Append(fname + ": " + cands.Count.ToString(CultureInfo.InvariantCulture) + " candidates in "
                     + groups.Count.ToString(CultureInfo.InvariantCulture) + " groups; best ("
                     + p.X.ToString("0.0", CultureInfo.InvariantCulture) + ", " + p.Y.ToString("0.0", CultureInfo.InvariantCulture) + ") "
                     + p.Length.ToString("0.0", CultureInfo.InvariantCulture) + "x" + p.Width.ToString("0.0", CultureInfo.InvariantCulture)
                     + " px, angle " + p.Angle.ToString("0.0", CultureInfo.InvariantCulture)
                     + ", levels " + p.Levels.ToString(CultureInfo.InvariantCulture)
-                    + ", edge " + p.Edge.ToString("0.00", CultureInfo.InvariantCulture)
-                    + " (min side " + best.MinSide.ToString("0.00", CultureInfo.InvariantCulture) + ")"
+                    + ((Pins > 0) ? ", pins " + p.PinCount.ToString(CultureInfo.InvariantCulture)
+                                  : ", edge " + p.Edge.ToString("0.00", CultureInfo.InvariantCulture)
+                                    + " (min side " + best.MinSide.ToString("0.00", CultureInfo.InvariantCulture) + ")")
                     + ", sym " + p.Symmetry.ToString("0.00", CultureInfo.InvariantCulture)
                     + ", outside " + p.Outside.ToString("0.00", CultureInfo.InvariantCulture)
                     + ", score " + p.Score.ToString("0.00", CultureInfo.InvariantCulture)
@@ -236,6 +289,7 @@ namespace LitePlacer
         {
             public double Cx, Cy, L, W, Angle, Geom;
             public int Thr;
+            public int NBlobs;
         }
 
         class Group
@@ -244,6 +298,8 @@ namespace LitePlacer
             public double Cx, Cy, L, W, Angle, Geom, Score;
             public int NLevels;
             public double Edge, Sym180, SymL, SymW, Symmetry, Outside, MinSide;
+            public int PinCount;
+            public double RowAngle;
         }
 
         static double Hypot(double a, double b)
@@ -278,6 +334,7 @@ namespace LitePlacer
             double geom = 1.0 - 0.6 * sizeErr - 0.2 * (dist / maxDist) - 0.2 * (angErr / Math.Max(maxRot, 1.0));
             Cand c = new Cand();
             c.Cx = rect.Cx; c.Cy = rect.Cy; c.L = rect.L; c.W = rect.W; c.Angle = ang; c.Geom = geom; c.Thr = thr;
+            c.NBlobs = members.Count;
             cands.Add(c);
         }
 
@@ -718,6 +775,192 @@ namespace LitePlacer
             sym180 = nA == 0 ? 0 : i180 / (double)(2 * nA - i180);
             symL = nA == 0 ? 0 : iL / (double)(2 * nA - iL);
             symW = nA == 0 ? 0 : iW / (double)(2 * nA - iW);
+        }
+
+        static float OtsuInRect(float[] img, int W, int H, double cx, double cy, double L, double Wd, double angDeg)
+        {
+            double a = angDeg * Math.PI / 180.0;
+            double ux = Math.Cos(a), uy = Math.Sin(a);
+            double R = Hypot(L, Wd) / 2 + 1;
+            int x0 = Math.Max(0, (int)(cx - R)), x1 = Math.Min(W - 1, (int)(cx + R) + 1);
+            int y0 = Math.Max(0, (int)(cy - R)), y1 = Math.Min(H - 1, (int)(cy + R) + 1);
+            int[] hist = new int[256];
+            int count = 0;
+            for (int y = y0; y <= y1; y++)
+                for (int x = x0; x <= x1; x++)
+                    if (InRect(x, y, cx, cy, L, Wd, ux, uy))
+                    {
+                        int v = (int)Math.Round(img[y * W + x]);
+                        if (v < 0) v = 0; else if (v > 255) v = 255;
+                        hist[v]++;
+                        count++;
+                    }
+            return Otsu(hist, count);
+        }
+
+        // Leaded-part evidence for a group: finds the pins (bright, compact, similar-sized blobs reaching
+        // the rectangle boundary, pointing inward) inside the rectangle at the Otsu level, re-fits the
+        // rectangle from them (updating g), and returns the pin count, the best of the three symmetries
+        // of the pin mask, and the pin-row direction.
+        static int PinEvidence(float[] img, int W, int H, Group g, float thr, int pins, out double sym, out double rowAngle)
+        {
+            sym = 0; rowAngle = g.Angle;
+            double a = g.Angle * Math.PI / 180.0;
+            double ux = Math.Cos(a), uy = Math.Sin(a);
+            double L1 = g.L * 1.08, W1 = g.W * 1.08;
+            double R = Hypot(L1, W1) / 2 + 2;
+            int x0 = Math.Max(1, (int)(g.Cx - R)), x1 = Math.Min(W - 2, (int)(g.Cx + R) + 1);
+            int y0 = Math.Max(1, (int)(g.Cy - R)), y1 = Math.Min(H - 2, (int)(g.Cy + R) + 1);
+            int bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+            if (bw < 3 || bh < 3) return 0;
+            // bright mask inside the rectangle, local labelling (4/8-connected via union-find)
+            int[] lab = new int[bw * bh];
+            List<int> parent = new List<int>(); parent.Add(0);
+            for (int y = 0; y < bh; y++)
+                for (int x = 0; x < bw; x++)
+                {
+                    int gxp = x + x0, gyp = y + y0;
+                    if (img[gyp * W + gxp] <= thr || !InRect(gxp, gyp, g.Cx, g.Cy, L1, W1, ux, uy)) continue;
+                    int i = y * bw + x;
+                    int best = 0; int[] nb = new int[4]; int nn = 0;
+                    if (x > 0 && lab[i - 1] > 0) nb[nn++] = lab[i - 1];
+                    if (y > 0)
+                    {
+                        if (x > 0 && lab[i - bw - 1] > 0) nb[nn++] = lab[i - bw - 1];
+                        if (lab[i - bw] > 0) nb[nn++] = lab[i - bw];
+                        if (x < bw - 1 && lab[i - bw + 1] > 0) nb[nn++] = lab[i - bw + 1];
+                    }
+                    if (nn == 0) { parent.Add(parent.Count); best = parent.Count - 1; }
+                    else
+                    {
+                        best = nb[0];
+                        for (int k = 1; k < nn; k++) if (nb[k] < best) best = nb[k];
+                        for (int k = 0; k < nn; k++) Union(parent, best, nb[k]);
+                    }
+                    lab[i] = best;
+                }
+            Dictionary<int, List<double[]>> blobs = new Dictionary<int, List<double[]>>();
+            for (int i = 0; i < bw * bh; i++)
+            {
+                if (lab[i] == 0) continue;
+                int root = FindRoot(parent, lab[i]);
+                lab[i] = root;
+                List<double[]> pts;
+                if (!blobs.TryGetValue(root, out pts)) { pts = new List<double[]>(); blobs[root] = pts; }
+                pts.Add(new double[] { i % bw + x0, i / bw + y0 });
+            }
+            if (blobs.Count == 0) return 0;
+            // reference pin size: median area of the `pins` largest blobs
+            List<double> areas = new List<double>();
+            foreach (List<double[]> pts in blobs.Values) areas.Add(pts.Count);
+            areas.Sort((p1, p2) => p2.CompareTo(p1));
+            List<double> top = areas.GetRange(0, Math.Min(pins, areas.Count));
+            double refArea = Median(top);
+            // select pins
+            List<int> keep = new List<int>();
+            List<double[]> pinCentres = new List<double[]>();
+            foreach (KeyValuePair<int, List<double[]>> kv in blobs)
+            {
+                List<double[]> pts = kv.Value;
+                double area = pts.Count;
+                if (area < 4 || area < 0.6 * refArea || area > 1.6 * refArea) continue;
+                List<double[]> hull = ConvexHull(pts);
+                double hullArea = PolygonArea(hull);
+                if (hullArea > 0 && area / hullArea < 0.65) continue;   // not compact
+                // reach to the boundary and orientation, in rectangle coordinates
+                double maxU = 0, maxV = 0, su = 0, sv = 0, suu = 0, svv = 0, suv = 0;
+                foreach (double[] q in pts)
+                {
+                    double dx = q[0] - g.Cx, dy = q[1] - g.Cy;
+                    double u = dx * ux + dy * uy, v = -dx * uy + dy * ux;
+                    if (Math.Abs(u) > maxU) maxU = Math.Abs(u);
+                    if (Math.Abs(v) > maxV) maxV = Math.Abs(v);
+                    su += u; sv += v; suu += u * u; svv += v * v; suv += u * v;
+                }
+                double ru = maxU / (g.L / 2), rv = maxV / (g.W / 2);
+                if (Math.Max(ru, rv) < 0.8) continue;   // a sliver inside the rectangle, not a pin
+                double n = pts.Count;
+                double cu = su / n, cv = sv / n;
+                double cuu = suu / n - cu * cu, cvv = svv / n - cv * cv, cuv = suv / n - cu * cv;
+                // principal axes
+                double tr = cuu + cvv, det = cuu * cvv - cuv * cuv;
+                double disc = Math.Sqrt(Math.Max(0, tr * tr / 4 - det));
+                double e1 = tr / 2 + disc, e2 = tr / 2 - disc;
+                if (e2 > 1e-9 && e1 > 4.0 * e2)
+                {
+                    // strongly elongated: long axis must be perpendicular to the side it touches
+                    double vx1 = cuv, vy1 = e1 - cuu;   // eigenvector of e1 (du, dv)
+                    if (Math.Abs(vx1) < 1e-9 && Math.Abs(vy1) < 1e-9) { vx1 = 1; vy1 = 0; }
+                    bool alongU = Math.Abs(vx1) >= Math.Abs(vy1);
+                    bool touchesLongSide = rv >= ru;
+                    if (touchesLongSide == alongU) continue;
+                }
+                keep.Add(kv.Key);
+                pinCentres.Add(new double[] { cu, cv });
+            }
+            int npins = keep.Count;
+            if (npins < 2) return npins;
+            // re-fit the rectangle from the pins alone
+            List<double[]> all = new List<double[]>();
+            foreach (int k in keep) all.AddRange(ConvexHull(blobs[k]));
+            Rect r = MinAreaRect(ConvexHull(all));
+            g.Cx = r.Cx; g.Cy = r.Cy; g.L = r.L; g.W = r.W; g.Angle = NormAngle(r.Angle);
+            a = g.Angle * Math.PI / 180.0; ux = Math.Cos(a); uy = Math.Sin(a);
+            // symmetry of the pin mask (bool over the box) under 180 deg and both mirrors, as IoU
+            bool[] mask = new bool[bw * bh];
+            int nA = 0;
+            foreach (int k in keep) foreach (double[] q in blobs[k]) { mask[((int)q[1] - y0) * bw + ((int)q[0] - x0)] = true; nA++; }
+            int i180 = 0, iL = 0, iW = 0;
+            foreach (int k in keep)
+                foreach (double[] q in blobs[k])
+                {
+                    double dx = q[0] - g.Cx, dy = q[1] - g.Cy;
+                    double u = dx * ux + dy * uy, v = -dx * uy + dy * ux;
+                    if (MaskAt(mask, bw, bh, x0, y0, g.Cx, g.Cy, -u, -v, ux, uy)) i180++;
+                    if (MaskAt(mask, bw, bh, x0, y0, g.Cx, g.Cy, u, -v, ux, uy)) iL++;
+                    if (MaskAt(mask, bw, bh, x0, y0, g.Cx, g.Cy, -u, v, ux, uy)) iW++;
+                }
+            double s180 = i180 / (double)(2 * nA - i180), sL = iL / (double)(2 * nA - iL), sW = iW / (double)(2 * nA - iW);
+            sym = Math.Max(s180, Math.Max(sL, sW));
+            // pin-row direction: the rectangle axis along which the pin centres take more distinct positions
+            List<double> us = new List<double>(), vs = new List<double>();
+            foreach (int k in keep)
+            {
+                double su2 = 0, sv2 = 0;
+                foreach (double[] q in blobs[k]) { double dx = q[0] - g.Cx, dy = q[1] - g.Cy; su2 += dx * ux + dy * uy; sv2 += -dx * uy + dy * ux; }
+                us.Add(su2 / blobs[k].Count); vs.Add(sv2 / blobs[k].Count);
+            }
+            int du = Distinct(us, 0.08 * g.L), dv = Distinct(vs, 0.08 * g.W);
+            rowAngle = (du >= dv) ? g.Angle : NormAngle(g.Angle + 90);
+            return npins;
+        }
+
+        static int Distinct(List<double> v, double d)
+        {
+            if (v.Count == 0) return 0;
+            List<double> s = new List<double>(v); s.Sort();
+            int n = 1;
+            for (int i = 1; i < s.Count; i++) if (s[i] - s[i - 1] > d) n++;
+            return n;
+        }
+
+        static double PolygonArea(List<double[]> poly)
+        {
+            double a = 0;
+            for (int i = 0; i < poly.Count; i++)
+            {
+                double[] p = poly[i], q = poly[(i + 1) % poly.Count];
+                a += p[0] * q[1] - q[0] * p[1];
+            }
+            return Math.Abs(a) / 2 + poly.Count * 0.5;   // pixels are unit squares; crude but consistent
+        }
+
+        static bool MaskAt(bool[] mask, int bw, int bh, int x0, int y0, double cx, double cy, double u, double v, double ux, double uy)
+        {
+            double x = cx + u * ux - v * uy, y = cy + u * uy + v * ux;
+            int xi = (int)Math.Round(x) - x0, yi = (int)Math.Round(y) - y0;
+            if (xi < 0 || yi < 0 || xi >= bw || yi >= bh) return false;
+            return mask[yi * bw + xi];
         }
 
         static bool BrightAt(float[] img, int W, int H, double cx, double cy, double u, double v, double ux, double uy, float thr)

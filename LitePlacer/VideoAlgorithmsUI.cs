@@ -34,7 +34,7 @@ namespace LitePlacer
         enum Functions_dataGridViewColumns : int { FunctionColumn, ActiveColumn };
         public List<string> KnownFunctions = new List<string> {"Threshold", "Invert", "Meas. zoom", "Histogram",
             "Grayscale", "Edge detect", "Noise reduction", "Erosion", "Kill color", "Keep color", "Blur",
-            "Gaussian blur", "Hough circles", "Find holes", "Find part", "Filter Features by Size", "Jog before measurement"};
+            "Gaussian blur", "Hough circles", "Find holes", "Find part", "Find leads", "Filter Features by Size", "Jog before measurement"};
 
 
         public VideoAlgorithmsCollection VideoAlgorithms;
@@ -1093,8 +1093,15 @@ namespace LitePlacer
                 case "Find part":
                     funct.parameterDouble = 1.6;    // part length, mm
                     funct.parameterDoubleA = 0.8;   // part width, mm
-                    funct.parameterDoubleB = 15.0;  // size tolerance, %
+                    funct.parameterDoubleB = 20.0;  // size tolerance, %
                     funct.parameterDoubleC = 30.0;  // max. rotation, degrees
+                    break;
+
+                case "Find leads":
+                    funct.parameterDouble = 2.45;   // length along the pin rows, mm (SOT-23)
+                    funct.parameterDoubleA = 2.6;   // width across, pin tip to pin tip, mm
+                    funct.parameterDoubleB = 3.0;   // pins
+                    funct.parameterDoubleC = 20.0;  // size tolerance, %
                     break;
 
                 case "Jog before measurement":
@@ -1223,6 +1230,20 @@ namespace LitePlacer
                         + "To get a result, ALSO tick 'Search component outlines' (or pads) under Measurement; that measures the\r\n"
                         + "rectangle (position, size, angle) as it does today. No Filter Features by Size step is needed.\r\n"
                         + "Put Find part after any Meas. zoom step. Max rot: how far from 0/90 degrees the part may sit.";
+                    FunctionExplanation_textBox.Visible = true;
+                    break;
+
+                case "Find leads":
+                    EnableDouble("Along rows (mm):");
+                    EnableDoubleA("Across (mm):");
+                    EnableDoubleB("Pins:");
+                    EnableDoubleC("Size tol. %:");
+                    FunctionExplanation_textBox.Text = "Up camera: finds a leaded part (SOT-23, SOT-223, SOIC, TSSOP...) by its pins: a rectangle of\r\n"
+                        + "the given pin-span size made of 'Pins' bright pins. Along rows = extent in the direction the pins are\r\n"
+                        + "spaced (body length); Across = pin tip to pin tip. Like Find part it only draws a white rectangle:\r\n"
+                        + "ALSO tick 'Search component outlines' under Measurement to measure it. The rectangle's long side is\r\n"
+                        + "the pin-row direction, so the measured angle is the part's; the measured size is not meaningful.\r\n"
+                        + "Black output = no such part on the nozzle.";
                     FunctionExplanation_textBox.Visible = true;
                     break;
 

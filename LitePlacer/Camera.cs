@@ -624,6 +624,11 @@ namespace LitePlacer
                         f.parameter_int = usage;
                         break;
 
+                    case "Find leads":
+                        f.func = FindLeadsFunct;
+                        f.parameter_int = usage;
+                        break;
+
                     default:
                         continue;
                         // break; 
@@ -1502,6 +1507,23 @@ namespace LitePlacer
         private void FindPartFunct(ref Bitmap frame, int par_int, double par_d, int par_R, int par_G, int par_B,
             double par_dA, double par_dB, double par_dC)
         {
+            FindPartCommon(ref frame, par_int, par_d, par_dA, par_dB, par_dC, 0);
+        }
+
+        // Find leads: leaded part (SOT, SOIC, TSSOP...) found by its pins. See PartFinder.cs, leaded mode.
+        // par_d: length along the pin rows, mm. par_dA: width across (pin tip to pin tip), mm. par_dB: pin count.
+        // par_dC: size tolerance, %. The output rectangle is drawn with its long side along the pin rows, so
+        // "Search component outlines" reports the row direction as the angle; its size is not the part's.
+        private void FindLeadsFunct(ref Bitmap frame, int par_int, double par_d, int par_R, int par_G, int par_B,
+            double par_dA, double par_dB, double par_dC)
+        {
+            int pins = (int)Math.Round(par_dB);
+            if (pins < 2) pins = 2;
+            FindPartCommon(ref frame, par_int, par_d, par_dA, par_dC, 45.0, pins);
+        }
+
+        private void FindPartCommon(ref Bitmap frame, int par_int, double par_d, double par_dA, double par_dB, double par_dC, int pins)
+        {
             int width = frame.Width;
             int height = frame.Height;
             double zoom = (par_int == 2) ? GetProcessingZoom() : GetMeasurementZoom();
@@ -1544,7 +1566,7 @@ namespace LitePlacer
             FilterFeaturesBySize_Distance = 2.0 + par_d;
 
             StringBuilder log = (par_int == 1) ? new StringBuilder() : null;
-            PartFinder.Part part = PartFinder.Find(pixels, width, height, LengthPx, WidthPx, tolerance, maxRot, maxCentreDistPx, 0.65, log);
+            PartFinder.Part part = PartFinder.Find(pixels, width, height, LengthPx, WidthPx, tolerance, maxRot, maxCentreDistPx, 0.65, pins, log);
 
             // Output image
             Bitmap result = new Bitmap(width, height, PixelFormat.Format24bppRgb);
@@ -1556,6 +1578,14 @@ namespace LitePlacer
                     double a = part.Angle * Math.PI / 180.0;
                     double ux = Math.Cos(a), uy = Math.Sin(a), vx = -uy, vy = ux;
                     double hl = part.Length / 2.0, hw = part.Width / 2.0;
+                    if (pins > 0)
+                    {
+                        // Angle is the pin-row direction, which may be the short side of the pin span (SOT-23).
+                        // Draw a clearly oblong rectangle along it so the measured angle is unambiguous.
+                        double big = Math.Max(part.Length, part.Width), small = Math.Min(part.Length, part.Width);
+                        hl = big / 2.0;
+                        hw = Math.Min(small, big * 0.6) / 2.0;
+                    }
                     PointF[] corners = new PointF[4];
                     corners[0] = new PointF((float)(part.X - hl * ux - hw * vx), (float)(part.Y - hl * uy - hw * vy));
                     corners[1] = new PointF((float)(part.X + hl * ux - hw * vx), (float)(part.Y + hl * uy - hw * vy));
@@ -1571,7 +1601,7 @@ namespace LitePlacer
                 MainForm.DisplayText(log.ToString());
                 if (part != null && part.Accepted)
                 {
-                    MainForm.DisplayText("  part " + (part.Length * mmPerPixel).ToString("0.00") + " x " + (part.Width * mmPerPixel).ToString("0.00")
+                    MainForm.DisplayText("  " + (pins > 0 ? "pin span " : "part ") + (part.Length * mmPerPixel).ToString("0.00") + " x " + (part.Width * mmPerPixel).ToString("0.00")
                         + " mm, offset (" + ((part.X - width / 2.0) * mmPerPixel).ToString("0.000") + ", "
                         + ((part.Y - height / 2.0) * mmPerPixel).ToString("0.000") + ") mm, angle " + part.Angle.ToString("0.0"));
                 }
