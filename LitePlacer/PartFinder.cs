@@ -153,7 +153,7 @@ namespace LitePlacer
             foreach (Group g in groups)
             {
                 if (g.NLevels < 3 || g.Geom < 0.2) continue;
-                g.Edge = EdgeSupport(gx, gy, W, H, g.Cx, g.Cy, g.L, g.W, g.Angle);
+                g.Edge = EdgeSupport(gx, gy, W, H, g.Cx, g.Cy, g.L, g.W, g.Angle, out g.MinSide);
                 float otsu;
                 Symmetry(img, W, H, g.Cx, g.Cy, g.L, g.W, g.Angle, out g.Sym180, out g.SymL, out g.SymW, out otsu);
                 g.Outside = OutsideBrightness(img, W, H, g.Cx, g.Cy, g.L, g.W, g.Angle, otsu);
@@ -180,6 +180,7 @@ namespace LitePlacer
             if (accepted)
             {
                 RefineSides(blur, gx, gy, W, H, best.Angle, ref rcx, ref rcy, ref rL, ref rW);
+                RefineSides(blur, gx, gy, W, H, best.Angle, ref rcx, ref rcy, ref rL, ref rW);   // second pass from the corrected geometry
                 if (Math.Abs(rL - L) > L * Tolerance || Math.Abs(rW - Wd) > Wd * Tolerance)
                 {
                     accepted = false;
@@ -207,6 +208,7 @@ namespace LitePlacer
                     + " px, angle " + p.Angle.ToString("0.0", CultureInfo.InvariantCulture)
                     + ", levels " + p.Levels.ToString(CultureInfo.InvariantCulture)
                     + ", edge " + p.Edge.ToString("0.00", CultureInfo.InvariantCulture)
+                    + " (min side " + best.MinSide.ToString("0.00", CultureInfo.InvariantCulture) + ")"
                     + ", sym " + p.Symmetry.ToString("0.00", CultureInfo.InvariantCulture)
                     + ", outside " + p.Outside.ToString("0.00", CultureInfo.InvariantCulture)
                     + ", score " + p.Score.ToString("0.00", CultureInfo.InvariantCulture)
@@ -241,7 +243,7 @@ namespace LitePlacer
             public List<Cand> Members = new List<Cand>();
             public double Cx, Cy, L, W, Angle, Geom, Score;
             public int NLevels;
-            public double Edge, Sym180, SymL, SymW, Symmetry, Outside;
+            public double Edge, Sym180, SymL, SymW, Symmetry, Outside, MinSide;
         }
 
         static double Hypot(double a, double b)
@@ -614,11 +616,15 @@ namespace LitePlacer
         // ------------------------------------------------------------------------------------------
         // Fraction of the rectangle outline where the gradient points inward (bright inside, dark outside),
         // searching +/- 3 px along the outward normal.
-        static double EdgeSupport(float[] gx, float[] gy, int W, int H, double cx, double cy, double L, double Wd, double angDeg)
+        // Also returns the support of the weakest single side: a chip has four edges, and a rectangle that
+        // has grown onto a sliver of nozzle has one end sitting on nothing much.
+        static double EdgeSupport(float[] gx, float[] gy, int W, int H, double cx, double cy, double L, double Wd, double angDeg,
+            out double minSide)
         {
             double a = angDeg * Math.PI / 180.0;
             double ux = Math.Cos(a), uy = Math.Sin(a), vx = -uy, vy = ux;
             int sup = 0, tot = 0;
+            int[] sideSup = new int[4], sideTot = new int[4];
             int nL = Math.Max(8, (int)(L / 2)), nW = Math.Max(6, (int)(Wd / 2));
             for (int i = 0; i < nL; i++)
             {
@@ -626,8 +632,9 @@ namespace LitePlacer
                 for (int s = -1; s <= 1; s += 2)
                 {
                     double px = cx + t * L * ux + s * Wd / 2 * vx, py = cy + t * L * uy + s * Wd / 2 * vy;
-                    if (EdgeAt(gx, gy, W, H, px, py, s * vx, s * vy)) sup++;
-                    tot++;
+                    int side = (s < 0) ? 0 : 1;
+                    if (EdgeAt(gx, gy, W, H, px, py, s * vx, s * vy)) { sup++; sideSup[side]++; }
+                    tot++; sideTot[side]++;
                 }
             }
             for (int i = 0; i < nW; i++)
@@ -636,9 +643,16 @@ namespace LitePlacer
                 for (int s = -1; s <= 1; s += 2)
                 {
                     double px = cx + s * L / 2 * ux + t * Wd * vx, py = cy + s * L / 2 * uy + t * Wd * vy;
-                    if (EdgeAt(gx, gy, W, H, px, py, s * ux, s * uy)) sup++;
-                    tot++;
+                    int side = (s < 0) ? 2 : 3;
+                    if (EdgeAt(gx, gy, W, H, px, py, s * ux, s * uy)) { sup++; sideSup[side]++; }
+                    tot++; sideTot[side]++;
                 }
+            }
+            minSide = 1.0;
+            for (int k = 0; k < 4; k++)
+            {
+                double f = sideTot[k] == 0 ? 0 : sideSup[k] / (double)sideTot[k];
+                if (f < minSide) minSide = f;
             }
             return tot == 0 ? 0 : sup / (double)tot;
         }
@@ -767,36 +781,73 @@ namespace LitePlacer
         {
             double a = angDeg * Math.PI / 180.0;
             double ux = Math.Cos(a), uy = Math.Sin(a), vx = -uy, vy = ux;
-            double oTop = SideOffset(gx, gy, W, H, ux, uy, L / 2, -vx, -vy, cx - Wd / 2 * vx, cy - Wd / 2 * vy);
-            double oBot = SideOffset(gx, gy, W, H, ux, uy, L / 2, vx, vy, cx + Wd / 2 * vx, cy + Wd / 2 * vy);
-            double oLef = SideOffset(gx, gy, W, H, vx, vy, Wd / 2, -ux, -uy, cx - L / 2 * ux, cy - L / 2 * uy);
-            double oRig = SideOffset(gx, gy, W, H, vx, vy, Wd / 2, ux, uy, cx + L / 2 * ux, cy + L / 2 * uy);
+            double oTop = SideOffset(gx, gy, W, H, ux, uy, L / 2, -vx, -vy, cx - Wd / 2 * vx, cy - Wd / 2 * vy, Wd / 4);
+            double oBot = SideOffset(gx, gy, W, H, ux, uy, L / 2, vx, vy, cx + Wd / 2 * vx, cy + Wd / 2 * vy, Wd / 4);
+            double oLef = SideOffset(gx, gy, W, H, vx, vy, Wd / 2, -ux, -uy, cx - L / 2 * ux, cy - L / 2 * uy, L / 4);
+            double oRig = SideOffset(gx, gy, W, H, vx, vy, Wd / 2, ux, uy, cx + L / 2 * ux, cy + L / 2 * uy, L / 4);
             double W2 = Wd + oTop + oBot, L2 = L + oLef + oRig;
             cx = cx + (oRig - oLef) / 2 * ux + (oBot - oTop) / 2 * vx;
             cy = cy + (oRig - oLef) / 2 * uy + (oBot - oTop) / 2 * vy;
             L = L2; Wd = W2;
         }
 
+        // Offset to move one side by (positive = outward). Along the normal, the strongest inward-pointing
+        // gradient is found; then the INNERMOST position whose gradient is at least 60 % of that is taken.
+        // A true part edge is usually the only candidate; when the rectangle has grown onto a sliver of
+        // nozzle just beyond the part, the part's own edge lies inside the sliver's and is preferred.
+        // Search range: 8 px outward, up to a quarter of the other dimension inward.
+        static double Grad(float[] gx, float[] gy, int W, int H, double px, double py, double nx, double ny, double d)
+        {
+            double x = px + d * nx, y = py + d * ny;
+            return -(Sample(gx, W, H, x, y) * nx + Sample(gy, W, H, x, y) * ny);
+        }
+
         static double SideOffset(float[] gx, float[] gy, int W, int H, double alongX, double alongY, double halfLen,
-            double nx, double ny, double px0, double py0)
+            double nx, double ny, double px0, double py0, double inwardRange)
         {
             List<double> offs = new List<double>();
+            double dmin = -Math.Max(8.0, inwardRange);
             for (int i = 0; i < 15; i++)
             {
                 double t = -0.4 + 0.8 * i / 14.0;
                 double px = px0 + t * 2 * halfLen * alongX, py = py0 + t * 2 * halfLen * alongY;
-                double best = 0, bo = 0;
-                bool have = false;
-                for (double d = -8; d <= 8; d += 0.5)
+                double best = 0;
+                for (double d = dmin; d <= 8; d += 0.5)
                 {
                     double x = px + d * nx, y = py + d * ny;
                     double v = -(Sample(gx, W, H, x, y) * nx + Sample(gy, W, H, x, y) * ny);
-                    if (v > best)
-                    {
-                        best = v; bo = d; have = true;
-                    }
+                    if (v > best) best = v;
                 }
-                if (have && best > 40) offs.Add(bo);
+                if (best <= 40) continue;
+                // innermost point where the gradient reaches 60 % of the strongest, then up to the crest
+                // of that peak (centre of a plateau if the crest is flat)
+                double thr = 0.6 * best;
+                double chosen = double.NaN;
+                for (double d = dmin; d <= 8; d += 0.5)
+                {
+                    double v = Grad(gx, gy, W, H, px, py, nx, ny, d);
+                    if (v < thr) continue;
+                    double peak = v, dStart = d, dEnd = d;
+                    for (double e = d + 0.5; e <= 8; e += 0.5)
+                    {
+                        double ve = Grad(gx, gy, W, H, px, py, nx, ny, e);
+                        if (ve > peak)
+                        {
+                            peak = ve; dStart = e; dEnd = e;
+                        }
+                        else if (ve == peak)
+                        {
+                            dEnd = e;
+                        }
+                        else
+                        {
+                            break;
+                        }
+                    }
+                    chosen = (dStart + dEnd) / 2;
+                    break;
+                }
+                if (!double.IsNaN(chosen)) offs.Add(chosen);
             }
             return offs.Count >= 5 ? Median(offs) : 0.0;
         }
