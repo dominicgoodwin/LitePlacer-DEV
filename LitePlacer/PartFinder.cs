@@ -339,11 +339,15 @@ namespace LitePlacer
             List<int> parent = new List<int>();
             parent.Add(0);
             double roiR2 = roiR * roiR;
+            // Only the bounding box of the region of interest is visited (the part can only be near the
+            // frame centre), which is what makes the cost independent of frame size.
+            int ya = Math.Max(1, (int)Math.Floor(cy0 - roiR)), yb = Math.Min(H - 2, (int)Math.Ceiling(cy0 + roiR));
+            int xa = Math.Max(1, (int)Math.Floor(cx0 - roiR)), xb = Math.Min(W - 2, (int)Math.Ceiling(cx0 + roiR));
             // first pass
-            for (int y = 0; y < H; y++)
+            for (int y = ya; y <= yb; y++)
             {
                 double dy = y - cy0;
-                for (int x = 0; x < W; x++)
+                for (int x = xa; x <= xb; x++)
                 {
                     int i = y * W + x;
                     if (img[i] <= thr) continue;
@@ -376,9 +380,9 @@ namespace LitePlacer
             }
             // second pass: resolve and collect
             Dictionary<int, Blob> blobs = new Dictionary<int, Blob>();
-            for (int y = 0; y < H; y++)
+            for (int y = ya; y <= yb; y++)
             {
-                for (int x = 0; x < W; x++)
+                for (int x = xa; x <= xb; x++)
                 {
                     int i = y * W + x;
                     if (labels[i] == 0) continue;
@@ -398,8 +402,7 @@ namespace LitePlacer
                     if (y > b.MaxY) b.MaxY = y;
                     b.Cx += x; b.Cy += y;
                     // outline pixels only (a 4-neighbour outside the blob): enough for the hull, far fewer points
-                    bool edge = (x == 0 || y == 0 || x == W - 1 || y == H - 1)
-                        || FindRoot(parent, labels[i - 1]) != root
+                    bool edge = FindRoot(parent, labels[i - 1]) != root
                         || FindRoot(parent, labels[i - W]) != root
                         || FindRoot(parent, labels[i + 1]) != root
                         || FindRoot(parent, labels[i + W]) != root;
