@@ -33,9 +33,9 @@ namespace LitePlacer
         {
             public double X;          // centre, pixels in the image passed in
             public double Y;
-            public double Length;     // pixels, long side
-            public double Width;      // pixels, short side
-            public double Angle;      // degrees, long side relative to image x axis, -90..90
+            public double Length;     // pixels, long side (leads: span along the pin rows)
+            public double Width;      // pixels, short side (leads: span across the pin rows)
+            public double Angle;      // degrees, long side (leads: pin-row direction) relative to image x axis, -90..90
             public double Score;      // 0..1
             public int Levels;        // thresholds at which this rectangle was found
             public double Edge;       // 0..1
@@ -298,6 +298,12 @@ namespace LitePlacer
             p.Length = rL * f;
             p.Width = rW * f;
             p.Angle = (Pins > 0) ? best.RowAngle : best.Angle;
+            if (Pins > 0 && Math.Abs(NormAngle(best.RowAngle - best.Angle)) > 1.0)
+            {
+                // Leads: Length is the span along the pin rows (the Angle direction), Width across them,
+                // whichever is longer (TSSOP-14 is wider across its rows than along them)
+                p.Length = rW * f; p.Width = rL * f;
+            }
             p.PinCount = best.PinCount;
             p.Score = best.Score;
             p.Levels = best.NLevels;

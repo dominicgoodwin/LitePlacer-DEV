@@ -1577,15 +1577,10 @@ namespace LitePlacer
                 {
                     double a = part.Angle * Math.PI / 180.0;
                     double ux = Math.Cos(a), uy = Math.Sin(a), vx = -uy, vy = ux;
+                    // Leads: Length runs along the pin rows (Angle), Width across them, so this is the pin span
+                    // itself. The run loop regulates the measured angle to -45..45, so which side is longer
+                    // does not matter.
                     double hl = part.Length / 2.0, hw = part.Width / 2.0;
-                    if (pins > 0)
-                    {
-                        // Angle is the pin-row direction, which may be the short side of the pin span (SOT-23).
-                        // Draw a clearly oblong rectangle along it so the measured angle is unambiguous.
-                        double big = Math.Max(part.Length, part.Width), small = Math.Min(part.Length, part.Width);
-                        hl = big / 2.0;
-                        hw = Math.Min(small, big * 0.6) / 2.0;
-                    }
                     PointF[] corners = new PointF[4];
                     corners[0] = new PointF((float)(part.X - hl * ux - hw * vx), (float)(part.Y - hl * uy - hw * vy));
                     corners[1] = new PointF((float)(part.X + hl * ux - hw * vx), (float)(part.Y + hl * uy - hw * vy));
