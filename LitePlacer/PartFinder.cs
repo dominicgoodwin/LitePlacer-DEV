@@ -76,6 +76,9 @@ namespace LitePlacer
             {
                 double t = LengthPx; LengthPx = WidthPx; WidthPx = t;
             }
+            // Fitted rectangles report their longer side as L, so the nominal must be ordered the same way
+            // (the operator may give the along-row span first, and it can be the shorter one, e.g. TSSOP-14)
+            if (WidthPx > LengthPx) { double t = LengthPx; LengthPx = WidthPx; WidthPx = t; }
             int f = (int)Math.Max(1, Math.Floor(LengthPx / WorkLength));
             if (Pins > 0)
             {
@@ -88,6 +91,20 @@ namespace LitePlacer
             int W = width / f;
             int H = height / f;
             float[] img = Downsample(grey, width, height, f, W, H);
+            // A dim frame (low camera brightness, small bright features) would leave only a few levels of the
+            // threshold sweep between background and the part: stretch so the brightest features reach ~235
+            {
+                int[] hist = new int[256];
+                for (int i = 0; i < img.Length; i++) hist[(int)Math.Min(255, Math.Max(0, img[i]))]++;
+                int cut = (int)(img.Length * 0.002), acc = 0, p998 = 255;
+                for (int v = 255; v >= 0; v--) { acc += hist[v]; if (acc > cut) { p998 = v; break; } }
+                if (p998 < 220 && p998 > 40)
+                {
+                    float gain = (float)Math.Min(3.0, 235.0 / p998);
+                    for (int i = 0; i < img.Length; i++) img[i] = Math.Min(255f, img[i] * gain);
+                    if (log != null) log.Append("gain x" + gain.ToString("0.00", CultureInfo.InvariantCulture) + "; ");
+                }
+            }
             double L = LengthPx / f;
             double Wd = WidthPx / f;
             // The bright blob of a saturated part blooms beyond its true edge, so the clustering works to a
@@ -116,6 +133,15 @@ namespace LitePlacer
                     keep.Add(b);
                 }
                 keep.Sort((a, b) => b.Area.CompareTo(a.Area));
+                if (Pins > 0 && keep.Count > 2)
+                {
+                    // Leads: the span is made of pin-sized blobs. Anything much larger than the typical pin
+                    // (a lit segment of the nozzle rim, a reflection) must not be absorbed into a cluster.
+                    List<double> areas = new List<double>();
+                    for (int i = 0; i < Math.Min(Pins, keep.Count); i++) areas.Add(keep[i].Area);
+                    double refArea = Median(areas);
+                    keep.RemoveAll(b => b.Area > 1.8 * refArea);
+                }
                 HashSet<string> seen = new HashSet<string>();
                 // A blob that already belongs to a grown cluster would only regenerate that cluster as a seed:
                 // skip it. Seeds are taken largest first. (Cuts the 38-lead TSSOP from 1.5 s to a fraction.)
@@ -155,6 +181,15 @@ namespace LitePlacer
                                 rect = r;
                                 changed = true;
                                 Emit(members, rect, keep, thr, Lmin, Lmax, Wmin, Wmax, L, Wd, innerTol, MaxRotation, cx0, cy0, maxDist, seen, cands);
+                                if (Pins > 0 && members.Count >= Math.Max(4, Pins / 2) && rect.L >= 0.6 * Lmin)
+                                {
+                                    // Leads: also emit the cluster without the blobs that are off the rows' lines
+                                    // (a lit piece of nozzle rim next to the span), so the clean span is seen
+                                    // at every threshold even when junk is absorbed before the far pins.
+                                    Rect r2;
+                                    List<int> m2 = RowLineMembers(members, keep, rect, out r2);
+                                    if (m2 != null) Emit(m2, r2, keep, thr, Lmin, Lmax, Wmin, Wmax, L, Wd, innerTol, MaxRotation, cx0, cy0, maxDist, seen, cands);
+                                }
                                 break;
                             }
                         }
@@ -333,6 +368,51 @@ namespace LitePlacer
             if (a > 90.0) a -= 180.0;
             if (a <= -90.0) a += 180.0;
             return a;
+        }
+
+        // Leads: the members of a cluster that lie on the two lines of pin tips (across the rows, each side's
+        // tips share one position to within a pin size). Returns null when nothing would be removed.
+        static List<int> RowLineMembers(List<int> members, List<Blob> blobs, Rect rect, out Rect refit)
+        {
+            refit = null;
+            double a = rect.Angle * Math.PI / 180.0, ux = Math.Cos(a), uy = Math.Sin(a);
+            List<double> areas = new List<double>();
+            foreach (int bi in members) areas.Add(blobs[bi].Area);
+            double pinSize = Math.Sqrt(Median(areas));
+            List<double> us = new List<double>(), vs = new List<double>();
+            foreach (int bi in members)
+            {
+                double dx = blobs[bi].Cx - rect.Cx, dy = blobs[bi].Cy - rect.Cy;
+                us.Add(dx * ux + dy * uy); vs.Add(-dx * uy + dy * ux);
+            }
+            bool rowsAlongU = Distinct(us, 0.5 * pinSize) >= Distinct(vs, 0.5 * pinSize);
+            List<double> across = rowsAlongU ? vs : us;
+            List<double> neg = new List<double>(), pos = new List<double>();
+            foreach (double c in across) { if (c < 0) neg.Add(c); else pos.Add(c); }
+            // The tips are the outermost line on each side (knees of gull-wing leads lie inside it): take the
+            // reference from the outer half of each side's blobs
+            double medNeg = OuterMedian(neg), medPos = OuterMedian(pos);
+            double tol = Math.Max(2.0, 0.6 * pinSize);
+            List<int> kept = new List<int>();
+            for (int i = 0; i < members.Count; i++)
+            {
+                double med = across[i] < 0 ? medNeg : medPos;
+                if (Math.Abs(across[i] - med) <= tol) kept.Add(members[i]);
+            }
+            if (kept.Count < 2 || kept.Count == members.Count) return null;
+            List<double[]> pts = new List<double[]>();
+            foreach (int bi in kept) pts.AddRange(blobs[bi].Hull);
+            refit = MinAreaRect(ConvexHull(pts));
+            return kept;
+        }
+
+        // Median of the outer half (by magnitude) of a list of signed positions; 0 for an empty list
+        static double OuterMedian(List<double> v)
+        {
+            if (v.Count == 0) return 0;
+            List<double> s = new List<double>(v);
+            s.Sort((p1, p2) => Math.Abs(p2).CompareTo(Math.Abs(p1)));
+            return Median(s.GetRange(0, Math.Max(1, (s.Count + 1) / 2)));
         }
 
         static void Emit(List<int> members, Rect rect, List<Blob> blobs, int thr,
@@ -934,6 +1014,13 @@ namespace LitePlacer
                 pinCentres.Add(new double[] { cu, cv });
             }
             int npins = keep.Count;
+            // pin-sized bright blobs just outside the span: the span was drawn on the knees of gull-wing leads
+            // (or on one side's knees), not on the feet. Feet are larger than knees, so the upper bound is loose.
+            foreach (List<double[]> pts in outsideBlobs.Values)
+            {
+                double area = pts.Count;
+                if (area >= 0.6 * refArea && area <= 2.5 * refArea) outsidePins++;
+            }
             if (npins < 2) return npins;
             // re-fit the rectangle from the pins alone
             List<double[]> all = new List<double[]>();
@@ -965,7 +1052,7 @@ namespace LitePlacer
             {
                 List<double> neg = new List<double>(), pos = new List<double>();
                 foreach (double[] c in cen) { double across = rowsAlongU ? c[1] : c[0]; if (across < 0) neg.Add(across); else pos.Add(across); }
-                double medNeg = neg.Count > 0 ? Median(neg) : 0, medPos = pos.Count > 0 ? Median(pos) : 0;
+                double medNeg = OuterMedian(neg), medPos = OuterMedian(pos);
                 double lineTol = Math.Max(2.0, 0.6 * pinSize);
                 List<int> keep2 = new List<int>();
                 for (int i = 0; i < cen.Count; i++)
