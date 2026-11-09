@@ -386,7 +386,10 @@ namespace LitePlacer
             Thread.Sleep(50);
             Write_m("{\"zsx\",1}",150);
             Thread.Sleep(50);
-            Write_m("{\"zzb\",1}", 150);   // 1 mm zero back-off so the head is not left pressed on the switch (garrettsworkshop 10736d96)
+            // Zero back-off MUST be 0 here: the caller rises by (touch difference - pickup depth) from the switch
+            // position, so any back-off done by the TinyG itself leaves the nozzle that much above the part.
+            // (fba3508 set 1 mm here by mistake; pickups then failed with the nozzle 0.8 mm clear of the part.)
+            Write_m("{\"zzb\",0}", 150);
             Thread.Sleep(50);
 
             if (!Write_m("{\"gc\":\"G28.4 Z0\"}", RegularMoveTimeout))
