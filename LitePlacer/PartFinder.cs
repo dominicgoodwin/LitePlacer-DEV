@@ -109,8 +109,12 @@ namespace LitePlacer
                 }
                 keep.Sort((a, b) => b.Area.CompareTo(a.Area));
                 HashSet<string> seen = new HashSet<string>();
+                // A blob that already belongs to a grown cluster would only regenerate that cluster as a seed:
+                // skip it. Seeds are taken largest first. (Cuts the 38-lead TSSOP from 1.5 s to a fraction.)
+                bool[] covered = new bool[keep.Count];
                 for (int si = 0; si < keep.Count; si++)
                 {
+                    if (covered[si]) continue;
                     List<int> members = new List<int>();
                     members.Add(si);
                     List<double[]> hull = keep[si].Hull;
@@ -146,6 +150,10 @@ namespace LitePlacer
                                 break;
                             }
                         }
+                    }
+                    if (members.Count > 1)
+                    {
+                        foreach (int m in members) covered[m] = true;
                     }
                 }
             }
@@ -906,33 +914,67 @@ namespace LitePlacer
             Rect r = MinAreaRect(ConvexHull(all));
             g.Cx = r.Cx; g.Cy = r.Cy; g.L = r.L; g.W = r.W; g.Angle = NormAngle(r.Angle);
             a = g.Angle * Math.PI / 180.0; ux = Math.Cos(a); uy = Math.Sin(a);
-            // symmetry of the pin mask (bool over the box) under 180 deg and both mirrors, as IoU
-            bool[] mask = new bool[bw * bh];
-            int nA = 0;
-            foreach (int k in keep) foreach (double[] q in blobs[k]) { mask[((int)q[1] - y0) * bw + ((int)q[0] - x0)] = true; nA++; }
-            int i180 = 0, iL = 0, iW = 0;
-            foreach (int k in keep)
-                foreach (double[] q in blobs[k])
-                {
-                    double dx = q[0] - g.Cx, dy = q[1] - g.Cy;
-                    double u = dx * ux + dy * uy, v = -dx * uy + dy * ux;
-                    if (MaskAt(mask, bw, bh, x0, y0, g.Cx, g.Cy, -u, -v, ux, uy)) i180++;
-                    if (MaskAt(mask, bw, bh, x0, y0, g.Cx, g.Cy, u, -v, ux, uy)) iL++;
-                    if (MaskAt(mask, bw, bh, x0, y0, g.Cx, g.Cy, -u, v, ux, uy)) iW++;
-                }
-            double s180 = i180 / (double)(2 * nA - i180), sL = iL / (double)(2 * nA - iL), sW = iW / (double)(2 * nA - iW);
-            sym = Math.Max(s180, Math.Max(sL, sW));
-            // pin-row direction: the rectangle axis along which the pin centres take more distinct positions
-            List<double> us = new List<double>(), vs = new List<double>();
+            // Pin centres in rectangle coordinates (after the re-fit)
+            List<double[]> cen = new List<double[]>();
             foreach (int k in keep)
             {
                 double su2 = 0, sv2 = 0;
                 foreach (double[] q in blobs[k]) { double dx = q[0] - g.Cx, dy = q[1] - g.Cy; su2 += dx * ux + dy * uy; sv2 += -dx * uy + dy * ux; }
-                us.Add(su2 / blobs[k].Count); vs.Add(sv2 / blobs[k].Count);
+                cen.Add(new double[] { su2 / blobs[k].Count, sv2 / blobs[k].Count });
             }
-            int du = Distinct(us, 0.08 * g.L), dv = Distinct(vs, 0.08 * g.W);
+            // Pitch: median nearest-neighbour distance between pin centres
+            List<double> nnDist = new List<double>();
+            for (int i = 0; i < cen.Count; i++)
+            {
+                double dmin = double.MaxValue;
+                for (int j = 0; j < cen.Count; j++)
+                {
+                    if (i == j) continue;
+                    double d = Hypot(cen[i][0] - cen[j][0], cen[i][1] - cen[j][1]);
+                    if (d < dmin) dmin = d;
+                }
+                nnDist.Add(dmin);
+            }
+            double pitch = Median(nnDist);
+            // Symmetry of the pin positions under 180 degrees and both mirrors: fraction of pins whose image
+            // lands within 0.4 pitch of a pin. The symmetry centre may sit a fraction of a pitch away from
+            // the span centre (a lead missed at one end shifts the span), so the best over small shifts is taken.
+            double tol = 0.4 * pitch;
+            sym = 0;
+            for (int si = -3; si <= 3; si++)
+                for (int sj = -3; sj <= 3; sj++)
+                {
+                    double ou = si * 0.2 * pitch, ov = sj * 0.2 * pitch;
+                    double s180 = PositionSymmetry(cen, ou, ov, -1, -1, tol);
+                    double sL = PositionSymmetry(cen, ou, ov, 1, -1, tol);
+                    double sW = PositionSymmetry(cen, ou, ov, -1, 1, tol);
+                    double best = Math.Max(s180, Math.Max(sL, sW));
+                    if (best > sym) sym = best;
+                }
+            // Pin-row direction: the rectangle axis along which the pin centres take more distinct positions,
+            // "distinct" being relative to the pin size (not the part size: fine-pitch leads are close together)
+            double pinSize = Math.Sqrt(refArea);
+            List<double> us = new List<double>(), vs = new List<double>();
+            foreach (double[] c in cen) { us.Add(c[0]); vs.Add(c[1]); }
+            int du = Distinct(us, 0.5 * pinSize), dv = Distinct(vs, 0.5 * pinSize);
             rowAngle = (du >= dv) ? g.Angle : NormAngle(g.Angle + 90);
             return npins;
+        }
+
+        // Fraction of pin centres c for which (ou + su*(cu-ou), ov + sv*(cv-ov)) is within tol of a pin centre.
+        static double PositionSymmetry(List<double[]> cen, double ou, double ov, int su, int sv, double tol)
+        {
+            if (cen.Count == 0) return 0;
+            int hit = 0;
+            foreach (double[] c in cen)
+            {
+                double tu = ou + su * (c[0] - ou), tv = ov + sv * (c[1] - ov);
+                foreach (double[] d in cen)
+                {
+                    if (Hypot(d[0] - tu, d[1] - tv) <= tol) { hit++; break; }
+                }
+            }
+            return hit / (double)cen.Count;
         }
 
         static int Distinct(List<double> v, double d)
