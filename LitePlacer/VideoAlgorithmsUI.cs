@@ -1218,10 +1218,11 @@ namespace LitePlacer
                     EnableDoubleB("Size tol. %:");
                     EnableDoubleC("Max rot. deg:");
                     FunctionExplanation_textBox.Text = "Up camera: finds a chip component (bright terminations) of the given size on the nozzle,\r\n"
-                        + "whatever the nozzle looks like and without a grey threshold. Outputs a white rectangle\r\n"
-                        + "where the part is; tick 'Search component pads' to measure it (no Filter Features by Size step needed).\r\n"
-                        + "Put it after any Meas. zoom step.\r\n"
-                        + "Max rot: how far from 0/90 degrees the part may sit. Nothing found = no part of that size on the nozzle.";
+                        + "whatever the nozzle looks like and without a grey threshold. It does not measure anything itself:\r\n"
+                        + "it replaces the image with a white rectangle where the part is (black if no part of that size).\r\n"
+                        + "To get a result, ALSO tick 'Search component outlines' (or pads) under Measurement; that measures the\r\n"
+                        + "rectangle (position, size, angle) as it does today. No Filter Features by Size step is needed.\r\n"
+                        + "Put Find part after any Meas. zoom step. Max rot: how far from 0/90 degrees the part may sit.";
                     FunctionExplanation_textBox.Visible = true;
                     break;
 

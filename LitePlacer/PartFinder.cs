@@ -289,11 +289,12 @@ namespace LitePlacer
                 foreach (Group g in groups)
                 {
                     Cand r = g.Members[0];
-                    // Same centre and angle is the same rectangle; size is allowed to drift with the threshold
-                    // (a saturated part blooms at low thresholds) since it is already within tolerance.
+                    // Same centre, angle and size (within 8 %) is the same rectangle. The band must stay tight:
+                    // the part alone and the part plus a fragment of nozzle ring are different rectangles, and
+                    // merging them makes the group's median rectangle wander between frames.
                     if (Hypot(c.Cx - r.Cx, c.Cy - r.Cy) <= posTol
                         && Math.Abs(NormAngle(c.Angle - r.Angle)) <= 6.0
-                        && Math.Abs(c.L - r.L) <= 0.25 * r.L && Math.Abs(c.W - r.W) <= 0.25 * r.W)
+                        && Math.Abs(c.L - r.L) <= 0.08 * r.L && Math.Abs(c.W - r.W) <= 0.08 * r.W)
                     {
                         found = g;
                         break;
