@@ -3162,7 +3162,22 @@ namespace LitePlacer
 
                 if ((Xdist< MeasurementParameters.XUniqueDistance) && (Ydist < MeasurementParameters.YUniqueDistance))
                 {
-                    FilteredForDistance.Add(shape);
+                    // The same feature found by several methods (rectangles, outlines, pads) or several times
+                    // is one result, not an ambiguity: keep the first of any that coincide within 0.1 mm.
+                    bool duplicate = false;
+                    foreach (Shapes.Shape kept in FilteredForDistance)
+                    {
+                        if ((Math.Abs((kept.Center.X - shape.Center.X) * XmmPpix) < 0.1)
+                            && (Math.Abs((kept.Center.Y - shape.Center.Y) * YmmPpix) < 0.1))
+                        {
+                            duplicate = true;
+                            break;
+                        }
+                    }
+                    if (!duplicate)
+                    {
+                        FilteredForDistance.Add(shape);
+                    }
                 }
             }
             stopwatch.Stop();
