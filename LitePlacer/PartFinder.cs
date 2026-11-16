@@ -924,38 +924,79 @@ namespace LitePlacer
         // the rectangle boundary, pointing inward) inside the rectangle at the Otsu level, re-fits the
         // rectangle from them (updating g), and returns the pin count, the best of the three symmetries
         // of the pin mask, and the pin-row direction.
-        // Half-maximum tip of a bright lead: scan outward from (u0, v0) along +/-u in rectangle coordinates,
-        // averaging across a strip of half-width hw (the core of the lead) at each step; the tip is where that
-        // profile first drops below half of its level near the start. Sub-pixel by interpolation; the same
-        // at every threshold, which the blob extent is not.
-        static double HalfMaxTip(float[] img, int W, int H, double cx, double cy, double ux, double uy,
-            double u0, double v0, double hw, int dir, double uMax)
+        // Half-maximum edge of a bright lead: from (u0, v0) in rectangle coordinates, step along the unit
+        // direction (du, dv) for up to maxDist, averaging the image over a strip of half-width hw across the
+        // direction at each step; the edge is where that profile first falls to half of its maximum.
+        // Sub-pixel by interpolation; the same at every threshold, which a blob's extent is not.
+        static double HalfMaxEdge(float[] img, int W, int H, double cx, double cy, double ux, double uy,
+            double u0, double v0, double du, double dv, double hw, double maxDist)
         {
-            List<double> prof = new List<double>(); List<double> us = new List<double>();
-            for (double u = u0; dir > 0 ? u <= uMax : u >= uMax; u += dir)
+            List<double> prof = new List<double>();
+            for (double t = 0; t <= maxDist; t += 1.0)
             {
+                double u = u0 + t * du, v = v0 + t * dv;
                 double psum = 0; int pn = 0;
-                for (double v = v0 - hw; v <= v0 + hw; v += 1.0)
+                for (double w = -hw; w <= hw; w += 1.0)
                 {
-                    int x = (int)Math.Round(cx + u * ux - v * uy), y = (int)Math.Round(cy + u * uy + v * ux);
+                    double uu = u - w * dv, vv = v + w * du;    // across the scan direction
+                    int x = (int)Math.Round(cx + uu * ux - vv * uy), y = (int)Math.Round(cy + uu * uy + vv * ux);
                     if (x < 0 || y < 0 || x >= W || y >= H) continue;
                     psum += img[y * W + x]; pn++;
                 }
                 if (pn == 0) break;
-                prof.Add(psum / pn); us.Add(u);
+                prof.Add(psum / pn);
             }
-            if (prof.Count < 3) return u0;
-            double plateau = Median(prof.GetRange(0, Math.Min(6, prof.Count)));
-            double t = 0.5 * plateau;
+            if (prof.Count < 3) return 0;
+            double pmax = 0;
+            foreach (double pv in prof) if (pv > pmax) pmax = pv;
+            double thr = 0.5 * pmax;
             for (int i = 1; i < prof.Count; i++)
             {
-                if (prof[i] < t)
+                if (prof[i] < thr && prof[i - 1] >= thr)
                 {
-                    double frac = (prof[i - 1] - t) / Math.Max(1e-6, prof[i - 1] - prof[i]);
-                    return us[i - 1] + dir * Math.Min(1.0, Math.Max(0.0, frac));
+                    double frac = (prof[i - 1] - thr) / Math.Max(1e-6, prof[i - 1] - prof[i]);
+                    return (i - 1) + Math.Min(1.0, Math.Max(0.0, frac));
                 }
             }
-            return us[prof.Count - 1];
+            return prof.Count - 1;
+        }
+
+        // Centre of a lead across its axis: midpoint of the two half-maximum edges either side of (u0, v0)
+        static double LeadCentreAcross(float[] img, int W, int H, double cx, double cy, double ux, double uy,
+            double u0, double v0, double hwAlong, double maxHalfWidth)
+        {
+            double ePos = HalfMaxEdge(img, W, H, cx, cy, ux, uy, u0, v0, 0, 1, hwAlong, maxHalfWidth);
+            double eNeg = HalfMaxEdge(img, W, H, cx, cy, ux, uy, u0, v0, 0, -1, hwAlong, maxHalfWidth);
+            return v0 + (ePos - eNeg) / 2;
+        }
+
+        // Tip-to-tip measurement of a two-lead part from one seed point on each lead: lead centres across
+        // the axis by half-maximum edges, axis through those, tips at half maximum along it. Updates the
+        // group's centre, length and angle; returns the tip balance (1 = symmetric about the centre).
+        static double TwoLeadTips(float[] img, int W, int H, Group g, double uNeg, double vNeg, double uPos, double vPos, double hw, double reach)
+        {
+            double a = g.Angle * Math.PI / 180.0, ux = Math.Cos(a), uy = Math.Sin(a);
+            for (int pass = 0; pass < 2; pass++)
+            {
+                vNeg = LeadCentreAcross(img, W, H, g.Cx, g.Cy, ux, uy, uNeg, vNeg, hw, 4 * hw + 4);
+                vPos = LeadCentreAcross(img, W, H, g.Cx, g.Cy, ux, uy, uPos, vPos, hw, 4 * hw + 4);
+                double tilt = Math.Atan2(vPos - vNeg, uPos - uNeg);
+                if (Math.Abs(tilt) > 10 * Math.PI / 180) break;
+                // rotate the frame onto the lead axis and express the seeds in it
+                double ca = Math.Cos(tilt), sa = Math.Sin(tilt);
+                double vMid = (vNeg + vPos) / 2;
+                g.Cx += -vMid * uy; g.Cy += vMid * ux;
+                g.Angle = NormAngle(g.Angle + tilt * 180.0 / Math.PI);
+                a = g.Angle * Math.PI / 180.0; ux = Math.Cos(a); uy = Math.Sin(a);
+                double uN2 = uNeg * ca + (vNeg - vMid) * sa, uP2 = uPos * ca + (vPos - vMid) * sa;
+                uNeg = uN2; uPos = uP2; vNeg = 0; vPos = 0;
+            }
+            double tipNeg = uNeg - HalfMaxEdge(img, W, H, g.Cx, g.Cy, ux, uy, uNeg, 0, -1, 0, hw, reach);
+            double tipPos = uPos + HalfMaxEdge(img, W, H, g.Cx, g.Cy, ux, uy, uPos, 0, 1, 0, hw, reach);
+            double du = (tipNeg + tipPos) / 2;
+            g.Cx += du * ux; g.Cy += du * uy;
+            g.L = tipPos - tipNeg;
+            return 1.0 - Math.Abs(Math.Abs(tipNeg - du) - Math.Abs(tipPos - du)) / (0.5 * g.L);
         }
 
         static int PinEvidence(float[] img, int W, int H, Group g, float thr, int pins, out double sym, out double rowAngle, out int outsidePins)
@@ -1053,17 +1094,10 @@ namespace LitePlacer
                     double dv = (vNeg + vPos) / 2;
                     double tilt = Math.Atan2(vPos - vNeg, 0.8 * g.L) * 180.0 / Math.PI;
                     if (Math.Abs(dv) > 0.3 * g.W || Math.Abs(tilt) > 10) continue;
-                    // tips at half maximum along the axis, from the middle of each lead segment outward
+                    // lead centres, axis and tips at half maximum from the middle of each lead segment
                     double hwBar = Math.Max(1.0, 0.3 * Math.Max(nNeg, nPos) / (0.1 * g.L));
-                    double tipNeg = HalfMaxTip(img, W, H, g.Cx, g.Cy, ux, uy, -0.45 * g.L, vNeg, hwBar, -1, minU - 0.1 * g.L);
-                    double tipPos = HalfMaxTip(img, W, H, g.Cx, g.Cy, ux, uy, 0.45 * g.L, vPos, hwBar, 1, maxU + 0.1 * g.L);
-                    double du = (tipNeg + tipPos) / 2;
-                    g.Cx += du * ux - dv * uy;
-                    g.Cy += du * uy + dv * ux;
-                    g.L = tipPos - tipNeg;
-                    g.Angle = NormAngle(g.Angle + tilt);
+                    sym = TwoLeadTips(img, W, H, g, -0.45 * g.L, vNeg, 0.45 * g.L, vPos, hwBar, 0.2 * g.L);
                     rowAngle = g.Angle;
-                    sym = 1.0 - Math.Abs(Math.Abs(tipNeg - du) - Math.Abs(tipPos - du)) / (0.5 * g.L);
                     return 2;
                 }
             }
@@ -1212,13 +1246,7 @@ namespace LitePlacer
                 // the same at every threshold (the blob extent moves with threshold and with specks)
                 int iNeg = cen[0][0] < cen[1][0] ? 0 : 1, iPos = 1 - iNeg;
                 double hwFoot = Math.Max(1.0, 0.3 * Math.Sqrt(refArea));
-                double tipNeg = HalfMaxTip(img, W, H, g.Cx, g.Cy, ux, uy, cen[iNeg][0], cen[iNeg][1], hwFoot, -1, -0.75 * g.L);
-                double tipPos = HalfMaxTip(img, W, H, g.Cx, g.Cy, ux, uy, cen[iPos][0], cen[iPos][1], hwFoot, 1, 0.75 * g.L);
-                double du = (tipNeg + tipPos) / 2;
-                g.Cx += du * ux; g.Cy += du * uy;
-                g.L = tipPos - tipNeg;
-                foreach (double[] c in cen) c[0] -= du;
-                sym = 1.0 - Math.Abs(Math.Abs(tipNeg - du) - Math.Abs(tipPos - du)) / (0.5 * g.L);
+                sym = TwoLeadTips(img, W, H, g, cen[iNeg][0], cen[iNeg][1], cen[iPos][0], cen[iPos][1], hwFoot, 0.3 * g.L);
                 rowAngle = g.Angle;
                 return 2;
             }
