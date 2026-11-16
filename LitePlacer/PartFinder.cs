@@ -967,9 +967,11 @@ namespace LitePlacer
                 prof.Add(psum / pn);
             }
             if (prof.Count < 3) return -1;
-            double pmax = 0;
-            foreach (double pv in prof) if (pv > pmax) pmax = pv;
-            double thr = 0.5 * pmax;
+            // half way between the brightest and the darkest level met: a saturated terminal over a mid-grey
+            // nozzle face must end where the terminal ends, not where the face ends
+            double pmax = 0, pmin = 255;
+            foreach (double pv in prof) { if (pv > pmax) pmax = pv; if (pv < pmin) pmin = pv; }
+            double thr = 0.5 * (pmax + pmin);
             for (int i = 1; i < prof.Count; i++)
             {
                 if (prof[i] < thr && prof[i - 1] >= thr)
@@ -1007,7 +1009,7 @@ namespace LitePlacer
                 vNeg += (eNegP - eNegN) / 2; vPos += (ePosP - ePosN) / 2;
                 wNeg = eNegP + eNegN; wPos = ePosP + ePosN;
                 if (wNeg < 4 || wPos < 4) return 0;      // a lead is wider than a scratch or a ring edge
-                if (Math.Max(wNeg, wPos) > 2.5 * Math.Min(wNeg, wPos) || Math.Max(wNeg, wPos) > 0.2 * g.L) return 0;
+                if (Math.Max(wNeg, wPos) > 2.5 * Math.Min(wNeg, wPos) || Math.Max(wNeg, wPos) > 0.45 * g.L) return 0;
                 double tilt = Math.Atan2(vPos - vNeg, uPos - uNeg);
                 if (Math.Abs(tilt) > 10 * Math.PI / 180) return 0;
                 // rotate the frame onto the lead axis and express the seeds in it
@@ -1029,12 +1031,18 @@ namespace LitePlacer
             if (inNeg < 0) inNeg = reach;
             if (inPos < 0) inPos = reach;
             double lenNeg = dNeg + inNeg, lenPos = dPos + inPos;
-            if (lenNeg < 1.4 * wNeg || lenPos < 1.4 * wPos) return 0;
+            // Either narrow leads (feet, lead frame), longer than wide; or the wide flat terminals of a
+            // tantalum / polymer capacitor, which are wider than long but a good fraction of the span and
+            // alike in length. A speck is neither.
+            bool feet = lenNeg >= 1.4 * wNeg && lenPos >= 1.4 * wPos;
+            bool terminals = Math.Min(wNeg, wPos) >= 0.25 * g.L && lenNeg >= 0.4 * wNeg && lenPos >= 0.4 * wPos
+                && Math.Max(lenNeg, lenPos) <= 1.5 * Math.Min(lenNeg, lenPos);
+            if (!feet && !terminals) return 0;
             // alikeness from the widths only: the visible length inward depends on how bright the knee or lens is
             double alike = Math.Min(wNeg, wPos) / Math.Max(wNeg, wPos);
             // and both are bright metal, not a dim patch of nozzle face
             double bNeg = SampleAt(img, W, H, g.Cx + uNeg * ux, g.Cy + uNeg * uy), bPos = SampleAt(img, W, H, g.Cx + uPos * ux, g.Cy + uPos * uy);
-            if (Math.Min(bNeg, bPos) < 120 || Math.Min(bNeg, bPos) < 0.5 * Math.Max(bNeg, bPos)) return 0;
+            if (Math.Min(bNeg, bPos) < 120 || Math.Min(bNeg, bPos) < 0.65 * Math.Max(bNeg, bPos)) return 0;   // metal leads are alike in brightness too
             double tipNeg = uNeg - dNeg, tipPos = uPos + dPos;
             double du = (tipNeg + tipPos) / 2;
             g.Cx += du * ux; g.Cy += du * uy;
