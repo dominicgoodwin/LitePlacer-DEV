@@ -113,6 +113,12 @@ namespace LitePlacer
             double innerTol = Math.Min(0.5, Tolerance + 0.15);
             double Lmax = L * (1 + innerTol), Wmax = Wd * (1 + innerTol);
             double Lmin = L * (1 - innerTol), Wmin = Wd * (1 - innerTol);
+            if (Pins == 2)
+            {
+                // Two leads: the width across the pair is a lead or a lens, a few pixels either way, so the
+                // 'along rows' size is only an upper bound here (and the across span is what is measured)
+                Wmin = 2; Wmax = Wd * 2.0;
+            }
             double cx0 = W / 2.0, cy0 = H / 2.0;
             double maxDist = MaxCentreDistPx / f + L / 2;
             double roiR = maxDist + Lmax;
@@ -210,8 +216,9 @@ namespace LitePlacer
             // ---- 3: group across thresholds
             if (Pins > 0)
             {
-                // a leaded part's cluster has about Pins members (plus a few specks)
-                int lo = Math.Max(2, (int)Math.Round(Pins * 0.66)), hi = (int)Math.Round(Pins * 1.34) + 3;
+                // a leaded part's cluster has about Pins members, up to twice that when the knees of gull-wing
+                // leads show as blobs of their own, plus a few specks
+                int lo = Math.Max(2, (int)Math.Round(Pins * 0.66)), hi = Pins * 2 + 4;
                 cands = cands.FindAll(c => c.NBlobs >= lo && c.NBlobs <= hi);
                 if (cands.Count == 0)
                 {
@@ -235,9 +242,14 @@ namespace LitePlacer
                 if (Pins > 0)
                 {
                     float otsu = OtsuInRect(img, W, H, g.Cx, g.Cy, g.L * 1.1, g.W * 1.1, g.Angle);
+                    // Pins are read at the brighter of Otsu and the middle of the levels this rectangle was
+                    // found at, so a dim speck touching a pin at low levels is not part of the pin
+                    List<double> mthr = new List<double>();
+                    foreach (Cand c in g.Members) mthr.Add(c.Thr);
+                    float pinThr = Math.Max(otsu, (float)Median(mthr));
                     double sym, rowAngle;
                     int outsidePins;
-                    int npins = PinEvidence(img, W, H, g, otsu, Pins, out sym, out rowAngle, out outsidePins);
+                    int npins = PinEvidence(img, W, H, g, pinThr, Pins, out sym, out rowAngle, out outsidePins);
                     g.PinCount = npins;
                     g.OutsidePins = outsidePins;
                     g.RowAngle = rowAngle;
@@ -288,7 +300,7 @@ namespace LitePlacer
             else if (accepted)
             {
                 // rectangle was re-fitted from the pins in PinEvidence; check its size against tolerance
-                if (Math.Abs(rL - L) > L * Tolerance || Math.Abs(rW - Wd) > Wd * Tolerance)
+                if (Math.Abs(rL - L) > L * Tolerance || (Pins != 2 && Math.Abs(rW - Wd) > Wd * Tolerance))
                 {
                     accepted = false;
                     sizeNote = " (pin span out of tolerance)";
@@ -438,7 +450,8 @@ namespace LitePlacer
             if (angErr > maxRot) return;
             double dist = Hypot(rect.Cx - cx0, rect.Cy - cy0);
             if (dist > maxDist) return;
-            double sizeErr = (Math.Abs(rect.L - L) / (L * tol) + Math.Abs(rect.W - Wd) / (Wd * tol)) / 2;
+            double sizeErr = (Wmin <= 2) ? Math.Abs(rect.L - L) / (L * tol)   // two leads: width is not a measure
+                : (Math.Abs(rect.L - L) / (L * tol) + Math.Abs(rect.W - Wd) / (Wd * tol)) / 2;
             double geom = 1.0 - 0.6 * sizeErr - 0.2 * (dist / maxDist) - 0.2 * (angErr / Math.Max(maxRot, 1.0));
             Cand c = new Cand();
             c.Cx = rect.Cx; c.Cy = rect.Cy; c.L = rect.L; c.W = rect.W; c.Angle = ang; c.Geom = geom; c.Thr = thr;
