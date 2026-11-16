@@ -219,7 +219,8 @@ namespace LitePlacer
                     return null;
                 }
             }
-            List<Group> groups = GroupCandidates(cands, Math.Max(3.0, 0.06 * L));
+            // Two-lead bar: the hull width is the body/lens, which changes with threshold; group on length only
+            List<Group> groups = GroupCandidates(cands, Math.Max(3.0, 0.06 * L), Pins == 2 ? 0.3 : 0.08);
 
             // ---- 4: evidence and score
             float[] blur = GaussianBlur(img, W, H, 1.2);
@@ -445,7 +446,7 @@ namespace LitePlacer
             cands.Add(c);
         }
 
-        static List<Group> GroupCandidates(List<Cand> cands, double posTol)
+        static List<Group> GroupCandidates(List<Cand> cands, double posTol, double wTol)
         {
             cands.Sort((a, b) => a.Thr.CompareTo(b.Thr));
             List<Group> groups = new List<Group>();
@@ -460,7 +461,7 @@ namespace LitePlacer
                     // merging them makes the group's median rectangle wander between frames.
                     if (Hypot(c.Cx - r.Cx, c.Cy - r.Cy) <= posTol
                         && Math.Abs(NormAngle(c.Angle - r.Angle)) <= 6.0
-                        && Math.Abs(c.L - r.L) <= 0.08 * r.L && Math.Abs(c.W - r.W) <= 0.08 * r.W)
+                        && Math.Abs(c.L - r.L) <= 0.08 * r.L && Math.Abs(c.W - r.W) <= wTol * r.W)
                     {
                         found = g;
                         break;
