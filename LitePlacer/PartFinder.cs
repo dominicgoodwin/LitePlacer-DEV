@@ -140,9 +140,9 @@ namespace LitePlacer
                     keep.Add(b);
                 }
                 keep.Sort((a, b) => b.Area.CompareTo(a.Area));
-                if (Pins > 0 && keep.Count > 2)
+                if (Pins > 2 && keep.Count > 2)
                 {
-                    // Leads: the span is made of pin-sized blobs. Anything much larger than the typical pin
+                    // Leads: the span is made of pin-sized blobs (a two-lead part may be one bar, so not for Pins = 2). Anything much larger than the typical pin
                     // (a lit segment of the nozzle rim, a reflection) must not be absorbed into a cluster.
                     List<double> areas = new List<double>();
                     for (int i = 0; i < Math.Min(Pins, keep.Count); i++) areas.Add(keep[i].Area);
@@ -150,6 +150,23 @@ namespace LitePlacer
                     keep.RemoveAll(b => b.Area > 1.8 * refArea);
                 }
                 HashSet<string> seen = new HashSet<string>();
+                if (Pins == 2)
+                {
+                    // Two leads: every pair of the larger blobs is a candidate span in its own right, so the
+                    // two leads (or the two halves of a bar broken at the lens) are seen at every threshold
+                    // whatever specks lie between them and would join a grown cluster first.
+                    int np = Math.Min(keep.Count, 12);
+                    for (int i = 0; i < np; i++)
+                        for (int j = i + 1; j < np; j++)
+                        {
+                            List<double[]> pts = new List<double[]>(keep[i].Hull);
+                            pts.AddRange(keep[j].Hull);
+                            Rect rp = MinAreaRect(ConvexHull(pts));
+                            if (rp.L < Lmin || rp.L > Lmax || rp.W > Wmax) continue;
+                            List<int> pair = new List<int>(); pair.Add(i); pair.Add(j);
+                            Emit(pair, rp, keep, thr, Lmin, Lmax, Wmin, Wmax, L, Wd, innerTol, MaxRotation, cx0, cy0, maxDist, seen, cands);
+                        }
+                }
                 // A blob that already belongs to a grown cluster would only regenerate that cluster as a seed:
                 // skip it. Seeds are taken largest first. (Cuts the 38-lead TSSOP from 1.5 s to a fraction.)
                 bool[] covered = new bool[keep.Count];
@@ -227,7 +244,9 @@ namespace LitePlacer
                 }
             }
             // Two-lead bar: the hull width is the body/lens, which changes with threshold; group on length only
-            List<Group> groups = GroupCandidates(cands, Math.Max(3.0, 0.06 * L), Pins == 2 ? 0.3 : 0.08);
+            // Two-lead parts: the hull width is the body/lens and the angle of a lead pair is pulled by what hangs
+            // off a lead; both are re-read from the image later, so group loosely on them
+            List<Group> groups = GroupCandidates(cands, Math.Max(3.0, 0.06 * L), Pins == 2 ? 0.5 : 0.08, Pins == 2 ? 12.0 : 6.0);
 
             // ---- 4: evidence and score
             float[] blur = GaussianBlur(img, W, H, 1.2);
@@ -460,7 +479,7 @@ namespace LitePlacer
             cands.Add(c);
         }
 
-        static List<Group> GroupCandidates(List<Cand> cands, double posTol, double wTol)
+        static List<Group> GroupCandidates(List<Cand> cands, double posTol, double wTol, double angTol)
         {
             cands.Sort((a, b) => a.Thr.CompareTo(b.Thr));
             List<Group> groups = new List<Group>();
@@ -474,7 +493,7 @@ namespace LitePlacer
                     // the part alone and the part plus a fragment of nozzle ring are different rectangles, and
                     // merging them makes the group's median rectangle wander between frames.
                     if (Hypot(c.Cx - r.Cx, c.Cy - r.Cy) <= posTol
-                        && Math.Abs(NormAngle(c.Angle - r.Angle)) <= 6.0
+                        && Math.Abs(NormAngle(c.Angle - r.Angle)) <= angTol
                         && Math.Abs(c.L - r.L) <= 0.08 * r.L && Math.Abs(c.W - r.W) <= wTol * r.W)
                     {
                         found = g;
@@ -493,13 +512,14 @@ namespace LitePlacer
                 HashSet<int> thrs = new HashSet<int>();
                 List<double> xs = new List<double>(), ys = new List<double>(), ls = new List<double>(), ws = new List<double>(), angs = new List<double>();
                 double geom = 0;
+                Cand r0 = g.Members[0];
                 foreach (Cand c in g.Members)
                 {
                     thrs.Add(c.Thr);
-                    xs.Add(c.Cx); ys.Add(c.Cy); ls.Add(c.L); ws.Add(c.W); angs.Add(c.Angle); geom += c.Geom;
+                    xs.Add(c.Cx); ys.Add(c.Cy); ls.Add(c.L); ws.Add(c.W); angs.Add(r0.Angle + NormAngle(c.Angle - r0.Angle)); geom += c.Geom;   // angles relative to the representative so +-90 does not wrap
                 }
                 g.NLevels = thrs.Count;
-                g.Cx = Median(xs); g.Cy = Median(ys); g.L = Median(ls); g.W = Median(ws); g.Angle = Median(angs);
+                g.Cx = Median(xs); g.Cy = Median(ys); g.L = Median(ls); g.W = Median(ws); g.Angle = NormAngle(Median(angs));
                 g.Geom = geom / g.Members.Count;
             }
             return groups;
@@ -946,7 +966,7 @@ namespace LitePlacer
                 if (pn == 0) break;
                 prof.Add(psum / pn);
             }
-            if (prof.Count < 3) return 0;
+            if (prof.Count < 3) return -1;
             double pmax = 0;
             foreach (double pv in prof) if (pv > pmax) pmax = pv;
             double thr = 0.5 * pmax;
@@ -958,30 +978,38 @@ namespace LitePlacer
                     return (i - 1) + Math.Min(1.0, Math.Max(0.0, frac));
                 }
             }
-            return prof.Count - 1;
+            return -1;   // no edge within maxDist
         }
 
-        // Centre of a lead across its axis: midpoint of the two half-maximum edges either side of (u0, v0)
-        static double LeadCentreAcross(float[] img, int W, int H, double cx, double cy, double ux, double uy,
-            double u0, double v0, double hwAlong, double maxHalfWidth)
+        static double SampleAt(float[] img, int W, int H, double x, double y)
         {
-            double ePos = HalfMaxEdge(img, W, H, cx, cy, ux, uy, u0, v0, 0, 1, hwAlong, maxHalfWidth);
-            double eNeg = HalfMaxEdge(img, W, H, cx, cy, ux, uy, u0, v0, 0, -1, hwAlong, maxHalfWidth);
-            return v0 + (ePos - eNeg) / 2;
+            int xi = (int)Math.Round(x), yi = (int)Math.Round(y);
+            if (xi < 0 || yi < 0 || xi >= W || yi >= H) return 0;
+            return img[yi * W + xi];
         }
 
         // Tip-to-tip measurement of a two-lead part from one seed point on each lead: lead centres across
         // the axis by half-maximum edges, axis through those, tips at half maximum along it. Updates the
-        // group's centre, length and angle; returns the tip balance (1 = symmetric about the centre).
+        // group's centre, length and angle; returns how alike the two leads are (1 = identical), 0 = not two leads.
         static double TwoLeadTips(float[] img, int W, int H, Group g, double uNeg, double vNeg, double uPos, double vPos, double hw, double reach)
         {
             double a = g.Angle * Math.PI / 180.0, ux = Math.Cos(a), uy = Math.Sin(a);
+            double wNeg = 0, wPos = 0;
             for (int pass = 0; pass < 2; pass++)
             {
-                vNeg = LeadCentreAcross(img, W, H, g.Cx, g.Cy, ux, uy, uNeg, vNeg, hw, 4 * hw + 4);
-                vPos = LeadCentreAcross(img, W, H, g.Cx, g.Cy, ux, uy, uPos, vPos, hw, 4 * hw + 4);
+                double maxHalf = 4 * hw + 4;
+                double eNegP = HalfMaxEdge(img, W, H, g.Cx, g.Cy, ux, uy, uNeg, vNeg, 0, 1, hw, maxHalf);
+                double eNegN = HalfMaxEdge(img, W, H, g.Cx, g.Cy, ux, uy, uNeg, vNeg, 0, -1, hw, maxHalf);
+                double ePosP = HalfMaxEdge(img, W, H, g.Cx, g.Cy, ux, uy, uPos, vPos, 0, 1, hw, maxHalf);
+                double ePosN = HalfMaxEdge(img, W, H, g.Cx, g.Cy, ux, uy, uPos, vPos, 0, -1, hw, maxHalf);
+                // both must be leads: edges found on both sides, similar widths, narrow against the span
+                if (eNegP < 0 || eNegN < 0 || ePosP < 0 || ePosN < 0) return 0;
+                vNeg += (eNegP - eNegN) / 2; vPos += (ePosP - ePosN) / 2;
+                wNeg = eNegP + eNegN; wPos = ePosP + ePosN;
+                if (wNeg < 4 || wPos < 4) return 0;      // a lead is wider than a scratch or a ring edge
+                if (Math.Max(wNeg, wPos) > 2.5 * Math.Min(wNeg, wPos) || Math.Max(wNeg, wPos) > 0.2 * g.L) return 0;
                 double tilt = Math.Atan2(vPos - vNeg, uPos - uNeg);
-                if (Math.Abs(tilt) > 10 * Math.PI / 180) break;
+                if (Math.Abs(tilt) > 10 * Math.PI / 180) return 0;
                 // rotate the frame onto the lead axis and express the seeds in it
                 double ca = Math.Cos(tilt), sa = Math.Sin(tilt);
                 double vMid = (vNeg + vPos) / 2;
@@ -991,12 +1019,27 @@ namespace LitePlacer
                 double uN2 = uNeg * ca + (vNeg - vMid) * sa, uP2 = uPos * ca + (vPos - vMid) * sa;
                 uNeg = uN2; uPos = uP2; vNeg = 0; vPos = 0;
             }
-            double tipNeg = uNeg - HalfMaxEdge(img, W, H, g.Cx, g.Cy, ux, uy, uNeg, 0, -1, 0, hw, reach);
-            double tipPos = uPos + HalfMaxEdge(img, W, H, g.Cx, g.Cy, ux, uy, uPos, 0, 1, 0, hw, reach);
+            double dNeg = HalfMaxEdge(img, W, H, g.Cx, g.Cy, ux, uy, uNeg, 0, -1, 0, hw, reach);
+            double dPos = HalfMaxEdge(img, W, H, g.Cx, g.Cy, ux, uy, uPos, 0, 1, 0, hw, reach);
+            if (dNeg < 0 || dPos < 0) return 0;   // no tip within reach: not a lead
+            // each lead also runs inward from its seed (to the body or the knee) at least as far as it is
+            // wide; a speck does not. (No inward edge within reach = it runs on into the body: fine.)
+            double inNeg = HalfMaxEdge(img, W, H, g.Cx, g.Cy, ux, uy, uNeg, 0, 1, 0, hw, reach);
+            double inPos = HalfMaxEdge(img, W, H, g.Cx, g.Cy, ux, uy, uPos, 0, -1, 0, hw, reach);
+            if (inNeg < 0) inNeg = reach;
+            if (inPos < 0) inPos = reach;
+            double lenNeg = dNeg + inNeg, lenPos = dPos + inPos;
+            if (lenNeg < 1.4 * wNeg || lenPos < 1.4 * wPos) return 0;
+            // alikeness from the widths only: the visible length inward depends on how bright the knee or lens is
+            double alike = Math.Min(wNeg, wPos) / Math.Max(wNeg, wPos);
+            // and both are bright metal, not a dim patch of nozzle face
+            double bNeg = SampleAt(img, W, H, g.Cx + uNeg * ux, g.Cy + uNeg * uy), bPos = SampleAt(img, W, H, g.Cx + uPos * ux, g.Cy + uPos * uy);
+            if (Math.Min(bNeg, bPos) < 120 || Math.Min(bNeg, bPos) < 0.5 * Math.Max(bNeg, bPos)) return 0;
+            double tipNeg = uNeg - dNeg, tipPos = uPos + dPos;
             double du = (tipNeg + tipPos) / 2;
             g.Cx += du * ux; g.Cy += du * uy;
             g.L = tipPos - tipNeg;
-            return 1.0 - Math.Abs(Math.Abs(tipNeg - du) - Math.Abs(tipPos - du)) / (0.5 * g.L);
+            return alike;
         }
 
         static int PinEvidence(float[] img, int W, int H, Group g, float thr, int pins, out double sym, out double rowAngle, out int outsidePins)
@@ -1098,7 +1141,38 @@ namespace LitePlacer
                     double hwBar = Math.Max(1.0, 0.3 * Math.Max(nNeg, nPos) / (0.1 * g.L));
                     sym = TwoLeadTips(img, W, H, g, -0.45 * g.L, vNeg, 0.45 * g.L, vPos, hwBar, 0.2 * g.L);
                     rowAngle = g.Angle;
-                    return 2;
+                    return sym > 0 ? 2 : 0;
+                }
+                // Otherwise two separate leads (or a bar broken at the lens): the largest blob reaching each end.
+                // Their shapes do not matter (a lead may carry a piece of lens, a knee, a speck): the axis and
+                // tips are read from the image by half-maximum edges, seeded by each blob's outer part.
+                {
+                    int bestNeg = -1, bestPos = -1; double areaNeg = 0, areaPos = 0;
+                    double[] seedNeg = null, seedPos = null;
+                    foreach (KeyValuePair<int, List<double[]>> kv in blobs)
+                    {
+                        List<double[]> pts = kv.Value;
+                        double minU = double.MaxValue, maxU = double.MinValue;
+                        double suN = 0, svN = 0, suP = 0, svP = 0; int nN = 0, nP = 0;
+                        foreach (double[] q in pts)
+                        {
+                            double dx = q[0] - g.Cx, dy = q[1] - g.Cy;
+                            double u = dx * ux + dy * uy, v = -dx * uy + dy * ux;
+                            if (u < minU) minU = u;
+                            if (u > maxU) maxU = u;
+                            if (u < -0.3 * g.L) { suN += u; svN += v; nN++; }
+                            if (u > 0.3 * g.L) { suP += u; svP += v; nP++; }
+                        }
+                        if (minU <= -0.85 * g.L / 2 && nN >= 3 && pts.Count > areaNeg) { areaNeg = pts.Count; bestNeg = kv.Key; seedNeg = new double[] { suN / nN, svN / nN }; }
+                        if (maxU >= 0.85 * g.L / 2 && nP >= 3 && pts.Count > areaPos) { areaPos = pts.Count; bestPos = kv.Key; seedPos = new double[] { suP / nP, svP / nP }; }
+                    }
+                    if (bestNeg >= 0 && bestPos >= 0 && bestNeg != bestPos)
+                    {
+                        double hwLead = Math.Max(1.0, 0.3 * Math.Sqrt(Math.Min(areaNeg, areaPos)));
+                        sym = TwoLeadTips(img, W, H, g, seedNeg[0], seedNeg[1], seedPos[0], seedPos[1], hwLead, 0.3 * g.L);
+                        rowAngle = g.Angle;
+                        return sym > 0 ? 2 : 0;
+                    }
                 }
             }
             // reference pin size: median area of the `pins` largest blobs
@@ -1239,16 +1313,6 @@ namespace LitePlacer
                 g.Cx += du0 * ux - dv0 * uy;
                 g.Cy += du0 * uy + dv0 * ux;
                 foreach (double[] c in cen) { c[0] -= du0; c[1] -= dv0; }
-            }
-            if (pins == 2 && npins == 2)
-            {
-                // Two separate feet: tips at half maximum along the axis from each foot's centre outward,
-                // the same at every threshold (the blob extent moves with threshold and with specks)
-                int iNeg = cen[0][0] < cen[1][0] ? 0 : 1, iPos = 1 - iNeg;
-                double hwFoot = Math.Max(1.0, 0.3 * Math.Sqrt(refArea));
-                sym = TwoLeadTips(img, W, H, g, cen[iNeg][0], cen[iNeg][1], cen[iPos][0], cen[iPos][1], hwFoot, 0.3 * g.L);
-                rowAngle = g.Angle;
-                return 2;
             }
             // Pitch: median nearest-neighbour distance between pin centres
             List<double> nnDist = new List<double>();
