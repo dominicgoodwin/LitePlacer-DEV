@@ -1581,6 +1581,11 @@ namespace LitePlacer
                     // itself. The run loop regulates the measured angle to -45..45, so which side is longer
                     // does not matter.
                     double hl = part.Length / 2.0, hw = part.Width / 2.0;
+                    // The outline search (AForge shape checker) misses very thin rectangles about half the
+                    // time (a two-lead span is 300 x 31 px). Its size is not a measurement, so draw it at
+                    // least a quarter as wide as it is long.
+                    if (hw < 0.25 * hl) hw = 0.25 * hl;
+                    if (hl < 0.25 * hw) hl = 0.25 * hw;
                     PointF[] corners = new PointF[4];
                     corners[0] = new PointF((float)(part.X - hl * ux - hw * vx), (float)(part.Y - hl * uy - hw * vy));
                     corners[1] = new PointF((float)(part.X + hl * ux - hw * vx), (float)(part.Y + hl * uy - hw * vy));
