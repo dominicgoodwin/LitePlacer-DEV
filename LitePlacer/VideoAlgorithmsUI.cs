@@ -1238,11 +1238,12 @@ namespace LitePlacer
                     EnableDoubleA("Across (mm):");
                     EnableDoubleB("Pins:");
                     EnableDoubleC("Size tol. %:");
-                    FunctionExplanation_textBox.Text = "Up camera: finds a leaded part (SOT-23, SOT-223, SOIC, TSSOP...) by its pins: a rectangle of\r\n"
-                        + "the given pin-span size made of 'Pins' bright pins. Along rows = extent in the direction the pins are\r\n"
-                        + "spaced (body length); Across = pin tip to pin tip. Like Find part it only draws a white rectangle:\r\n"
-                        + "ALSO tick 'Search component outlines' under Measurement to measure it. The rectangle's long side is\r\n"
-                        + "the pin-row direction, so the measured angle is the part's; the measured size is not meaningful.\r\n"
+                    FunctionExplanation_textBox.Text = "Up camera: finds a part by its pins or pads: a rectangle of the given pin-span size made of 'Pins'\r\n"
+                        + "bright pins in two rows (SOT-23, SOIC, TSSOP, DFN, WSON...). Along rows = extent of a row of pins;\r\n"
+                        + "Across = pin tip to pin tip (pad edge to pad edge for DFN/WSON). A large centre pad is ignored.\r\n"
+                        + "Pins = 2 with a clear body (IR emitters/detectors): the lead frame shows as one bar, give the body\r\n"
+                        + "width as Along rows. Draws the pin span as a white rectangle: ALSO tick 'Search component outlines'\r\n"
+                        + "under Measurement to measure it. The log shows the measured span: set the sizes to it.\r\n"
                         + "Black output = no such part on the nozzle.";
                     FunctionExplanation_textBox.Visible = true;
                     break;

@@ -86,6 +86,7 @@ namespace LitePlacer
                 // two rows assumed) at least 10 working pixels so foot and knee blobs do not fuse
                 double pitchPx = Math.Max(LengthPx, WidthPx) / Math.Max(1.0, Pins / 2.0);
                 int fp = (int)Math.Max(1, Math.Floor(pitchPx / 10.0));
+                if (Pins == 2) fp = 2;   // two leads: the axis comes from two short lead segments, keep them fine
                 if (fp < f) f = fp;
             }
             int W = width / f;
@@ -970,6 +971,43 @@ namespace LitePlacer
             }
             foreach (int k in toRemove) blobs.Remove(k);
             if (blobs.Count == 0) return 0;
+            if (pins == 2)
+            {
+                // Two-lead part whose lead frame shows as one bright bar from tip to tip (clear-bodied IR
+                // emitters/detectors: the frame runs on under the lens). The tips are the ends of that bar;
+                // the part axis is the line through the thin lead segments beyond the body.
+                foreach (List<double[]> pts in blobs.Values)
+                {
+                    double minU = double.MaxValue, maxU = double.MinValue;
+                    foreach (double[] q in pts)
+                    {
+                        double u = (q[0] - g.Cx) * ux + (q[1] - g.Cy) * uy;
+                        if (u < minU) minU = u;
+                        if (u > maxU) maxU = u;
+                    }
+                    if (minU > -0.85 * g.L / 2 || maxU < 0.85 * g.L / 2) continue;
+                    double sNeg = 0, sPos = 0; int nNeg = 0, nPos = 0;
+                    foreach (double[] q in pts)
+                    {
+                        double dx = q[0] - g.Cx, dy = q[1] - g.Cy;
+                        double u = dx * ux + dy * uy, v = -dx * uy + dy * ux;
+                        if (u < -0.4 * g.L) { sNeg += v; nNeg++; }
+                        else if (u > 0.4 * g.L) { sPos += v; nPos++; }
+                    }
+                    if (nNeg < 3 || nPos < 3) continue;
+                    double vNeg = sNeg / nNeg, vPos = sPos / nPos;
+                    // axis through the two lead segments: shift across, tilt by the segment difference
+                    double dv = (vNeg + vPos) / 2, du = (minU + maxU) / 2;
+                    double tilt = Math.Atan2(vPos - vNeg, 0.8 * g.L) * 180.0 / Math.PI;
+                    if (Math.Abs(dv) > 0.3 * g.W || Math.Abs(tilt) > 10) continue;
+                    g.Cx += du * ux - dv * uy;
+                    g.Cy += du * uy + dv * ux;
+                    g.Angle = NormAngle(g.Angle + tilt);
+                    rowAngle = g.Angle;
+                    sym = 1.0 - Math.Abs(Math.Abs(minU - du) - Math.Abs(maxU - du)) / (0.5 * g.L);
+                    return 2;
+                }
+            }
             // reference pin size: median area of the `pins` largest blobs
             List<double> areas = new List<double>();
             foreach (List<double[]> pts in blobs.Values) areas.Add(pts.Count);
