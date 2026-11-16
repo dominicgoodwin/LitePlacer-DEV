@@ -332,6 +332,7 @@ namespace LitePlacer
             UpCamera.DesiredResolutionY = Setting.UpCam_DesiredY;
             UpCamera.XmmPerPixel = Setting.UpCam_XmmPerPixel;
             UpCamera.YmmPerPixel = Setting.UpCam_YmmPerPixel;
+            UpCamera.Rotation = Setting.UpCam_Rotation;
             UpCamZoom_checkBox.Checked = Setting.UpCam_Zoom;
             UpCamera.ZoomIsOn = Setting.UpCam_Zoom;
             UpCamera.ZoomFactor = Setting.UpCam_Zoomfactor;
@@ -352,6 +353,7 @@ namespace LitePlacer
             UpdateUpCamBoxXSizeText();
             UpCameraYmmPerPixel_textBox.Text = Setting.UpCam_YmmPerPixel.ToString("0.0000", CultureInfo.InvariantCulture);
             UpdateUpCamBoxYSizeText();
+            UpCameraRotation_textBox.Text = Setting.UpCam_Rotation.ToString("0.00", CultureInfo.InvariantCulture);
 
             // ======== Setup vision processing tab:
             NoOfNozzlesOnVideoSetup_numericUpDown.Maximum = Setting.Nozzles_count;
@@ -4506,6 +4508,25 @@ namespace LitePlacer
                 UpCameraXmmPerPixel_textBox.ForeColor = Color.Red;
             }
         }
+        private void UpCameraRotation_textBox_TextChanged(object sender, EventArgs e)
+        {
+            if (StartingUp)
+            {
+                return;
+            }
+            double val;
+            if (double.TryParse(UpCameraRotation_textBox.Text.Replace(',', '.'), out val) && (Math.Abs(val) < 45.0))
+            {
+                UpCameraRotation_textBox.ForeColor = Color.Black;
+                Setting.UpCam_Rotation = val;
+                UpCamera.Rotation = val;
+            }
+            else
+            {
+                UpCameraRotation_textBox.ForeColor = Color.Red;
+            }
+        }
+
         private void UpdateUpCamBoxXSizeText()
         {
             // Own function because the box size needs to be updated when zoom or show pixels status changes

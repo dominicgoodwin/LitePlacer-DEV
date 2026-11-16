@@ -2923,6 +2923,9 @@ namespace LitePlacer
         // Measure
         // ==========================================================================================================
         public double XmmPerPixel;
+        // Camera rotation about its axis, deg, in the measurement angle convention: the angle a part square to
+        // the machine measures as. Subtracted from measured angles; measured offsets are rotated back by it.
+        public double Rotation = 0.0;
         public double YmmPerPixel;
 
         private void DisplayShapes(List<Shapes.Shape> Shapes, int StartFrom, double XmmPpix, double YmmPpix)
@@ -3241,6 +3244,14 @@ namespace LitePlacer
             Xresult = (FilteredForDistance[0].Center.X - FrameCenterX) * XmmPpix;
             Yresult = (FrameCenterY - FilteredForDistance[0].Center.Y) * YmmPpix;
             Aresult = FilteredForDistance[0].Angle;
+            if (Math.Abs(Rotation) > 0.0001)
+            {
+                // the camera is rotated to the machine axes: take that out of the angle and the offset
+                double r = -Rotation * Math.PI / 180.0, c = Math.Cos(r), sn = Math.Sin(r);
+                double xr = Xresult * c - Yresult * sn, yr = Xresult * sn + Yresult * c;
+                Xresult = xr; Yresult = yr;
+                Aresult -= Rotation;
+            }
             double XSize = FilteredForDistance[0].Xsize * XmmPpix;
             double YSize = FilteredForDistance[0].Ysize * YmmPpix;
 
