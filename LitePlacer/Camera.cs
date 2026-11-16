@@ -1567,6 +1567,13 @@ namespace LitePlacer
 
             StringBuilder log = (par_int == 1) ? new StringBuilder() : null;
             PartFinder.Part part = PartFinder.Find(pixels, width, height, LengthPx, WidthPx, tolerance, maxRot, maxCentreDistPx, 0.65, pins, log);
+            if (par_int == 1)
+            {
+                // Measurement angle convention is the opposite sign to the image's (y down)
+                FoundPart = ((part != null) && part.Accepted)
+                    ? new Shapes.Shape() { Center = new AForge.Point((float)part.X, (float)part.Y), Angle = -part.Angle, Xsize = part.Length, Ysize = part.Width }
+                    : null;
+            }
 
             // Output image
             Bitmap result = new Bitmap(width, height, PixelFormat.Format24bppRgb);
@@ -2716,6 +2723,10 @@ namespace LitePlacer
         // Caller = any function doing measurement from video frames. 
         // The list of functions processing the image used in measurements, set by caller:
         public List<AForgeFunction> MeasurementFunctions = new List<AForgeFunction>();
+        // Result of Find part / Find leads from the last measurement pass (frame pixels, image angle), or null.
+        // Measure() uses it directly: the finder locates the part to a fraction of a pixel, which the outline
+        // search of the drawn rectangle would then blur by a pixel or two and a few tenths of a degree.
+        private Shapes.Shape FoundPart = null;
         public static readonly object MeasurementFunctionsLock = new object();
 
         // Measurement parameters: min and max size, max distance from initial location, set by caller:
@@ -2964,8 +2975,19 @@ namespace LitePlacer
             DisplayResults = true;
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
+            bool haveFinder = false;
+            lock (MeasurementFunctionsLock)
+            {
+                if (MeasurementFunctions != null)
+                {
+                    foreach (AForgeFunction f in MeasurementFunctions)
+                    {
+                        if ((f.func != null) && ((f.func.Method.Name == "FindPartFunct") || (f.func.Method.Name == "FindLeadsFunct"))) haveFinder = true;
+                    }
+                }
+            }
             if ((!MeasurementParameters.SearchRounds) && (!MeasurementParameters.SearchRectangles)
-                && (!MeasurementParameters.SearchComponentOutlines) && (!MeasurementParameters.SearchComponentPads))
+                && (!MeasurementParameters.SearchComponentOutlines) && (!MeasurementParameters.SearchComponentPads) && !haveFinder)
             {
                 MainForm.DisplayText("Nothing to search for. Check some of the \"Features to search for\" boxes.", KnownColor.Red, true);
                 return false;
@@ -2981,6 +3003,7 @@ namespace LitePlacer
             bool PauseSave = Paused;
             PauseProcessing = true;
 
+            FoundPart = null;
             Bitmap image = GetMeasurementFrame();
 
             if (image == null)
@@ -3004,7 +3027,24 @@ namespace LitePlacer
             double XmmPpix = XmmPerPixel / zoom;
             double YmmPpix = YmmPerPixel / zoom;
 
-            if (MeasurementParameters.SearchRounds)
+            if (FoundPart != null)
+            {
+                // Find part / Find leads located the part in this frame: that is the result
+                Candidates.Add(FoundPart);
+                stopwatch.Stop();
+                if (DisplayResults)
+                {
+                    MainForm.DisplayText("Part finder:");
+                    DisplayShapes(Candidates, 0, XmmPpix, YmmPpix);
+                }
+                stopwatch.Start();
+            }
+            else if (haveFinder)
+            {
+                if (DisplayResults) MainForm.DisplayText("Part finder: no part.");
+            }
+
+            if (MeasurementParameters.SearchRounds && FoundPart == null)
             {
                 List<Shapes.Circle> Circles = FindCirclesFunct(image);
                 foreach (Shapes.Circle circle in Circles)
@@ -3027,7 +3067,7 @@ namespace LitePlacer
             }
             int count = Candidates.Count;
 
-            if (MeasurementParameters.SearchRectangles)
+            if (MeasurementParameters.SearchRectangles && FoundPart == null)
             {
                 List<Shapes.Rectangle> Regtangles = FindRectanglesFunct(image);
                 foreach (Shapes.Rectangle regt in Regtangles)
@@ -3050,7 +3090,7 @@ namespace LitePlacer
             }
             count = Candidates.Count;
 
-            if (MeasurementParameters.SearchComponentOutlines)
+            if (MeasurementParameters.SearchComponentOutlines && FoundPart == null)
             {
                 List<Shapes.Component> Components = FindComponentsFromOutline_Funct(image);
                 foreach (Shapes.Component comp in Components)
@@ -3074,7 +3114,7 @@ namespace LitePlacer
             }
             count = Candidates.Count;
 
-            if (MeasurementParameters.SearchComponentPads)
+            if (MeasurementParameters.SearchComponentPads && FoundPart == null)
             {
                 List<Shapes.Component> Components = FindComponentsFromPads_Funct(image, GetMeasurementZoom());
                 foreach (Shapes.Component comp in Components)

@@ -1225,11 +1225,11 @@ namespace LitePlacer
                     EnableDoubleB("Size tol. %:");
                     EnableDoubleC("Max rot. deg:");
                     FunctionExplanation_textBox.Text = "Up camera: finds a chip component (bright terminations) of the given size on the nozzle,\r\n"
-                        + "whatever the nozzle looks like and without a grey threshold. It does not measure anything itself:\r\n"
-                        + "it replaces the image with a white rectangle where the part is (black if no part of that size).\r\n"
-                        + "To get a result, ALSO tick 'Search component outlines' (or pads) under Measurement; that measures the\r\n"
-                        + "rectangle (position, size, angle) as it does today. No Filter Features by Size step is needed.\r\n"
-                        + "Put Find part after any Meas. zoom step. Max rot: how far from 0/90 degrees the part may sit.";
+                        + "whatever the nozzle looks like and without a grey threshold. Its position and angle are the\r\n"
+                        + "measurement result directly (no 'Features to search for' box is needed); the display shows a white\r\n"
+                        + "rectangle where the part is, black if there is no part of that size. The log shows the measured\r\n"
+                        + "size: set Length/Width to it. Put Find part after any Meas. zoom step. Max rot: how far from\r\n"
+                        + "0/90 degrees the part may sit. Size tol. 20 % is a good default.";
                     FunctionExplanation_textBox.Visible = true;
                     break;
 
@@ -1241,10 +1241,10 @@ namespace LitePlacer
                     FunctionExplanation_textBox.Text = "Up camera: finds a part by its pins or pads: a rectangle of the given pin-span size made of 'Pins'\r\n"
                         + "bright pins in two rows (SOT-23, SOIC, TSSOP, DFN, WSON...). Along rows = extent of a row of pins;\r\n"
                         + "Across = pin tip to pin tip (pad edge to pad edge for DFN/WSON). A large centre pad is ignored.\r\n"
-                        + "Pins = 2 with a clear body (IR emitters/detectors): the lead frame shows as one bar, give the body\r\n"
-                        + "width as Along rows. Draws the pin span as a white rectangle: ALSO tick 'Search component outlines'\r\n"
-                        + "under Measurement to measure it. The log shows the measured span: set the sizes to it.\r\n"
-                        + "Black output = no such part on the nozzle.";
+                        + "Pins = 2 (two-lead parts, clear or black body): Along rows is only an upper bound on the width; the\r\n"
+                        + "tip-to-tip span is what is measured. Its position and angle are the measurement result directly (no\r\n"
+                        + "'Features to search for' box is needed); the display shows the pin span as a white rectangle, black\r\n"
+                        + "if there is no such part. The log shows the measured span: set the sizes to it.";
                     FunctionExplanation_textBox.Visible = true;
                     break;
 
