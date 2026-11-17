@@ -162,6 +162,8 @@
             this.label130 = new System.Windows.Forms.Label();
             this.UpCameraYmmPerPixel_textBox = new System.Windows.Forms.TextBox();
             this.UpCameraXmmPerPixel_textBox = new System.Windows.Forms.TextBox();
+            this.UpCameraRotation_textBox = new System.Windows.Forms.TextBox();
+            this.UpCameraRotation_label = new System.Windows.Forms.Label();
             this.UpCamDrawBox_checkBox = new System.Windows.Forms.CheckBox();
             this.UpCamDrawCross_checkBox = new System.Windows.Forms.CheckBox();
             this.UpCamListResolutions_button = new System.Windows.Forms.Button();
@@ -2359,6 +2361,8 @@
             this.groupBox6.Controls.Add(this.label130);
             this.groupBox6.Controls.Add(this.UpCameraYmmPerPixel_textBox);
             this.groupBox6.Controls.Add(this.UpCameraXmmPerPixel_textBox);
+            this.groupBox6.Controls.Add(this.UpCameraRotation_textBox);
+            this.groupBox6.Controls.Add(this.UpCameraRotation_label);
             this.groupBox6.Controls.Add(this.UpCamDrawBox_checkBox);
             this.groupBox6.Controls.Add(this.UpCamDrawCross_checkBox);
             this.groupBox6.Controls.Add(this.UpCamListResolutions_button);
@@ -2486,6 +2490,27 @@
             this.UpCameraYmmPerPixel_textBox.Tag = "https://liteplacer.com/setup-cameras-page/";
             this.toolTip1.SetToolTip(this.UpCameraYmmPerPixel_textBox, "Set the true size of the box on the image.");
             this.UpCameraYmmPerPixel_textBox.TextChanged += new System.EventHandler(this.UpCameraYmmPerPixel_textBox_TextChanged);
+            // 
+            // UpCameraRotation_textBox
+            // 
+            this.UpCameraRotation_textBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.UpCameraRotation_textBox.Location = new System.Drawing.Point(290, 181);
+            this.UpCameraRotation_textBox.Name = "UpCameraRotation_textBox";
+            this.UpCameraRotation_textBox.Size = new System.Drawing.Size(46, 20);
+            this.UpCameraRotation_textBox.TabIndex = 240;
+            this.toolTip1.SetToolTip(this.UpCameraRotation_textBox, "Camera rotation to the machine axes, degrees: the angle the up cam reports for a part that is square to the machine. Subtracted from every up cam measurement.");
+            this.UpCameraRotation_textBox.TextChanged += new System.EventHandler(this.UpCameraRotation_textBox_TextChanged);
+            // 
+            // UpCameraRotation_label
+            // 
+            this.UpCameraRotation_label.AutoSize = true;
+            this.UpCameraRotation_label.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.UpCameraRotation_label.Location = new System.Drawing.Point(218, 184);
+            this.UpCameraRotation_label.Name = "UpCameraRotation_label";
+            this.UpCameraRotation_label.Size = new System.Drawing.Size(66, 13);
+            this.UpCameraRotation_label.TabIndex = 241;
+            this.UpCameraRotation_label.Text = "Rotation deg:";
+            this.toolTip1.SetToolTip(this.UpCameraRotation_label, "Camera rotation to the machine axes, degrees: the angle the up cam reports for a part that is square to the machine.");
             // 
             // UpCameraXmmPerPixel_textBox
             // 
@@ -12106,6 +12131,8 @@
         private System.Windows.Forms.Label label130;
         private System.Windows.Forms.TextBox UpCameraYmmPerPixel_textBox;
         private System.Windows.Forms.TextBox UpCameraXmmPerPixel_textBox;
+        private System.Windows.Forms.TextBox UpCameraRotation_textBox;
+        private System.Windows.Forms.Label UpCameraRotation_label;
         private System.Windows.Forms.Label label121;
         private System.Windows.Forms.TextBox DownCameraYmmPerPixel_textBox;
         private System.Windows.Forms.TabPage X_tabPage;

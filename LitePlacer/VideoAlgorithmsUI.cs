@@ -34,7 +34,7 @@ namespace LitePlacer
         enum Functions_dataGridViewColumns : int { FunctionColumn, ActiveColumn };
         public List<string> KnownFunctions = new List<string> {"Threshold", "Invert", "Meas. zoom", "Histogram",
             "Grayscale", "Edge detect", "Noise reduction", "Erosion", "Kill color", "Keep color", "Blur",
-            "Gaussian blur", "Hough circles", "Find holes", "Filter Features by Size", "Jog before measurement"};
+            "Gaussian blur", "Hough circles", "Find holes", "Find part", "Find leads", "Filter Features by Size", "Jog before measurement"};
 
 
         public VideoAlgorithmsCollection VideoAlgorithms;
@@ -1090,6 +1090,20 @@ namespace LitePlacer
                     funct.parameterDoubleC = 20.0;  // max. rim gap, %
                     break;
 
+                case "Find part":
+                    funct.parameterDouble = 1.6;    // part length, mm
+                    funct.parameterDoubleA = 0.8;   // part width, mm
+                    funct.parameterDoubleB = 20.0;  // size tolerance, %
+                    funct.parameterDoubleC = 30.0;  // max. rotation, degrees
+                    break;
+
+                case "Find leads":
+                    funct.parameterDouble = 2.45;   // length along the pin rows, mm (SOT-23)
+                    funct.parameterDoubleA = 2.6;   // width across, pin tip to pin tip, mm
+                    funct.parameterDoubleB = 3.0;   // pins
+                    funct.parameterDoubleC = 20.0;  // size tolerance, %
+                    break;
+
                 case "Jog before measurement":
                     break;		// no parameters
 
@@ -1202,6 +1216,35 @@ namespace LitePlacer
                     EnableDouble("Intensity:");
                     FunctionExplanation_textBox.Text = "Finds partial circles with specified diameter.\r\n"
                         + "Result intensity correlates to match quality.";
+                    FunctionExplanation_textBox.Visible = true;
+                    break;
+
+                case "Find part":
+                    EnableDouble("Length (mm):");
+                    EnableDoubleA("Width (mm):");
+                    EnableDoubleB("Size tol. %:");
+                    EnableDoubleC("Max rot. deg:");
+                    FunctionExplanation_textBox.Text = "Up camera: finds a chip component (bright terminations) of the given size on the nozzle,\r\n"
+                        + "whatever the nozzle looks like and without a grey threshold. Its position and angle are the\r\n"
+                        + "measurement result directly (no 'Features to search for' box is needed); the display shows a white\r\n"
+                        + "rectangle where the part is, black if there is no part of that size. The log shows the measured\r\n"
+                        + "size: set Length/Width to it. Put Find part after any Meas. zoom step. Max rot: how far from\r\n"
+                        + "0/90 degrees the part may sit. Size tol. 20 % is a good default.";
+                    FunctionExplanation_textBox.Visible = true;
+                    break;
+
+                case "Find leads":
+                    EnableDouble("Along rows (mm):");
+                    EnableDoubleA("Across (mm):");
+                    EnableDoubleB("Pins:");
+                    EnableDoubleC("Size tol. %:");
+                    FunctionExplanation_textBox.Text = "Up camera: finds a part by its pins or pads: a rectangle of the given pin-span size made of 'Pins'\r\n"
+                        + "bright pins in two rows (SOT-23, SOIC, TSSOP, DFN, WSON...). Along rows = extent of a row of pins;\r\n"
+                        + "Across = pin tip to pin tip (pad edge to pad edge for DFN/WSON). A large centre pad is ignored.\r\n"
+                        + "Pins = 2 (two-lead parts, clear or black body): Along rows is only an upper bound on the width; the\r\n"
+                        + "tip-to-tip span is what is measured. Its position and angle are the measurement result directly (no\r\n"
+                        + "'Features to search for' box is needed); the display shows the pin span as a white rectangle, black\r\n"
+                        + "if there is no such part. The log shows the measured span: set the sizes to it.";
                     FunctionExplanation_textBox.Visible = true;
                     break;
 

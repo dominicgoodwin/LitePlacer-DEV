@@ -169,6 +169,7 @@
     <Compile Include="AppSettings.cs" />
     <Compile Include="Camera.cs" />
     <Compile Include="HoleFinder.cs" />
+    <Compile Include="PartFinder.cs" />
     <Compile Include="CameraProperties.cs">
       <SubType>Form</SubType>
     </Compile>

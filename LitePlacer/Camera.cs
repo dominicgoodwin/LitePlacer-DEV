@@ -167,9 +167,13 @@ namespace LitePlacer
             }
         }
 
-        public void DisplayPropertyPage()
+        public void DisplayPropertyPage(IntPtr parent)
         {
-            VideoSource.DisplayPropertyPage(IntPtr.Zero);
+            if (VideoSource == null)
+            {
+                return;
+            }
+            VideoSource.DisplayPropertyPage(parent);
 
         }
 
@@ -612,6 +616,16 @@ namespace LitePlacer
 
                     case "Find holes":
                         f.func = FindHolesFunct;
+                        f.parameter_int = usage;
+                        break;
+
+                    case "Find part":
+                        f.func = FindPartFunct;
+                        f.parameter_int = usage;
+                        break;
+
+                    case "Find leads":
+                        f.func = FindLeadsFunct;
                         f.parameter_int = usage;
                         break;
 
@@ -1481,6 +1495,122 @@ namespace LitePlacer
                     MainForm.DisplayText("  (" + h.X.ToString("0.0") + ", " + h.Y.ToString("0.0") + ") r=" + h.Radius.ToString("0.0")
                         + " coverage=" + (h.Coverage * 100).ToString("0") + "% gap=" + (h.MaxGap * 100).ToString("0") + "%"
                         + (h.Accepted ? " OK" : " rejected"));
+                }
+            }
+        }
+
+        // =========================================================
+        // Find part: chip component finder (see PartFinder.cs). Replaces the frame with a black image carrying
+        // a white filled rectangle where the part is, so "Search component pads" measures a clean rectangle.
+        // par_int: usage (1 = measurement, 2 = display) -- set by BuildFunctionsList, not the user.
+        // par_d: part length, mm. par_dA: part width, mm. par_dB: size tolerance, %. par_dC: max. rotation, degrees.
+        private void FindPartFunct(ref Bitmap frame, int par_int, double par_d, int par_R, int par_G, int par_B,
+            double par_dA, double par_dB, double par_dC)
+        {
+            FindPartCommon(ref frame, par_int, par_d, par_dA, par_dB, par_dC, 0);
+        }
+
+        // Find leads: leaded part (SOT, SOIC, TSSOP...) found by its pins. See PartFinder.cs, leaded mode.
+        // par_d: length along the pin rows, mm. par_dA: width across (pin tip to pin tip), mm. par_dB: pin count.
+        // par_dC: size tolerance, %. The output rectangle is drawn with its long side along the pin rows, so
+        // "Search component outlines" reports the row direction as the angle; its size is not the part's.
+        private void FindLeadsFunct(ref Bitmap frame, int par_int, double par_d, int par_R, int par_G, int par_B,
+            double par_dA, double par_dB, double par_dC)
+        {
+            int pins = (int)Math.Round(par_dB);
+            if (pins < 2) pins = 2;
+            FindPartCommon(ref frame, par_int, par_d, par_dA, par_dC, 45.0, pins);
+        }
+
+        private void FindPartCommon(ref Bitmap frame, int par_int, double par_d, double par_dA, double par_dB, double par_dC, int pins)
+        {
+            int width = frame.Width;
+            int height = frame.Height;
+            double zoom = (par_int == 2) ? GetProcessingZoom() : GetMeasurementZoom();
+            if (zoom < 0.1) zoom = 1.0;
+            double mmPerPixel = XmmPerPixel / zoom;
+            if (mmPerPixel <= 0.0)
+            {
+                mmPerPixel = 0.02 / zoom;   // camera not calibrated yet; a typical up cam value
+            }
+            double LengthPx = par_d / mmPerPixel;
+            double WidthPx = par_dA / mmPerPixel;
+            double tolerance = par_dB / 100.0;
+            double maxRot = par_dC;
+            if (tolerance <= 0.0) tolerance = 0.15;
+            if (maxRot <= 0.0) maxRot = 30.0;
+            double maxCentreDistPx = 2.0 / mmPerPixel;   // part centre within 2 mm (+ half length) of frame centre
+
+            // Grey bytes, stride == width
+            Bitmap grey = Grayscale.CommonAlgorithms.RMY.Apply(frame);
+            byte[] pixels = new byte[width * height];
+            BitmapData data = grey.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadOnly, PixelFormat.Format8bppIndexed);
+            try
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    System.Runtime.InteropServices.Marshal.Copy(data.Scan0 + y * data.Stride, pixels, y * width, width);
+                }
+            }
+            finally
+            {
+                grey.UnlockBits(data);
+            }
+            grey.Dispose();
+
+            // The rectangle this function outputs is the only thing worth measuring, so set the blob
+            // pre-filter of "Search component pads" to accept it; a separate Filter Features by Size step
+            // is not needed in the algorithm.
+            FilterFeaturesBySize_Min = 0.2 * par_dA;
+            FilterFeaturesBySize_Max = 1.5 * par_d * (1 + tolerance);
+            FilterFeaturesBySize_Distance = 2.0 + par_d;
+
+            StringBuilder log = (par_int == 1) ? new StringBuilder() : null;
+            PartFinder.Part part = PartFinder.Find(pixels, width, height, LengthPx, WidthPx, tolerance, maxRot, maxCentreDistPx, 0.65, pins, log);
+            if (par_int == 1)
+            {
+                // Measurement angle convention is the opposite sign to the image's (y down)
+                FoundPart = ((part != null) && part.Accepted)
+                    ? new Shapes.Shape() { Center = new AForge.Point((float)part.X, (float)part.Y), Angle = -part.Angle, Xsize = part.Length, Ysize = part.Width }
+                    : null;
+            }
+
+            // Output image
+            Bitmap result = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+            using (Graphics g = Graphics.FromImage(result))
+            {
+                g.Clear(Color.Black);
+                if ((part != null) && part.Accepted)
+                {
+                    double a = part.Angle * Math.PI / 180.0;
+                    double ux = Math.Cos(a), uy = Math.Sin(a), vx = -uy, vy = ux;
+                    // Leads: Length runs along the pin rows (Angle), Width across them, so this is the pin span
+                    // itself. The run loop regulates the measured angle to -45..45, so which side is longer
+                    // does not matter.
+                    double hl = part.Length / 2.0, hw = part.Width / 2.0;
+                    // The outline search (AForge shape checker) misses very thin rectangles about half the
+                    // time (a two-lead span is 300 x 31 px). Its size is not a measurement, so draw it at
+                    // least a quarter as wide as it is long.
+                    if (hw < 0.25 * hl) hw = 0.25 * hl;
+                    if (hl < 0.25 * hw) hl = 0.25 * hw;
+                    PointF[] corners = new PointF[4];
+                    corners[0] = new PointF((float)(part.X - hl * ux - hw * vx), (float)(part.Y - hl * uy - hw * vy));
+                    corners[1] = new PointF((float)(part.X + hl * ux - hw * vx), (float)(part.Y + hl * uy - hw * vy));
+                    corners[2] = new PointF((float)(part.X + hl * ux + hw * vx), (float)(part.Y + hl * uy + hw * vy));
+                    corners[3] = new PointF((float)(part.X - hl * ux + hw * vx), (float)(part.Y - hl * uy + hw * vy));
+                    g.FillPolygon(Brushes.White, corners);
+                }
+            }
+            frame = result;
+
+            if (log != null)
+            {
+                MainForm.DisplayText(log.ToString());
+                if (part != null && part.Accepted)
+                {
+                    MainForm.DisplayText("  " + (pins > 0 ? "pin span " : "part ") + (part.Length * mmPerPixel).ToString("0.00") + " x " + (part.Width * mmPerPixel).ToString("0.00")
+                        + " mm, offset (" + ((part.X - width / 2.0) * mmPerPixel).ToString("0.000") + ", "
+                        + ((part.Y - height / 2.0) * mmPerPixel).ToString("0.000") + ") mm, angle " + part.Angle.ToString("0.0"));
                 }
             }
         }
@@ -2593,6 +2723,10 @@ namespace LitePlacer
         // Caller = any function doing measurement from video frames. 
         // The list of functions processing the image used in measurements, set by caller:
         public List<AForgeFunction> MeasurementFunctions = new List<AForgeFunction>();
+        // Result of Find part / Find leads from the last measurement pass (frame pixels, image angle), or null.
+        // Measure() uses it directly: the finder locates the part to a fraction of a pixel, which the outline
+        // search of the drawn rectangle would then blur by a pixel or two and a few tenths of a degree.
+        private Shapes.Shape FoundPart = null;
         public static readonly object MeasurementFunctionsLock = new object();
 
         // Measurement parameters: min and max size, max distance from initial location, set by caller:
@@ -2789,6 +2923,9 @@ namespace LitePlacer
         // Measure
         // ==========================================================================================================
         public double XmmPerPixel;
+        // Camera rotation about its axis, deg, in the measurement angle convention: the angle a part square to
+        // the machine measures as. Subtracted from measured angles; measured offsets are rotated back by it.
+        public double Rotation = 0.0;
         public double YmmPerPixel;
 
         private void DisplayShapes(List<Shapes.Shape> Shapes, int StartFrom, double XmmPpix, double YmmPpix)
@@ -2841,8 +2978,19 @@ namespace LitePlacer
             DisplayResults = true;
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
+            bool haveFinder = false;
+            lock (MeasurementFunctionsLock)
+            {
+                if (MeasurementFunctions != null)
+                {
+                    foreach (AForgeFunction f in MeasurementFunctions)
+                    {
+                        if ((f.func != null) && ((f.func.Method.Name == "FindPartFunct") || (f.func.Method.Name == "FindLeadsFunct"))) haveFinder = true;
+                    }
+                }
+            }
             if ((!MeasurementParameters.SearchRounds) && (!MeasurementParameters.SearchRectangles)
-                && (!MeasurementParameters.SearchComponentOutlines) && (!MeasurementParameters.SearchComponentPads))
+                && (!MeasurementParameters.SearchComponentOutlines) && (!MeasurementParameters.SearchComponentPads) && !haveFinder)
             {
                 MainForm.DisplayText("Nothing to search for. Check some of the \"Features to search for\" boxes.", KnownColor.Red, true);
                 return false;
@@ -2858,6 +3006,7 @@ namespace LitePlacer
             bool PauseSave = Paused;
             PauseProcessing = true;
 
+            FoundPart = null;
             Bitmap image = GetMeasurementFrame();
 
             if (image == null)
@@ -2881,7 +3030,24 @@ namespace LitePlacer
             double XmmPpix = XmmPerPixel / zoom;
             double YmmPpix = YmmPerPixel / zoom;
 
-            if (MeasurementParameters.SearchRounds)
+            if (FoundPart != null)
+            {
+                // Find part / Find leads located the part in this frame: that is the result
+                Candidates.Add(FoundPart);
+                stopwatch.Stop();
+                if (DisplayResults)
+                {
+                    MainForm.DisplayText("Part finder:");
+                    DisplayShapes(Candidates, 0, XmmPpix, YmmPpix);
+                }
+                stopwatch.Start();
+            }
+            else if (haveFinder)
+            {
+                if (DisplayResults) MainForm.DisplayText("Part finder: no part.");
+            }
+
+            if (MeasurementParameters.SearchRounds && FoundPart == null)
             {
                 List<Shapes.Circle> Circles = FindCirclesFunct(image);
                 foreach (Shapes.Circle circle in Circles)
@@ -2904,7 +3070,7 @@ namespace LitePlacer
             }
             int count = Candidates.Count;
 
-            if (MeasurementParameters.SearchRectangles)
+            if (MeasurementParameters.SearchRectangles && FoundPart == null)
             {
                 List<Shapes.Rectangle> Regtangles = FindRectanglesFunct(image);
                 foreach (Shapes.Rectangle regt in Regtangles)
@@ -2927,7 +3093,7 @@ namespace LitePlacer
             }
             count = Candidates.Count;
 
-            if (MeasurementParameters.SearchComponentOutlines)
+            if (MeasurementParameters.SearchComponentOutlines && FoundPart == null)
             {
                 List<Shapes.Component> Components = FindComponentsFromOutline_Funct(image);
                 foreach (Shapes.Component comp in Components)
@@ -2951,7 +3117,7 @@ namespace LitePlacer
             }
             count = Candidates.Count;
 
-            if (MeasurementParameters.SearchComponentPads)
+            if (MeasurementParameters.SearchComponentPads && FoundPart == null)
             {
                 List<Shapes.Component> Components = FindComponentsFromPads_Funct(image, GetMeasurementZoom());
                 foreach (Shapes.Component comp in Components)
@@ -3039,7 +3205,22 @@ namespace LitePlacer
 
                 if ((Xdist< MeasurementParameters.XUniqueDistance) && (Ydist < MeasurementParameters.YUniqueDistance))
                 {
-                    FilteredForDistance.Add(shape);
+                    // The same feature found by several methods (rectangles, outlines, pads) or several times
+                    // is one result, not an ambiguity: keep the first of any that coincide within 0.1 mm.
+                    bool duplicate = false;
+                    foreach (Shapes.Shape kept in FilteredForDistance)
+                    {
+                        if ((Math.Abs((kept.Center.X - shape.Center.X) * XmmPpix) < 0.1)
+                            && (Math.Abs((kept.Center.Y - shape.Center.Y) * YmmPpix) < 0.1))
+                        {
+                            duplicate = true;
+                            break;
+                        }
+                    }
+                    if (!duplicate)
+                    {
+                        FilteredForDistance.Add(shape);
+                    }
                 }
             }
             stopwatch.Stop();
@@ -3063,6 +3244,14 @@ namespace LitePlacer
             Xresult = (FilteredForDistance[0].Center.X - FrameCenterX) * XmmPpix;
             Yresult = (FrameCenterY - FilteredForDistance[0].Center.Y) * YmmPpix;
             Aresult = FilteredForDistance[0].Angle;
+            if (Math.Abs(Rotation) > 0.0001)
+            {
+                // the camera is rotated to the machine axes: take that out of the angle and the offset
+                double r = -Rotation * Math.PI / 180.0, c = Math.Cos(r), sn = Math.Sin(r);
+                double xr = Xresult * c - Yresult * sn, yr = Xresult * sn + Yresult * c;
+                Xresult = xr; Yresult = yr;
+                Aresult -= Rotation;
+            }
             double XSize = FilteredForDistance[0].Xsize * XmmPpix;
             double YSize = FilteredForDistance[0].Ysize * YmmPpix;
 

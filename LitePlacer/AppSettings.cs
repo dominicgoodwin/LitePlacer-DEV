@@ -252,6 +252,7 @@ namespace LitePlacer
         public System.Drawing.Color UpCam_SnapshotColor { get; set; } = System.Drawing.Color.White;
         public double UpCam_XmmPerPixel { get; set; } = 0.05;
         public double UpCam_YmmPerPixel { get; set; } = 0.05;
+        public double UpCam_Rotation { get; set; } = 0.0;      // deg: what the up cam reports for a part that is square to the machine
         public bool UpCam_Zoom { get; set; } = false;
         public double UpCam_Zoomfactor { get; set; } = 1.5;
         public string UpcamMoniker { get; set; } = "";

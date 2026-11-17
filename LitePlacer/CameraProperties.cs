@@ -251,6 +251,27 @@ namespace LitePlacer
 
         // ============== Buttons ===========================
 
+        // The camera driver's own DirectShow property pages (Video Proc Amp: brightness, contrast, gain...;
+        // Camera Control: exposure etc.). Many cheap cameras only offer their settings here, and report
+        // nothing through the exposure/iris/focus interface this dialog uses.
+        private void DriverDialog_button_Click(object sender, EventArgs e)
+        {
+            if (!Cam.IsRunning())
+            {
+                MainForm.DisplayText("CameraProperties: camera not running");
+                return;
+            }
+            MainForm.DisplayText("CameraProperties: opening driver settings");
+            try
+            {
+                Cam.DisplayPropertyPage(this.Handle);
+            }
+            catch (Exception ex)
+            {
+                MainForm.DisplayText("Driver settings dialog not available: " + ex.Message, KnownColor.DarkRed, true);
+            }
+        }
+
         private void CheckStatus_button_Click(object sender, EventArgs e)
         {
             MainForm.DisplayText("CameraProperties: CheckStatus_button");
