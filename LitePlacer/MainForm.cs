@@ -1453,6 +1453,7 @@ namespace LitePlacer
                 Row.Cells["UpCamAlg_Column"] = c;
                 Row.Cells["UpCamAlg_Column"].Value = c.Items.Contains(Current) ? Current : NO_UPCAM_ALG;
             }
+            FillCalAlgCombos();
         }
         private void FillAlgorithmSelectionBox(System.Windows.Forms.DataGridView Grid, string ColumnName)
         {

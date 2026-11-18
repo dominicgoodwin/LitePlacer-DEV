@@ -253,6 +253,10 @@ namespace LitePlacer
         public double UpCam_XmmPerPixel { get; set; } = 0.05;
         public double UpCam_YmmPerPixel { get; set; } = 0.05;
         public double UpCam_Rotation { get; set; } = 0.0;      // deg: what the up cam reports for a part that is square to the machine
+        public double UpCam_MachineX { get; set; } = 0.0;      // centre of the up cam image in machine (down cam) coordinates,
+        public double UpCam_MachineY { get; set; } = 0.0;      // from the calibration routine; 0/0 = not calibrated
+        public string Cal_TargetAlgorithm { get; set; } = "";  // calibration routine: algorithm that finds the target holes
+        public string Cal_NozzleAlgorithm { get; set; } = "";  // calibration routine: algorithm that finds the nozzle bore
         public bool UpCam_Zoom { get; set; } = false;
         public double UpCam_Zoomfactor { get; set; } = 1.5;
         public string UpcamMoniker { get; set; } = "";
