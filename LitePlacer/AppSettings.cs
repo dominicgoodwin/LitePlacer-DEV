@@ -257,6 +257,7 @@ namespace LitePlacer
         public double UpCam_MachineY { get; set; } = 0.0;      // from the calibration routine; 0/0 = not calibrated
         public string Cal_TargetAlgorithm { get; set; } = "";  // calibration routine: algorithm that finds the target holes
         public string Cal_NozzleAlgorithm { get; set; } = "";  // calibration routine: algorithm that finds the nozzle bore
+        public string Cal_LensAlgorithm { get; set; } = "";    // calibration routine: algorithm that finds the down cam lens as seen by the up cam
         public bool UpCam_Zoom { get; set; } = false;
         public double UpCam_Zoomfactor { get; set; } = 1.5;
         public string UpcamMoniker { get; set; } = "";

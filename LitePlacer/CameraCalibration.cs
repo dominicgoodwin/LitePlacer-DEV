@@ -18,6 +18,14 @@ namespace LitePlacer
     //                             positions are known in machine coordinates. The two sets of three
     //                             points give the up cam image centre in machine coordinates, the
     //                             camera rotation and a scale check.
+    //   2b. Down cam tilt.       With the down cam parked over the up cam centre, the up cam looks
+    //                             straight up at the down cam's lens. A tilted down cam has its lens
+    //                             displaced from the point it looks at by (lens height) x tan(tilt),
+    //                             ~100 mm of lever arm, so the lens offset in the up cam image is a very
+    //                             sensitive tilt gauge. The user adjusts the mount until it reads zero.
+    //                             Matters because steps 1-2 measure the target at its own height and a
+    //                             tilted down cam shifts that result by (target height above the pads)
+    //                             x tan(tilt).
     //   3. Nozzle axis.           The (empty) nozzle is taken to the up cam and its bore found at
     //                             A = 0, 90, 180, 270. The centre of the four points is the rotation
     //                             axis, their spread the runout. The axis mapped through step 2's result
@@ -47,7 +55,7 @@ namespace LitePlacer
         private List<double> CalPlaceErrX = new List<double>();   // step 4: landed-part errors since the last apply
         private List<double> CalPlaceErrY = new List<double>();
 
-        private const double CalCentreTolerance = 0.015;  // mm: down cam centring is done when the residual is below this
+        private const double CalCentreTolerance = 0.02;   // mm: down cam centring is done when the residual is below this (down cam pixel is 0.03)
         private const int CalCentreIterations = 4;
         private const int CalSettleMs = 300;              // wait after a move before measuring
         private const int CalFrames = 3;                  // frames averaged per measurement
@@ -84,15 +92,19 @@ namespace LitePlacer
             CalCombosFilling = true;
             CalTargetAlg_comboBox.Items.Clear();
             CalNozzleAlg_comboBox.Items.Clear();
+            CalLensAlg_comboBox.Items.Clear();
             CalTargetAlg_comboBox.Items.Add("--");
             CalNozzleAlg_comboBox.Items.Add("--");
+            CalLensAlg_comboBox.Items.Add("--");
             foreach (VideoAlgorithmsCollection.FullAlgorithmDescription Alg in VideoAlgorithms.AllAlgorithms)
             {
                 CalTargetAlg_comboBox.Items.Add(Alg.Name);
                 CalNozzleAlg_comboBox.Items.Add(Alg.Name);
+                CalLensAlg_comboBox.Items.Add(Alg.Name);
             }
             CalTargetAlg_comboBox.SelectedItem = CalTargetAlg_comboBox.Items.Contains(Setting.Cal_TargetAlgorithm) ? Setting.Cal_TargetAlgorithm : "--";
             CalNozzleAlg_comboBox.SelectedItem = CalNozzleAlg_comboBox.Items.Contains(Setting.Cal_NozzleAlgorithm) ? Setting.Cal_NozzleAlgorithm : "--";
+            CalLensAlg_comboBox.SelectedItem = CalLensAlg_comboBox.Items.Contains(Setting.Cal_LensAlgorithm) ? Setting.Cal_LensAlgorithm : "--";
             CalCombosFilling = false;
         }
 
@@ -106,6 +118,12 @@ namespace LitePlacer
         {
             if (CalCombosFilling) return;
             Setting.Cal_NozzleAlgorithm = CalNozzleAlg_comboBox.SelectedItem.ToString();
+        }
+
+        private void CalLensAlg_comboBox_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (CalCombosFilling) return;
+            Setting.Cal_LensAlgorithm = CalLensAlg_comboBox.SelectedItem.ToString();
         }
 
         // ==========================================================================================
@@ -410,6 +428,47 @@ namespace LitePlacer
             else
             {
                 CalReport("Not applied. Step 3 would use the old values.");
+            }
+        }
+
+        // ==========================================================================================
+        // Step 2b: down cam tilt, read by the up cam looking at the down cam's lens
+
+        private void CalStep2b_button_Click(object sender, EventArgs e)
+        {
+            if (!CheckPositionConfidence()) return;
+            if (MovementIsBusy_m()) return;
+            double cx, cy;
+            string src;
+            CalUpCamCentre(out cx, out cy, out src);
+            CalReport("Step 2b: down cam tilt, lens algorithm \"" + Setting.Cal_LensAlgorithm + "\", down cam to " + F3(cx) + ", " + F3(cy) + " (" + src + ")");
+            if (!CalSelectCamera_m(UpCamera)) return;
+            if (!CalLoadAlgorithm_m(UpCamera, Setting.Cal_LensAlgorithm, "lens")) return;
+            if (!CNC_Z_m(0)) return;
+            if (!CNC_XYA_m(cx, cy, Cnc.CurrentA)) return;
+            double lx, ly;
+            int seen;
+            if (!CalMeasureNearest_m(UpCamera, out lx, out ly, out seen))
+            {
+                CalError("Down cam lens not seen by the up cam. Shield the down cam's LED ring (card with a hole) and check the lens algorithm's diameter.");
+                return;
+            }
+            // machine direction of the offset (rotation only, no centre)
+            double r = Setting.UpCam_Rotation * Math.PI / 180.0;
+            double c = Math.Cos(r), s = Math.Sin(r);
+            double mx = c * (-lx) - s * ly;
+            double my = s * (-lx) + c * ly;
+            double d = Math.Sqrt(lx * lx + ly * ly);
+            string where = (Math.Abs(my) >= Math.Abs(mx)) ? (my > 0 ? "north (+Y)" : "south (-Y)") : (mx > 0 ? "east (+X)" : "west (-X)");
+            CalReport("Down cam lens is " + F3(d) + " mm from the up cam axis (" + F3(mx) + ", " + F3(my) + " in machine X, Y; mostly " + where + ")."
+                + ((seen > 1) ? " (" + seen.ToString() + " circles seen, nearest taken)" : ""));
+            if (d < 0.05)
+            {
+                CalReport("Down cam is square (lens within 0.05 mm). Home and run steps 1-3 if the mount was touched.");
+            }
+            else
+            {
+                CalReport("Tilt the down cam mount until this is below 0.05 mm (the lens is ~100 mm up, so this reads the tilt with a long lever: 0.1 mm here is roughly 0.05 deg), then Home and run steps 1-3.");
             }
         }
 
