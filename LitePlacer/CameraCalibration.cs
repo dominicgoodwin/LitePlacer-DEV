@@ -22,6 +22,12 @@ namespace LitePlacer
     //                             A = 0, 90, 180, 270. The centre of the four points is the rotation
     //                             axis, their spread the runout. The axis mapped through step 2's result
     //                             gives the nozzle offset (gantry position minus axis position).
+    //   4. Placed part error.     After placing a part with the job, select it on the CAD grid: the down
+    //                             cam goes to its target and measures where it landed. The mean error
+    //                             over the parts measured corrects the nozzle offset. This closes the
+    //                             loop on whatever the first three steps can't see (e.g. a camera that
+    //                             is tilted, so the image centre at the target height is not the image
+    //                             centre at nozzle tip height).
     //
     // Coordinates: a camera result (Xr, Yr) is "camera mm", what Camera.Measure() returns with no
     // rotation: X to the right and Y up in the image, in mm. For the down cam that is the machine
@@ -38,8 +44,13 @@ namespace LitePlacer
         private List<double> CalTargetMY = new List<double>();
         private bool CalCombosFilling = false;
 
-        private const double CalCentreTolerance = 0.01;   // mm: down cam centring is done when the residual is below this
+        private List<double> CalPlaceErrX = new List<double>();   // step 4: landed-part errors since the last apply
+        private List<double> CalPlaceErrY = new List<double>();
+
+        private const double CalCentreTolerance = 0.015;  // mm: down cam centring is done when the residual is below this
         private const int CalCentreIterations = 4;
+        private const int CalSettleMs = 300;              // wait after a move before measuring
+        private const int CalFrames = 3;                  // frames averaged per measurement
 
         // ==========================================================================================
         // UI helpers
@@ -183,6 +194,36 @@ namespace LitePlacer
             return best;
         }
 
+        // Settles, then measures CalFrames frames and averages the candidate nearest the image centre.
+        private bool CalMeasureNearest_m(Camera Cam, out double X, out double Y, out int Seen)
+        {
+            X = 0.0;
+            Y = 0.0;
+            Seen = 0;
+            Thread.Sleep(CalSettleMs);
+            int got = 0;
+            for (int f = 0; f < CalFrames; f++)
+            {
+                List<double> Xr, Yr;
+                if (!CalGetCandidates_m(Cam, out Xr, out Yr))
+                {
+                    continue;
+                }
+                int n = CalNearestToCentre(Xr, Yr);
+                X += Xr[n];
+                Y += Yr[n];
+                Seen = Math.Max(Seen, Xr.Count);
+                got++;
+            }
+            if (got == 0)
+            {
+                return false;
+            }
+            X /= got;
+            Y /= got;
+            return true;
+        }
+
         // ==========================================================================================
         // Geometry
 
@@ -257,6 +298,7 @@ namespace LitePlacer
             CalReport("Step 1: up cam, target algorithm \"" + Setting.Cal_TargetAlgorithm + "\"");
             if (!CalSelectCamera_m(UpCamera)) return;
             if (!CalLoadAlgorithm_m(UpCamera, Setting.Cal_TargetAlgorithm, "target")) return;
+            Thread.Sleep(CalSettleMs);
             List<double> Xr, Yr;
             if (!CalGetCandidates_m(UpCamera, out Xr, out Yr)) return;
             if (Xr.Count != 3)
@@ -304,15 +346,12 @@ namespace LitePlacer
                 bool centred = false;
                 for (int iter = 0; iter < CalCentreIterations; iter++)
                 {
-                    List<double> Xr, Yr;
-                    if (!CalGetCandidates_m(DownCamera, out Xr, out Yr))
+                    int seen;
+                    if (!CalMeasureNearest_m(DownCamera, out dx, out dy, out seen))
                     {
                         CalError("Hole " + (i + 1).ToString() + " not seen by the down cam at " + F3(Cnc.CurrentX) + ", " + F3(Cnc.CurrentY) + ".");
                         return;
                     }
-                    int n = CalNearestToCentre(Xr, Yr);
-                    dx = Xr[n];
-                    dy = Yr[n];
                     if ((Math.Abs(dx) < CalCentreTolerance) && (Math.Abs(dy) < CalCentreTolerance))
                     {
                         centred = true;
@@ -403,19 +442,18 @@ namespace LitePlacer
             foreach (double A in Angles)
             {
                 if (!CNC_A_m(A)) return;
-                Thread.Sleep(300);  // let it settle
-                List<double> Xr, Yr;
-                if (!CalGetCandidates_m(UpCamera, out Xr, out Yr))
+                double bx, by;
+                int seen;
+                if (!CalMeasureNearest_m(UpCamera, out bx, out by, out seen))
                 {
                     CalError("Nozzle not seen at A = " + F2(A) + ".");
                     CNC_Z_m(0);
                     return;
                 }
-                int n = CalNearestToCentre(Xr, Yr);
-                Xs.Add(Xr[n]);
-                Ys.Add(Yr[n]);
-                CalReport("A = " + A.ToString("0", CultureInfo.InvariantCulture) + ": bore at " + F3(Xr[n]) + ", " + F3(Yr[n]) + " mm from image centre"
-                    + ((Xr.Count > 1) ? " (" + Xr.Count.ToString() + " circles seen, nearest taken)" : ""));
+                Xs.Add(bx);
+                Ys.Add(by);
+                CalReport("A = " + A.ToString("0", CultureInfo.InvariantCulture) + ": bore at " + F3(bx) + ", " + F3(by) + " mm from image centre"
+                    + ((seen > 1) ? " (" + seen.ToString() + " circles seen, nearest taken)" : ""));
             }
             if (!CNC_A_m(0.0)) return;
             if (!CNC_Z_m(0)) return;
@@ -452,11 +490,95 @@ namespace LitePlacer
                 NozzleOffsetY_textBox.Text = F3(offY);
                 UpcamPositionX_textBox.Text = F3(newPosX);
                 UpcamPositionY_textBox.Text = F3(newPosY);
-                CalReport("Applied.");
+                CalPlaceErrX.Clear();
+                CalPlaceErrY.Clear();
+                CalReport("Applied. Place a part or two and check them with step 4.");
             }
             else
             {
                 CalReport("Not applied.");
+            }
+        }
+
+        // ==========================================================================================
+        // Step 4: where did a placed part land? Down cam at the selected component's target position,
+        // measured with the algorithm selected on the Video processing tab.
+
+        private void CalStep4_button_Click(object sender, EventArgs e)
+        {
+            if (!CheckPositionConfidence()) return;
+            if (MovementIsBusy_m()) return;
+            double X, Y;
+            if (!PrepareSingleComponentOperation(out X, out Y))
+            {
+                CalError("Step 4: select the placed component on the CAD data grid (Job tab) first.");
+                return;
+            }
+            string Comp = CadData_GridView.CurrentCell.OwningRow.Cells["CADdataComponentColumn"].Value.ToString();
+            if (VideoAlgorithms.CurrentAlgorithm == null)
+            {
+                CalError("Step 4: select the part's down cam algorithm on the Video processing tab first.");
+                return;
+            }
+            string AlgName = VideoAlgorithms.CurrentAlgorithm.Name;
+            if (!CalSelectCamera_m(DownCamera)) return;
+            if (!CNC_Z_m(0)) return;
+            if (!CNC_XYA_m(X, Y, Cnc.CurrentA)) return;
+            DownCamera.BuildMeasurementFunctionsList(VideoAlgorithms.CurrentAlgorithm.FunctionList);
+            DownCamera.MeasurementParameters = VideoAlgorithms.CurrentAlgorithm.MeasurementParameters;
+            Thread.Sleep(CalSettleMs);
+            double ex = 0.0, ey = 0.0, ea = 0.0;
+            bool ok = false;
+            for (int tries = 0; tries < 5; tries++)
+            {
+                if (DownCamera.Measure(out ex, out ey, out ea, true))
+                {
+                    ok = true;
+                    break;
+                }
+                Thread.Sleep(150);
+            }
+            if (!ok)
+            {
+                CalError("Step 4: " + Comp + " not found at its target with algorithm \"" + AlgName + "\".");
+                return;
+            }
+            CalPlaceErrX.Add(ex);
+            CalPlaceErrY.Add(ey);
+            double mx = 0.0, my = 0.0;
+            for (int i = 0; i < CalPlaceErrX.Count; i++)
+            {
+                mx += CalPlaceErrX[i];
+                my += CalPlaceErrY[i];
+            }
+            mx /= CalPlaceErrX.Count;
+            my /= CalPlaceErrY.Count;
+            CalReport("Step 4: " + Comp + " landed " + F3(ex) + ", " + F3(ey) + " mm from its target (\"" + AlgName + "\", angle " + F2(ea) + ")");
+            CalReport("Mean of " + CalPlaceErrX.Count.ToString() + " part(s): " + F3(mx) + ", " + F3(my));
+
+            // The part lands at target + e, so the nozzle axis is e away from where the offset says:
+            // true offset = offset - e. The nozzle was seen at the image centre in step 3, so the up cam
+            // position stays; the camera centre at tip height is position - offset.
+            double offX = Setting.DownCam_NozzleOffsetX - mx;
+            double offY = Setting.DownCam_NozzleOffsetY - my;
+            DialogResult dr = ShowMessageBox(
+                "Correct the nozzle offset by the mean error, to " + F3(offX) + ", " + F3(offY)
+                + " (was " + F3(Setting.DownCam_NozzleOffsetX) + ", " + F3(Setting.DownCam_NozzleOffsetY) + ")?" + Environment.NewLine
+                + "No = keep the sample and measure more parts first.",
+                "Calibration step 4", MessageBoxButtons.YesNo);
+            if (dr == DialogResult.Yes)
+            {
+                NozzleOffsetX_textBox.Text = F3(offX);
+                NozzleOffsetY_textBox.Text = F3(offY);
+                Setting.UpCam_MachineX = Setting.UpCam_PositionX - offX;
+                Setting.UpCam_MachineY = Setting.UpCam_PositionY - offY;
+                CalPlaceErrX.Clear();
+                CalPlaceErrY.Clear();
+                CalReport("Applied; up cam centre is now " + F3(Setting.UpCam_MachineX) + ", " + F3(Setting.UpCam_MachineY) + ". Place another part to confirm.");
+            }
+            else
+            {
+                CalReport("Not applied; sample kept.");
             }
         }
 

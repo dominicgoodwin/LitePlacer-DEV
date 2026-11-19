@@ -235,6 +235,7 @@
             this.CalStep1_button = new System.Windows.Forms.Button();
             this.CalStep2_button = new System.Windows.Forms.Button();
             this.CalStep3_button = new System.Windows.Forms.Button();
+            this.CalStep4_button = new System.Windows.Forms.Button();
             this.CalGoUpCam_button = new System.Windows.Forms.Button();
             this.CalTargetAlg_label = new System.Windows.Forms.Label();
             this.CalTargetAlg_comboBox = new System.Windows.Forms.ComboBox();
@@ -3378,6 +3379,7 @@
             this.Calibration_groupBox.Controls.Add(this.CalStep1_button);
             this.Calibration_groupBox.Controls.Add(this.CalStep2_button);
             this.Calibration_groupBox.Controls.Add(this.CalStep3_button);
+            this.Calibration_groupBox.Controls.Add(this.CalStep4_button);
             this.Calibration_groupBox.Controls.Add(this.CalGoUpCam_button);
             this.Calibration_groupBox.Controls.Add(this.CalTargetAlg_label);
             this.Calibration_groupBox.Controls.Add(this.CalTargetAlg_comboBox);
@@ -3405,7 +3407,7 @@
             // 
             // CalStep2_button
             // 
-            this.CalStep2_button.Location = new System.Drawing.Point(8, 46);
+            this.CalStep2_button.Location = new System.Drawing.Point(8, 44);
             this.CalStep2_button.Name = "CalStep2_button";
             this.CalStep2_button.Size = new System.Drawing.Size(136, 24);
             this.CalStep2_button.TabIndex = 302;
@@ -3416,7 +3418,7 @@
             // 
             // CalStep3_button
             // 
-            this.CalStep3_button.Location = new System.Drawing.Point(8, 74);
+            this.CalStep3_button.Location = new System.Drawing.Point(8, 70);
             this.CalStep3_button.Name = "CalStep3_button";
             this.CalStep3_button.Size = new System.Drawing.Size(136, 24);
             this.CalStep3_button.TabIndex = 303;
@@ -3425,11 +3427,22 @@
             this.CalStep3_button.UseVisualStyleBackColor = true;
             this.CalStep3_button.Click += new System.EventHandler(this.CalStep3_button_Click);
             // 
+            // CalStep4_button
+            // 
+            this.CalStep4_button.Location = new System.Drawing.Point(8, 96);
+            this.CalStep4_button.Name = "CalStep4_button";
+            this.CalStep4_button.Size = new System.Drawing.Size(136, 24);
+            this.CalStep4_button.TabIndex = 310;
+            this.CalStep4_button.Text = "4. Placed part error";
+            this.toolTip1.SetToolTip(this.CalStep4_button, "After placing a part: select it on the CAD data grid and its down cam algorithm on the Video processing tab. The down cam measures where it landed; the mean error corrects the nozzle offset. Asks before changing settings.");
+            this.CalStep4_button.UseVisualStyleBackColor = true;
+            this.CalStep4_button.Click += new System.EventHandler(this.CalStep4_button_Click);
+            // 
             // CalGoUpCam_button
             // 
-            this.CalGoUpCam_button.Location = new System.Drawing.Point(8, 108);
+            this.CalGoUpCam_button.Location = new System.Drawing.Point(152, 116);
             this.CalGoUpCam_button.Name = "CalGoUpCam_button";
-            this.CalGoUpCam_button.Size = new System.Drawing.Size(136, 24);
+            this.CalGoUpCam_button.Size = new System.Drawing.Size(136, 22);
             this.CalGoUpCam_button.TabIndex = 304;
             this.CalGoUpCam_button.Text = "Down cam to up cam";
             this.toolTip1.SetToolTip(this.CalGoUpCam_button, "Moves the down camera over the up camera centre (from the calibration, or from the up cam position minus the nozzle offset).");
@@ -3484,7 +3497,7 @@
             this.CalResults_textBox.Name = "CalResults_textBox";
             this.CalResults_textBox.ReadOnly = true;
             this.CalResults_textBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.CalResults_textBox.Size = new System.Drawing.Size(480, 86);
+            this.CalResults_textBox.Size = new System.Drawing.Size(480, 66);
             this.CalResults_textBox.TabIndex = 309;
             // 
             // tabPageBasicSetup
@@ -12265,6 +12278,7 @@
         private System.Windows.Forms.Button CalStep1_button;
         private System.Windows.Forms.Button CalStep2_button;
         private System.Windows.Forms.Button CalStep3_button;
+        private System.Windows.Forms.Button CalStep4_button;
         private System.Windows.Forms.Button CalGoUpCam_button;
         private System.Windows.Forms.Label CalTargetAlg_label;
         private System.Windows.Forms.ComboBox CalTargetAlg_comboBox;
