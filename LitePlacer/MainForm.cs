@@ -8184,6 +8184,9 @@ namespace LitePlacer
             return false;
         }
 
+        private string TapeExhaustedRow = "";               // set by PlaceRow_m when a short tape cut a row short
+        private List<string> TapeExhaustedRows = new List<string>();   // collected over a Place All run
+
         // =================================================================================
         // This routine places the [index] row from Job data grid view:
         private bool PlaceRow_m(int RowNo, out bool PartAboveCam)
@@ -8373,6 +8376,26 @@ namespace LitePlacer
                     return false;
                 }
                 Tapes.FastParametersOk = true;
+                if (Tapes.FastAvailable < count)
+                {
+                    // Short tape: place the parts that exist, leave the rest unplaced and carry on with the job
+                    List<string> Some = new List<string>();
+                    int left = Tapes.FastAvailable;
+                    foreach (string component in Components)
+                    {
+                        bool placed = false;
+                        if (!AlreadyPlaced_m(component, ref placed)) return false;
+                        if (placed) continue;
+                        if (left <= 0) break;
+                        Some.Add(component);
+                        left--;
+                    }
+                    TapeExhaustedRow = JobData_GridView.Rows[RowNo].Cells["JobDataValueColumn"].Value.ToString()
+                        + ", " + JobData_GridView.Rows[RowNo].Cells["JobDataFootprintColumn"].Value.ToString()
+                        + ": placed " + Some.Count.ToString(CultureInfo.InvariantCulture) + " of " + count.ToString(CultureInfo.InvariantCulture)
+                        + ", feeder " + TapeID + " exhausted";
+                    Components = Some.ToArray();
+                }
             }
             // Place parts:
             PartAboveCam = false;
@@ -8388,6 +8411,12 @@ namespace LitePlacer
                 FirstInRow = false;
             };
             Tapes.FastParametersOk = false;
+            if (ReturnValue && (TapeExhaustedRow != ""))
+            {
+                DisplayText(TapeExhaustedRow, KnownColor.DarkRed, true);
+                TapeExhaustedRows.Add(TapeExhaustedRow);
+            }
+            TapeExhaustedRow = "";
 
             // restore the row if needed
 
@@ -8414,6 +8443,12 @@ namespace LitePlacer
                  );
                 return;
             }
+            // Pre-flight: feeders, algorithms, nozzles, stock and reach of every pickup and placement (issue #4)
+            if (!JobPreflight_m())
+            {
+                CleanupPlacement(false, false);
+                return;
+            }
             PreviousGroup_label.Text = "--";
             CurrentGroup_label.Text = "--";
 
@@ -8423,6 +8458,7 @@ namespace LitePlacer
             
             bool PartAboveCam = false;
             bool ok = true;
+            TapeExhaustedRows.Clear();
             for (int i = 0; i < JobData_GridView.RowCount; i++)
             {
                 PreviousGroup_label.Text = CurrentGroup_label.Text;
@@ -8448,10 +8484,21 @@ namespace LitePlacer
             if (ok)
             {
                 CleanupPlacement(ok, PartAboveCam);
-                ShowMessageBox(
-                    "All components placed.",
-                    "Done",
-                    MessageBoxButtons.OK);
+                if (TapeExhaustedRows.Count == 0)
+                {
+                    ShowMessageBox(
+                        "All components placed.",
+                        "Done",
+                        MessageBoxButtons.OK);
+                }
+                else
+                {
+                    ShowMessageBox(
+                        "Done, but some feeders ran out:" + Environment.NewLine + string.Join(Environment.NewLine, TapeExhaustedRows.ToArray())
+                        + Environment.NewLine + Environment.NewLine + "Reload them and run Place All again to place the rest.",
+                        "Done, parts missing",
+                        MessageBoxButtons.OK);
+                }
             }
             else
             {
@@ -9091,6 +9138,22 @@ namespace LitePlacer
             Y = 0.0;
             A = 0.0;
             increment = false;
+            int PartNum;
+            if (!int.TryParse(Tapes_dataGridView.Rows[TapeNum].Cells["NextPart_Column"].Value.ToString(), out PartNum))
+            {
+                DisplayText("Bad data, Next column, Tape " + Tapes_dataGridView.Rows[TapeNum].Cells["Id_Column"].Value.ToString());
+                return false;
+            }
+            return FindPartWithDirectCoordinates_m(TapeNum, PartNum, out X, out Y, out A, out increment);
+        }
+
+        // Same, for an explicit part number (no movement)
+        private bool FindPartWithDirectCoordinates_m(int TapeNum, int PartNum, out double X, out double Y, out double A, out bool increment)
+        {
+            X = 0.0;
+            Y = 0.0;
+            A = 0.0;
+            increment = false;
 
             double FirstX;
             double FirstY;
@@ -9150,13 +9213,7 @@ namespace LitePlacer
                 // more than one part defined, need to tell the caller the next column needs to be incremented if operation is succesful
                 increment = true;
                 // calculate location
-                int increments;
-                if (!int.TryParse(Tapes_dataGridView.Rows[TapeNum].Cells["NextPart_Column"].Value.ToString(), out increments))
-                {
-                    DisplayText("Bad data, Next column, Tape " + Tapes_dataGridView.Rows[TapeNum].Cells["Id_Column"].Value.ToString());
-                    return false;
-                }
-                increments = increments - 1;
+                int increments = PartNum - 1;
                 if (increments==0)
                 {
                     X = FirstX;

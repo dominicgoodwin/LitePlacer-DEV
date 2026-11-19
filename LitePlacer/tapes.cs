@@ -101,6 +101,8 @@ namespace LitePlacer
         // The part numbers are found with the GetPartLocationFromHolePosition_m() routine.
 
         public bool FastParametersOk { get; set; }  // if we should use fast placement in the first place
+        public int FastAvailable { get; set; }      // parts that can be placed from this tape in this row (short tape: fewer than asked)
+        public int FastLastPartNo { get; set; }     // part number of the last hole that was found
         public double FastXpos { get; set; }       // True position for the fist hole to be used
         public double FastYpos { get; set; }
         public double FastXstep { get; set; }       // step sizes for one hole to next
@@ -177,10 +179,38 @@ namespace LitePlacer
             }
             */
 
-             if (!GetPartHole_m(TapeNum, FirstpartNo, out FirstXpos, out FirstYpos))
+            FastAvailable = ComponentCount;
+            FastLastPartNo = LastPartNo;
+
+            if (FirstpartNo == 1)
             {
-                FastParametersOk = false;
-                return false;
+                // The first hole of a tape is often cut away with the leader. Try it quietly; if it is
+                // not there, measure holes 2 and 3 and extrapolate.
+                if (!GetPartHole_m(TapeNum, 1, out FirstXpos, out FirstYpos, false))
+                {
+                    double X2, Y2, X3, Y3;
+                    MainForm.DisplayText("Tape " + TapeID + ": first hole not found (cut leader?), extrapolating from holes 2 and 3");
+                    if (!GetPartHole_m(TapeNum, PitchIsTwo ? 3 : 2, out X2, out Y2))
+                    {
+                        FastParametersOk = false;
+                        return false;
+                    }
+                    if (!GetPartHole_m(TapeNum, PitchIsTwo ? 5 : 3, out X3, out Y3))
+                    {
+                        FastParametersOk = false;
+                        return false;
+                    }
+                    FirstXpos = 2.0 * X2 - X3;
+                    FirstYpos = 2.0 * Y2 - Y3;
+                }
+            }
+            else
+            {
+                if (!GetPartHole_m(TapeNum, FirstpartNo, out FirstXpos, out FirstYpos))
+                {
+                    FastParametersOk = false;
+                    return false;
+                }
             }
 
             double LastXpos = FirstXpos;
@@ -188,10 +218,40 @@ namespace LitePlacer
 
             if (LastPartNo != FirstpartNo)
             {
-                if (!GetPartHole_m(TapeNum, LastPartNo, out LastXpos, out LastYpos))
+                if (!GetPartHole_m(TapeNum, LastPartNo, out LastXpos, out LastYpos, false))
                 {
-                    FastParametersOk = false;
-                    return false;
+                    // Short tape? Walk back towards the first part to find the furthest hole that exists.
+                    int Found = -1;
+                    double[] Fractions = { 0.75, 0.5, 0.25 };
+                    foreach (double f in Fractions)
+                    {
+                        int n = FirstpartNo + (int)Math.Round((LastPartNo - FirstpartNo) * f);
+                        if (n <= FirstpartNo) break;
+                        if (GetPartHole_m(TapeNum, n, out LastXpos, out LastYpos, false))
+                        {
+                            Found = n;
+                            break;
+                        }
+                    }
+                    if (Found < 0)
+                    {
+                        // Nothing found short of the first part: give the operator the usual retry/cancel on the last hole
+                        if (!GetPartHole_m(TapeNum, LastPartNo, out LastXpos, out LastYpos))
+                        {
+                            FastParametersOk = false;
+                            return false;
+                        }
+                    }
+                    else
+                    {
+                        FastLastPartNo = Found;
+                        FastAvailable = Found - FirstpartNo + 1;
+                        LastPartNo = Found;
+                        ComponentCount = FastAvailable;
+                        MainForm.DisplayText("Tape " + TapeID + ": last hole not found, tape ends before part "
+                            + (FirstpartNo + FastAvailable).ToString(CultureInfo.InvariantCulture)
+                            + "; " + FastAvailable.ToString(CultureInfo.InvariantCulture) + " part(s) available in this row.", KnownColor.DarkRed, true);
+                    }
                 }
             }
 
@@ -324,16 +384,12 @@ namespace LitePlacer
 		// ========================================================================================
 
         // ========================================================================================
-        // GetPartHole_m(): Measures X,Y location of the hole corresponding to part number
-        public bool GetPartHole_m(int TapeNum, int PartNum, out double ResultX, out double ResultY)
+        // GetPartHoleNominal_m(): X,Y of the hole corresponding to part number, from the first hole,
+        // the pitch and the orientation. No movement, no measurement.
+        public bool GetPartHoleNominal_m(int TapeNum, int PartNum, out double X, out double Y)
         {
-            ResultX = 0.0;
-            ResultY = 0.0;
-
-            // Get start points
-            double X = 0.0;
-            double Y = 0.0;
-            double A = 0.0;
+            X = 0.0;
+            Y = 0.0;
             if (!double.TryParse(Grid.Rows[TapeNum].Cells["FirstX_Column"].Value.ToString().Replace(',', '.'), out X))
             {
                 MainForm.ShowMessageBox(
@@ -352,8 +408,6 @@ namespace LitePlacer
                 );
                 return false;
             }
-
-            // Get the hole location guess
             double dW;
             double Pitch;
             double FromHole;
@@ -393,6 +447,30 @@ namespace LitePlacer
                     );
                     return false;
             }
+            return true;
+        }
+
+        // ========================================================================================
+        // GetPartHole_m(): Measures X,Y location of the hole corresponding to part number.
+        // Interactive (default): on a failed recognition the operator is asked to jog/retry or cancel.
+        // Not interactive: a failed recognition just returns false (used by the job check and the
+        // short-tape walk-back, which expect holes to be missing).
+        public bool GetPartHole_m(int TapeNum, int PartNum, out double ResultX, out double ResultY)
+        {
+            return GetPartHole_m(TapeNum, PartNum, out ResultX, out ResultY, true);
+        }
+
+        public bool GetPartHole_m(int TapeNum, int PartNum, out double ResultX, out double ResultY, bool Interactive)
+        {
+            ResultX = 0.0;
+            ResultY = 0.0;
+            double X;
+            double Y;
+            double A = 0.0;
+            if (!GetPartHoleNominal_m(TapeNum, PartNum, out X, out Y))
+            {
+                return false;
+            }
             // X, Y now hold the first guess
 
             // Measuring 
@@ -414,6 +492,12 @@ namespace LitePlacer
                 if (!MainForm.GoToFeatureLocation_m(0.2, out X, out Y, out A))
                 {
                     ok = false;
+                    if (!Interactive)
+                    {
+                        MainForm.DisplayText("Tape " + Grid.Rows[TapeNum].Cells["Id_Column"].Value.ToString() + ": hole of part "
+                            + PartNum.ToString(CultureInfo.InvariantCulture) + " not found.");
+                        return false;
+                    }
                     string nl = Environment.NewLine;
                     string answer = MainForm.NonModalMessageBox(
                         "Tape hole recognition failed." + nl +
@@ -448,15 +532,6 @@ namespace LitePlacer
             PartX = 0.0;
             PartY = 0.0;
             A = 0.0;
-
-			double dW;	// Part center pos from hole, tape width direction. Varies.
-            double dL=2.0;   // Part center pos from hole, tape lenght direction. -2mm on all standard tapes
-			double Pitch;  // Distance from one part to another
-
-            if (!GetTapeParameters_m(Tape, out dW, out dL, out Pitch))
-	        {
-		        return false;
-	        }
             int pos;
 			if (!int.TryParse(Grid.Rows[Tape].Cells["NextPart_Column"].Value.ToString(), out pos))
 			{
@@ -467,6 +542,24 @@ namespace LitePlacer
 				);
 				return false;
 			}
+            return GetPartLocationFromHolePosition_m(Tape, X, Y, pos, out PartX, out PartY, out A);
+        }
+
+        // Same, for an explicit part number (the number only matters on 2 mm pitch tapes, where two parts share a hole)
+        public bool GetPartLocationFromHolePosition_m(int Tape, double X, double Y, int pos, out double PartX, out double PartY, out double A)
+        {
+            PartX = 0.0;
+            PartY = 0.0;
+            A = 0.0;
+
+			double dW;	// Part center pos from hole, tape width direction. Varies.
+            double dL=2.0;   // Part center pos from hole, tape lenght direction. -2mm on all standard tapes
+			double Pitch;  // Distance from one part to another
+
+            if (!GetTapeParameters_m(Tape, out dW, out dL, out Pitch))
+	        {
+		        return false;
+	        }
             // if pitch == 2 and part# is even, DL=0
             if (Math.Abs(Pitch - 2) < 0.01)
             {
