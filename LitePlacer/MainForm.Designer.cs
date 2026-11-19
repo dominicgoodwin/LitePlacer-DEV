@@ -231,6 +231,17 @@
             this.B_column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.CameraSetupTest_button = new System.Windows.Forms.Button();
             this.ImageTest_checkBox = new System.Windows.Forms.CheckBox();
+            this.Calibration_groupBox = new System.Windows.Forms.GroupBox();
+            this.CalStep1_button = new System.Windows.Forms.Button();
+            this.CalStep2_button = new System.Windows.Forms.Button();
+            this.CalStep3_button = new System.Windows.Forms.Button();
+            this.CalStep4_button = new System.Windows.Forms.Button();
+            this.CalGoUpCam_button = new System.Windows.Forms.Button();
+            this.CalTargetAlg_label = new System.Windows.Forms.Label();
+            this.CalTargetAlg_comboBox = new System.Windows.Forms.ComboBox();
+            this.CalNozzleAlg_label = new System.Windows.Forms.Label();
+            this.CalNozzleAlg_comboBox = new System.Windows.Forms.ComboBox();
+            this.CalResults_textBox = new System.Windows.Forms.TextBox();
             this.tabPageBasicSetup = new System.Windows.Forms.TabPage();
             this.Test_button1 = new System.Windows.Forms.Button();
             this.label255 = new System.Windows.Forms.Label();
@@ -910,6 +921,7 @@
             this.tabPageSetupCameras.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.Cam_pictureBox)).BeginInit();
             this.groupBox6.SuspendLayout();
+            this.Calibration_groupBox.SuspendLayout();
             this.groupBox5.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.Temp_dataGridView)).BeginInit();
             this.tabPageBasicSetup.SuspendLayout();
@@ -2322,6 +2334,7 @@
             // tabPageSetupCameras
             // 
             this.tabPageSetupCameras.Controls.Add(this.Cam_pictureBox);
+            this.tabPageSetupCameras.Controls.Add(this.Calibration_groupBox);
             this.tabPageSetupCameras.Controls.Add(this.groupBox6);
             this.tabPageSetupCameras.Controls.Add(this.RobustFast_checkBox);
             this.tabPageSetupCameras.Controls.Add(this.KeepActive_checkBox);
@@ -3360,6 +3373,132 @@
             this.ImageTest_checkBox.UseVisualStyleBackColor = true;
             this.ImageTest_checkBox.Visible = false;
             this.ImageTest_checkBox.CheckedChanged += new System.EventHandler(this.ImageTest_checkBox_CheckedChanged);
+            // 
+            // Calibration_groupBox
+            // 
+            this.Calibration_groupBox.Controls.Add(this.CalStep1_button);
+            this.Calibration_groupBox.Controls.Add(this.CalStep2_button);
+            this.Calibration_groupBox.Controls.Add(this.CalStep3_button);
+            this.Calibration_groupBox.Controls.Add(this.CalStep4_button);
+            this.Calibration_groupBox.Controls.Add(this.CalGoUpCam_button);
+            this.Calibration_groupBox.Controls.Add(this.CalTargetAlg_label);
+            this.Calibration_groupBox.Controls.Add(this.CalTargetAlg_comboBox);
+            this.Calibration_groupBox.Controls.Add(this.CalNozzleAlg_label);
+            this.Calibration_groupBox.Controls.Add(this.CalNozzleAlg_comboBox);
+            this.Calibration_groupBox.Controls.Add(this.CalResults_textBox);
+            this.Calibration_groupBox.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.Calibration_groupBox.Location = new System.Drawing.Point(6, 490);
+            this.Calibration_groupBox.Name = "Calibration_groupBox";
+            this.Calibration_groupBox.Size = new System.Drawing.Size(640, 142);
+            this.Calibration_groupBox.TabIndex = 300;
+            this.Calibration_groupBox.TabStop = false;
+            this.Calibration_groupBox.Text = "Calibrate cameras and nozzle (target: three holes on the up cam, at nozzle tip height)";
+            // 
+            // CalStep1_button
+            // 
+            this.CalStep1_button.Location = new System.Drawing.Point(8, 18);
+            this.CalStep1_button.Name = "CalStep1_button";
+            this.CalStep1_button.Size = new System.Drawing.Size(136, 24);
+            this.CalStep1_button.TabIndex = 301;
+            this.CalStep1_button.Text = "1. Up cam: find target";
+            this.toolTip1.SetToolTip(this.CalStep1_button, "Up camera finds the three target holes (target algorithm). Nothing moves.");
+            this.CalStep1_button.UseVisualStyleBackColor = true;
+            this.CalStep1_button.Click += new System.EventHandler(this.CalStep1_button_Click);
+            // 
+            // CalStep2_button
+            // 
+            this.CalStep2_button.Location = new System.Drawing.Point(8, 44);
+            this.CalStep2_button.Name = "CalStep2_button";
+            this.CalStep2_button.Size = new System.Drawing.Size(136, 24);
+            this.CalStep2_button.TabIndex = 302;
+            this.CalStep2_button.Text = "2. Down cam: measure";
+            this.toolTip1.SetToolTip(this.CalStep2_button, "Down camera centres on each hole in turn: gives the up cam centre in machine coordinates, its rotation and scale. Asks before changing settings.");
+            this.CalStep2_button.UseVisualStyleBackColor = true;
+            this.CalStep2_button.Click += new System.EventHandler(this.CalStep2_button_Click);
+            // 
+            // CalStep3_button
+            // 
+            this.CalStep3_button.Location = new System.Drawing.Point(8, 70);
+            this.CalStep3_button.Name = "CalStep3_button";
+            this.CalStep3_button.Size = new System.Drawing.Size(136, 24);
+            this.CalStep3_button.TabIndex = 303;
+            this.CalStep3_button.Text = "3. Nozzle axis";
+            this.toolTip1.SetToolTip(this.CalStep3_button, "Nozzle (empty) to the up cam, measured at A = 0, 90, 180, 270 (nozzle algorithm): gives the rotation axis, runout and nozzle offset. Asks before changing settings.");
+            this.CalStep3_button.UseVisualStyleBackColor = true;
+            this.CalStep3_button.Click += new System.EventHandler(this.CalStep3_button_Click);
+            // 
+            // CalStep4_button
+            // 
+            this.CalStep4_button.Location = new System.Drawing.Point(8, 96);
+            this.CalStep4_button.Name = "CalStep4_button";
+            this.CalStep4_button.Size = new System.Drawing.Size(136, 24);
+            this.CalStep4_button.TabIndex = 310;
+            this.CalStep4_button.Text = "4. Placed part error";
+            this.toolTip1.SetToolTip(this.CalStep4_button, "After placing a part: select it on the CAD data grid and its down cam algorithm on the Video processing tab. The down cam measures where it landed; the mean error corrects the nozzle offset. Asks before changing settings.");
+            this.CalStep4_button.UseVisualStyleBackColor = true;
+            this.CalStep4_button.Click += new System.EventHandler(this.CalStep4_button_Click);
+            // 
+            // CalGoUpCam_button
+            // 
+            this.CalGoUpCam_button.Location = new System.Drawing.Point(152, 116);
+            this.CalGoUpCam_button.Name = "CalGoUpCam_button";
+            this.CalGoUpCam_button.Size = new System.Drawing.Size(136, 22);
+            this.CalGoUpCam_button.TabIndex = 304;
+            this.CalGoUpCam_button.Text = "Down cam to up cam";
+            this.toolTip1.SetToolTip(this.CalGoUpCam_button, "Moves the down camera over the up camera centre (from the calibration, or from the up cam position minus the nozzle offset).");
+            this.CalGoUpCam_button.UseVisualStyleBackColor = true;
+            this.CalGoUpCam_button.Click += new System.EventHandler(this.CalGoUpCam_button_Click);
+            // 
+            // CalTargetAlg_label
+            // 
+            this.CalTargetAlg_label.AutoSize = true;
+            this.CalTargetAlg_label.Location = new System.Drawing.Point(152, 22);
+            this.CalTargetAlg_label.Name = "CalTargetAlg_label";
+            this.CalTargetAlg_label.Size = new System.Drawing.Size(60, 13);
+            this.CalTargetAlg_label.TabIndex = 305;
+            this.CalTargetAlg_label.Text = "Target alg.:";
+            // 
+            // CalTargetAlg_comboBox
+            // 
+            this.CalTargetAlg_comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.CalTargetAlg_comboBox.FormattingEnabled = true;
+            this.CalTargetAlg_comboBox.Location = new System.Drawing.Point(218, 19);
+            this.CalTargetAlg_comboBox.Name = "CalTargetAlg_comboBox";
+            this.CalTargetAlg_comboBox.Size = new System.Drawing.Size(150, 21);
+            this.CalTargetAlg_comboBox.TabIndex = 306;
+            this.toolTip1.SetToolTip(this.CalTargetAlg_comboBox, "Algorithm that finds the target holes (Find holes with the hole diameter, size limits around it). Used with both cameras.");
+            this.CalTargetAlg_comboBox.SelectedIndexChanged += new System.EventHandler(this.CalTargetAlg_comboBox_SelectedIndexChanged);
+            // 
+            // CalNozzleAlg_label
+            // 
+            this.CalNozzleAlg_label.AutoSize = true;
+            this.CalNozzleAlg_label.Location = new System.Drawing.Point(384, 22);
+            this.CalNozzleAlg_label.Name = "CalNozzleAlg_label";
+            this.CalNozzleAlg_label.Size = new System.Drawing.Size(63, 13);
+            this.CalNozzleAlg_label.TabIndex = 307;
+            this.CalNozzleAlg_label.Text = "Nozzle alg.:";
+            // 
+            // CalNozzleAlg_comboBox
+            // 
+            this.CalNozzleAlg_comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.CalNozzleAlg_comboBox.FormattingEnabled = true;
+            this.CalNozzleAlg_comboBox.Location = new System.Drawing.Point(452, 19);
+            this.CalNozzleAlg_comboBox.Name = "CalNozzleAlg_comboBox";
+            this.CalNozzleAlg_comboBox.Size = new System.Drawing.Size(180, 21);
+            this.CalNozzleAlg_comboBox.TabIndex = 308;
+            this.toolTip1.SetToolTip(this.CalNozzleAlg_comboBox, "Algorithm that finds the nozzle bore on the up cam (Find holes with the bore diameter).");
+            this.CalNozzleAlg_comboBox.SelectedIndexChanged += new System.EventHandler(this.CalNozzleAlg_comboBox_SelectedIndexChanged);
+            // 
+            // CalResults_textBox
+            // 
+            this.CalResults_textBox.Font = new System.Drawing.Font("Consolas", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.CalResults_textBox.Location = new System.Drawing.Point(152, 46);
+            this.CalResults_textBox.Multiline = true;
+            this.CalResults_textBox.Name = "CalResults_textBox";
+            this.CalResults_textBox.ReadOnly = true;
+            this.CalResults_textBox.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.CalResults_textBox.Size = new System.Drawing.Size(480, 66);
+            this.CalResults_textBox.TabIndex = 309;
             // 
             // tabPageBasicSetup
             // 
@@ -11514,6 +11653,8 @@
             this.tabPageSetupCameras.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.Cam_pictureBox)).EndInit();
             this.groupBox6.ResumeLayout(false);
+            this.Calibration_groupBox.ResumeLayout(false);
+            this.Calibration_groupBox.PerformLayout();
             this.groupBox6.PerformLayout();
             this.groupBox5.ResumeLayout(false);
             this.groupBox5.PerformLayout();
@@ -12133,6 +12274,17 @@
         private System.Windows.Forms.TextBox UpCameraXmmPerPixel_textBox;
         private System.Windows.Forms.TextBox UpCameraRotation_textBox;
         private System.Windows.Forms.Label UpCameraRotation_label;
+        private System.Windows.Forms.GroupBox Calibration_groupBox;
+        private System.Windows.Forms.Button CalStep1_button;
+        private System.Windows.Forms.Button CalStep2_button;
+        private System.Windows.Forms.Button CalStep3_button;
+        private System.Windows.Forms.Button CalStep4_button;
+        private System.Windows.Forms.Button CalGoUpCam_button;
+        private System.Windows.Forms.Label CalTargetAlg_label;
+        private System.Windows.Forms.ComboBox CalTargetAlg_comboBox;
+        private System.Windows.Forms.Label CalNozzleAlg_label;
+        private System.Windows.Forms.ComboBox CalNozzleAlg_comboBox;
+        private System.Windows.Forms.TextBox CalResults_textBox;
         private System.Windows.Forms.Label label121;
         private System.Windows.Forms.TextBox DownCameraYmmPerPixel_textBox;
         private System.Windows.Forms.TabPage X_tabPage;

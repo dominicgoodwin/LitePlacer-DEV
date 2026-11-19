@@ -2970,12 +2970,12 @@ namespace LitePlacer
 
         // =========================================================
 
-        public bool Measure(out double Xresult, out double Yresult, out double Aresult, bool DisplayResults = false )
+        // Takes a frame, runs the measurement algorithm and returns every candidate that passes the size
+        // filter, in frame pixels. Measure() applies the distance filter and the uniqueness test on top of
+        // this; the calibration routine uses the list as is (several holes, the nozzle at any position).
+        public bool MeasureCandidates(out List<Shapes.Shape> FilteredForSize, bool DisplayResults)
         {
-            Xresult = 0.0;
-            Yresult = 0.0;
-            Aresult = 0.0;
-            DisplayResults = true;
+            FilteredForSize = new List<Shapes.Shape>();
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
             bool haveFinder = false;
@@ -3141,7 +3141,6 @@ namespace LitePlacer
             }
 
             // Filter for size
-            List<Shapes.Shape> FilteredForSize = new List<Shapes.Shape>();
             foreach (Shapes.Shape shape in Candidates)
             {
                 if (  ((shape.Xsize * XmmPpix) > MeasurementParameters.Xmin) &&
@@ -3166,6 +3165,8 @@ namespace LitePlacer
             }
             stopwatch.Start();
 
+            Paused = PauseSave;
+            PauseProcessing = false;
             if (FilteredForSize.Count == 0)
             {
                 if (DisplayResults)
@@ -3177,17 +3178,32 @@ namespace LitePlacer
                 {
                     MainForm.DisplayText("Camera Measure(), no items left after size filtering.", KnownColor.Red, true);
                 }
-                Paused = PauseSave;
-                PauseProcessing = false;
                 return false;
             }
 
-            stopwatch.Stop();
             if (DisplayResults)
             {
                 DisplayShapes(FilteredForSize, 0, XmmPpix, YmmPpix);
             };
+            return true;
+        }
+
+        public bool Measure(out double Xresult, out double Yresult, out double Aresult, bool DisplayResults = false )
+        {
+            Xresult = 0.0;
+            Yresult = 0.0;
+            Aresult = 0.0;
+            DisplayResults = true;
+            Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
+            List<Shapes.Shape> FilteredForSize;
+            if (!MeasureCandidates(out FilteredForSize, DisplayResults))
+            {
+                return false;
+            }
+            double zoom = GetMeasurementZoom();
+            double XmmPpix = XmmPerPixel / zoom;
+            double YmmPpix = YmmPerPixel / zoom;
 
             // Filter for distance
             MainForm.DisplayText("");
@@ -3236,8 +3252,6 @@ namespace LitePlacer
                 {
                     MainForm.DisplayText("Camera Measure(), no items left after distance filtering.", KnownColor.Red, true);
                 }
-                Paused = PauseSave;
-                PauseProcessing = false;
                 return false;
             }
 
@@ -3261,14 +3275,10 @@ namespace LitePlacer
                 {
                     MainForm.DisplayText("Camera Measure(): result is not unique", KnownColor.Red, true);
                     MainForm.DisplayText("Elapsed time " + stopwatch.ElapsedMilliseconds.ToString() + "ms");
-                    Paused = PauseSave;
-                    PauseProcessing = false;
                     return false;
                 }
                 else
                 {
-                    Paused = PauseSave;
-                    PauseProcessing = false;
                     return true;
                 }
             }
@@ -3278,8 +3288,6 @@ namespace LitePlacer
             {
                 MainForm.DisplayText("Result is NOT unique!", KnownColor.Red, true);
                 MainForm.DisplayText("Elapsed time " + stopwatch.ElapsedMilliseconds.ToString() + "ms");
-                Paused = PauseSave;
-                PauseProcessing = false;
                 return false;
             }
             MainForm.DisplayText("");
@@ -3294,8 +3302,6 @@ namespace LitePlacer
                 MainForm.DisplayText("Camera pixel size is at default value.", KnownColor.DarkRed, true);
                 MainForm.DisplayText("Go to Setup Cameras to set.", KnownColor.DarkRed, true);
             }
-            Paused = PauseSave;
-            PauseProcessing = false;
             return true;
         }
 
