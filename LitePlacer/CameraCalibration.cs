@@ -47,7 +47,8 @@ namespace LitePlacer
         private List<double> CalPlaceErrX = new List<double>();   // step 4: landed-part errors since the last apply
         private List<double> CalPlaceErrY = new List<double>();
 
-        private const double CalCentreTolerance = 0.015;  // mm: down cam centring is done when the residual is below this
+        private const double CalCentreTolerance = 0.02;   // mm: down cam centring is done when the residual is below this (down cam pixel is 0.03)
+        private const double CalMaxStray = 1.5;           // mm: a circle further than this from where step 1 put the hole is something else
         private const int CalCentreIterations = 4;
         private const int CalSettleMs = 300;              // wait after a move before measuring
         private const int CalFrames = 3;                  // frames averaged per measurement
@@ -350,6 +351,12 @@ namespace LitePlacer
                     if (!CalMeasureNearest_m(DownCamera, out dx, out dy, out seen))
                     {
                         CalError("Hole " + (i + 1).ToString() + " not seen by the down cam at " + F3(Cnc.CurrentX) + ", " + F3(Cnc.CurrentY) + ".");
+                        return;
+                    }
+                    if ((Math.Abs(dx) > CalMaxStray) || (Math.Abs(dy) > CalMaxStray))
+                    {
+                        CalError("Hole " + (i + 1).ToString() + ": nearest circle is " + F3(dx) + ", " + F3(dy) + " mm from where it should be; that is not the hole"
+                            + " (another hole, or the lens aperture). Clear the view of other circles and repeat.");
                         return;
                     }
                     if ((Math.Abs(dx) < CalCentreTolerance) && (Math.Abs(dy) < CalCentreTolerance))
