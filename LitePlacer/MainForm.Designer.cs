@@ -1788,7 +1788,7 @@
             this.ShowPart_button.TabIndex = 52;
             this.ShowPart_button.Tag = "https://liteplacer.com/tape-positions-page/";
             this.ShowPart_button.Text = "Show part";
-            this.toolTip1.SetToolTip(this.ShowPart_button, "Resets pickup and placement heights.");
+            this.toolTip1.SetToolTip(this.ShowPart_button, "Moves the camera to the part number in the box on the selected feeder (empty box = the feeder's Next part).");
             this.ShowPart_button.UseVisualStyleBackColor = true;
             this.ShowPart_button.Click += new System.EventHandler(this.ShowPart_button_Click);
             this.ShowPart_button.Leave += new System.EventHandler(this.ShowPart_button_Leave);

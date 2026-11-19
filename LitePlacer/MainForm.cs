@@ -12017,13 +12017,25 @@ namespace LitePlacer
             }
 
             int PartNum = 0;
+            int RowIndex = Tapes_dataGridView.CurrentCell.RowIndex;
 
-            if (!int.TryParse(HoleTest_maskedTextBox.Text, out PartNum))
+            if (string.IsNullOrWhiteSpace(HoleTest_maskedTextBox.Text))
+            {
+                // Empty box: show the feeder's next part
+                if ((Tapes_dataGridView.Rows[RowIndex].Cells["NextPart_Column"].Value == null) ||
+                    !int.TryParse(Tapes_dataGridView.Rows[RowIndex].Cells["NextPart_Column"].Value.ToString(), out PartNum))
+                {
+                    DisplayText("Part # box is empty and Next is not a valid part number.", KnownColor.DarkRed);
+                    return;
+                }
+                DisplayText("Part # box is empty, showing next part (" + PartNum.ToString(CultureInfo.InvariantCulture) + ")");
+            }
+            else if (!int.TryParse(HoleTest_maskedTextBox.Text, out PartNum))
             {
                 DisplayText("Value in part # box is invalid.");
                 return;
             }
-            ShowPartNumber(Tapes_dataGridView.CurrentCell.RowIndex, PartNum);
+            ShowPartNumber(RowIndex, PartNum);
         }
 
         // Drives the down camera to part PartNum of the feeder on grid row RowIndex and draws the pickup arrow.
