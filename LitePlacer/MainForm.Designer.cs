@@ -1940,7 +1940,7 @@
             this.Tape_GoToNext_button.TabIndex = 38;
             this.Tape_GoToNext_button.Tag = "https://liteplacer.com/tape-positions-page/";
             this.Tape_GoToNext_button.Text = "Go to next";
-            this.toolTip1.SetToolTip(this.Tape_GoToNext_button, "Moves to hole of next part on the selected tape.");
+            this.toolTip1.SetToolTip(this.Tape_GoToNext_button, "Moves the camera to the next part on the selected feeder (as Show part with the Next number).");
             this.Tape_GoToNext_button.UseVisualStyleBackColor = true;
             this.Tape_GoToNext_button.Click += new System.EventHandler(this.Tape_GoToNext_button_Click);
             // 
