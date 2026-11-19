@@ -792,6 +792,11 @@ namespace LitePlacer
         public bool LoadingDataGrid = false;  // to avoid problems with cell value changed event and unfilled grids
 
 
+        // Grids whose data file existed but could not be read (locked by another process, corrupt): their
+        // contents are not what the user had, so SaveDataGrid() refuses to overwrite the file (issue #23).
+        // A later successful load of the same grid clears the mark.
+        private HashSet<DataGridView> GridLoadFailed = new HashSet<DataGridView>();
+
         public void LoadDataGrid(string FileName, DataGridView dgv, DataTableType TableType)
         {
             try
@@ -894,11 +899,16 @@ namespace LitePlacer
                     }
                     br.Close();
                 }
+                GridLoadFailed.Remove(dgv);
                 LoadingDataGrid = false;
             }
             catch (System.Exception excep)
             {
-                MessageBox.Show(excep.Message);
+                GridLoadFailed.Add(dgv);
+                DisplayText("Loading " + FileName + " failed: " + excep.Message + " -- this table will not be saved over the file.", KnownColor.DarkRed, true);
+                MessageBox.Show("Loading " + FileName + " failed:" + Environment.NewLine + excep.Message + Environment.NewLine + Environment.NewLine
+                    + "The table is not saved back to this file until it has been loaded successfully (Load button), so the data on disk is kept.",
+                    "LitePlacer", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 LoadingDataGrid = false;
             }
         }
@@ -925,6 +935,11 @@ namespace LitePlacer
 
         public bool SaveDataGrid(string FileName, DataGridView dgv)
         {
+            if (GridLoadFailed.Contains(dgv))
+            {
+                DisplayText("Not saving " + FileName + ": the table was not loaded from it (load failed), keeping the file as it is.", KnownColor.DarkRed, true);
+                return false;
+            }
             try
             {
                 DisplayText("Saving "+ FileName);
@@ -11851,6 +11866,8 @@ namespace LitePlacer
             Row.Cells["Next_Y_Column"].Value = Cnc.CurrentY.ToString(CultureInfo.InvariantCulture);
         }
 
+        // Drives the down camera to part "Next" of the selected feeder, the same way as Show part does
+        // (issue #25: Next X/Y hold the hole guess for the next part, not the part itself).
         private void Tape_GoToNext_button_Click(object sender, EventArgs e)
         {
             if (!CheckPositionConfidence()) return;
@@ -11860,21 +11877,14 @@ namespace LitePlacer
             {
                 return;
             }
-            double X;
-            double Y;
-            if ((Tapes_dataGridView.Rows[row].Cells["Next_X_Column"].Value == null) ||
-                !double.TryParse(Tapes_dataGridView.Rows[row].Cells["Next_X_Column"].Value.ToString().Replace(',', '.'), out X))
+            int PartNum;
+            if ((Tapes_dataGridView.Rows[row].Cells["NextPart_Column"].Value == null) ||
+                !int.TryParse(Tapes_dataGridView.Rows[row].Cells["NextPart_Column"].Value.ToString(), out PartNum))
             {
-                DisplayText("Next X is not a valid coordinate", KnownColor.DarkRed);
+                DisplayText("Next is not a valid part number", KnownColor.DarkRed);
                 return;
             }
-            if ((Tapes_dataGridView.Rows[row].Cells["Next_Y_Column"].Value == null) ||
-                !double.TryParse(Tapes_dataGridView.Rows[row].Cells["Next_Y_Column"].Value.ToString().Replace(',', '.'), out Y))
-            {
-                DisplayText("Next Y is not a valid coordinate", KnownColor.DarkRed);
-                return;
-            }
-            CNC_XYA_m(X, Y, Cnc.CurrentA);
+            ShowPartNumber(row, PartNum);
         }
 
         private void Tape_resetZs_button_Click(object sender, EventArgs e)
@@ -12007,20 +12017,38 @@ namespace LitePlacer
             }
 
             int PartNum = 0;
-            int TapeNum = 0;
+            int RowIndex = Tapes_dataGridView.CurrentCell.RowIndex;
 
-            DataGridViewRow Row = Tapes_dataGridView.Rows[Tapes_dataGridView.CurrentCell.RowIndex];
-            if (!int.TryParse(HoleTest_maskedTextBox.Text, out PartNum))
+            if (string.IsNullOrWhiteSpace(HoleTest_maskedTextBox.Text))
+            {
+                // Empty box: show the feeder's next part
+                if ((Tapes_dataGridView.Rows[RowIndex].Cells["NextPart_Column"].Value == null) ||
+                    !int.TryParse(Tapes_dataGridView.Rows[RowIndex].Cells["NextPart_Column"].Value.ToString(), out PartNum))
+                {
+                    DisplayText("Part # box is empty and Next is not a valid part number.", KnownColor.DarkRed);
+                    return;
+                }
+                DisplayText("Part # box is empty, showing next part (" + PartNum.ToString(CultureInfo.InvariantCulture) + ")");
+            }
+            else if (!int.TryParse(HoleTest_maskedTextBox.Text, out PartNum))
             {
                 DisplayText("Value in part # box is invalid.");
                 return;
             }
+            ShowPartNumber(RowIndex, PartNum);
+        }
+
+        // Drives the down camera to part PartNum of the feeder on grid row RowIndex and draws the pickup arrow.
+        private void ShowPartNumber(int RowIndex, int PartNum)
+        {
+            int TapeNum = 0;
+            DataGridViewRow Row = Tapes_dataGridView.Rows[RowIndex];
             // Tapes.GetPartLocationFromHolePosition_m() and ShowPartByCoordinates_m() use the next column from Tapes_dataGridView.
             // Set it temporarily, but remember what was there:
             string temp = Row.Cells["NextPart_Column"].Value.ToString();
             Row.Cells["NextPart_Column"].Value = PartNum.ToString(CultureInfo.InvariantCulture);
 
-            if (UseCoordinatesDirectly(Tapes_dataGridView.CurrentCell.RowIndex))
+            if (UseCoordinatesDirectly(RowIndex))
             {
                 ShowPartByCoordinates_m();
                 Row.Cells["NextPart_Column"].Value = temp.ToString(CultureInfo.InvariantCulture);
