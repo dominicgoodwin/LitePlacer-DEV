@@ -8133,6 +8133,7 @@
             this.groupBox2.Controls.Add(this.CopyRow_button);
             this.groupBox2.Controls.Add(this.NewRow_button);
             this.groupBox2.Controls.Add(this.PlaceThese_button);
+            this.groupBox2.Controls.Add(this.CheckSelected_button);
             this.groupBox2.Controls.Add(this.DeleteComponentGroup_button);
             this.groupBox2.Controls.Add(this.Down_button);
             this.groupBox2.Controls.Add(this.et3);
@@ -8244,7 +8245,6 @@
             this.groupBox1.Controls.Add(this.label58);
             this.groupBox1.Controls.Add(this.PlaceAll_button);
             this.groupBox1.Controls.Add(this.CheckJob_button);
-            this.groupBox1.Controls.Add(this.CheckSelected_button);
             this.groupBox1.Controls.Add(this.CheckJobMeasure_checkBox);
             this.groupBox1.Location = new System.Drawing.Point(6, 491);
             this.groupBox1.Name = "groupBox1";
@@ -8412,9 +8412,9 @@
             // 
             // CheckJob_button
             // 
-            this.CheckJob_button.Location = new System.Drawing.Point(6, 104);
+            this.CheckJob_button.Location = new System.Drawing.Point(6, 106);
             this.CheckJob_button.Name = "CheckJob_button";
-            this.CheckJob_button.Size = new System.Drawing.Size(54, 21);
+            this.CheckJob_button.Size = new System.Drawing.Size(109, 23);
             this.CheckJob_button.TabIndex = 320;
             this.CheckJob_button.Text = "Check job";
             this.toolTip1.SetToolTip(this.CheckJob_button, "Dry run: checks every row for feeder, algorithms, nozzle, stock and whether the nozzle and camera can reach every pickup and placement. Nothing is placed. With \"measure\" ticked it also measures the fiducials and the first and last hole of every tape.");
@@ -8423,11 +8423,11 @@
             // 
             // CheckSelected_button
             // 
-            this.CheckSelected_button.Location = new System.Drawing.Point(61, 104);
+            this.CheckSelected_button.Location = new System.Drawing.Point(7, 203);
             this.CheckSelected_button.Name = "CheckSelected_button";
-            this.CheckSelected_button.Size = new System.Drawing.Size(54, 21);
+            this.CheckSelected_button.Size = new System.Drawing.Size(110, 23);
             this.CheckSelected_button.TabIndex = 322;
-            this.CheckSelected_button.Text = "Check sel.";
+            this.CheckSelected_button.Text = "Check Selected";
             this.toolTip1.SetToolTip(this.CheckSelected_button, "Check job for the selected rows only.");
             this.CheckSelected_button.UseVisualStyleBackColor = true;
             this.CheckSelected_button.Click += new System.EventHandler(this.CheckSelected_button_Click);
