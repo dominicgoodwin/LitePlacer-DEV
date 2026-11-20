@@ -75,6 +75,9 @@ namespace LitePlacer
         // ==========================================================================================
         // Geometry checks for one row. Returns false on an error (warnings don't count).
 
+        // Parts already claimed from each feeder by earlier rows of the same check (two rows on one feeder)
+        private Dictionary<string, int> JobCheckConsumed = new Dictionary<string, int>(StringComparer.Ordinal);
+
         private bool JobCheckRowGeometry(int Row)
         {
             bool ok = true;
@@ -150,6 +153,12 @@ namespace LitePlacer
                 JobCheckAdd(Row, JobCheckLevel.Error, "feeder " + TapeID + ": Next is not a number");
                 return false;
             }
+            int Earlier;
+            if (JobCheckConsumed.TryGetValue(TapeID, out Earlier))
+            {
+                Next += Earlier;    // an earlier row of the job takes these parts first
+            }
+            JobCheckConsumed[TapeID] = Earlier + Needed;
             int Capacity;
             // Capacity: parts in the feeder when full; blank or 1 (the old hidden default) = unknown
             if (int.TryParse(TapeCellString(TapeNum, "Capacity_Column"), out Capacity) && (Capacity > 1))
@@ -246,7 +255,8 @@ namespace LitePlacer
             if (ok)
             {
                 JobCheckAdd(Row, JobCheckLevel.OK, "feeder " + TapeID + ", " + Needed.ToString(CultureInfo.InvariantCulture) + " part(s), parts "
-                    + Next.ToString(CultureInfo.InvariantCulture) + "-" + (Next + Needed - 1).ToString(CultureInfo.InvariantCulture) + ", reach OK");
+                    + Next.ToString(CultureInfo.InvariantCulture) + "-" + (Next + Needed - 1).ToString(CultureInfo.InvariantCulture)
+                    + ((Earlier > 0) ? " (after " + Earlier.ToString(CultureInfo.InvariantCulture) + " for earlier rows)" : "") + ", reach OK");
             }
             return ok;
         }
@@ -352,6 +362,7 @@ namespace LitePlacer
         private bool JobCheckGeometry_m()
         {
             bool ok = true;
+            JobCheckConsumed.Clear();
             for (int i = 0; i < JobData_GridView.RowCount; i++)
             {
                 if (!JobCheckRowGeometry(i)) ok = false;

@@ -598,13 +598,21 @@ namespace LitePlacer
                 t = Dist(X, Y, m, -m); if (t < dLR) { dLR = t; LR = Name; }
                 t = Dist(X, Y, m, m); if (t < dHR) { dHR = t; HR = Name; }
             }
-            if ((LL == null) || (new HashSet<string>(new[] { LL, HL, LR, HR }, StringComparer.Ordinal).Count < 4))
+            // The four corner picks can coincide (two fiducials per board on a 1 x N panel, say): use the
+            // distinct ones. Two are enough for the transform (similarity), three or four give affine.
+            List<string> Chosen = new List<string>();
+            foreach (string n in new[] { LL, HL, LR, HR })
             {
-                ShowMessageBox("Current fiducials don't spread out.", "Fiducials data error", MessageBoxButtons.OK);
+                if ((n != null) && !Chosen.Contains(n)) Chosen.Add(n);
+            }
+            if (Chosen.Count < 2)
+            {
+                ShowMessageBox("Current fiducials don't spread out (fewer than two distinct fiducial positions on the panel).", "Fiducials data error", MessageBoxButtons.OK);
                 return false;
             }
-            JobData_GridView.Rows[FiducialIndex].Cells["JobdataComponentsColumn"].Value = LL + "," + HL + "," + LR + "," + HR;
-            JobData_GridView.Rows[FiducialIndex].Cells["JobdataCountColumn"].Value = "4";
+            JobData_GridView.Rows[FiducialIndex].Cells["JobdataComponentsColumn"].Value = string.Join(",", Chosen.ToArray());
+            JobData_GridView.Rows[FiducialIndex].Cells["JobdataCountColumn"].Value = Chosen.Count.ToString(CultureInfo.InvariantCulture);
+            DisplayText("Panel fiducials (board copies): " + string.Join(", ", Chosen.ToArray()));
             AssignFiducialComponent(FiducialIndex);
             return true;
         }
