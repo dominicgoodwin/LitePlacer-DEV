@@ -310,10 +310,10 @@ namespace LitePlacer
                 f.FormBorderStyle = FormBorderStyle.FixedDialog;
                 Label l = new Label();
                 l.Text = "Tick the boards NOT to place. Row 1 is the lower-left board.";
-                l.Location = new Point(8, 8);
+                l.Location = new System.Drawing.Point(8, 8);
                 l.AutoSize = true;
                 DataGridView g = new DataGridView();
-                g.Location = new Point(8, 30);
+                g.Location = new System.Drawing.Point(8, 30);
                 g.Size = new Size(f.ClientSize.Width - 16, 25 + 22 * CurrentPanel.YRepeats + 4);
                 g.ScrollBars = ScrollBars.None;
                 BuildSkipGrid(g, CurrentPanel.XRepeats, CurrentPanel.YRepeats, CurrentPanel.Skipped);
@@ -322,12 +322,12 @@ namespace LitePlacer
                 ok.Text = "OK";
                 ok.DialogResult = DialogResult.OK;
                 ok.Size = new Size(75, 23);
-                ok.Location = new Point(f.ClientSize.Width - 170, f.ClientSize.Height - 32);
+                ok.Location = new System.Drawing.Point(f.ClientSize.Width - 170, f.ClientSize.Height - 32);
                 Button cancel = new Button();
                 cancel.Text = "Cancel";
                 cancel.DialogResult = DialogResult.Cancel;
                 cancel.Size = new Size(75, 23);
-                cancel.Location = new Point(f.ClientSize.Width - 85, f.ClientSize.Height - 32);
+                cancel.Location = new System.Drawing.Point(f.ClientSize.Width - 85, f.ClientSize.Height - 32);
                 f.Controls.Add(l);
                 f.Controls.Add(g);
                 f.Controls.Add(ok);
@@ -538,7 +538,7 @@ namespace LitePlacer
                     if (JobRowIsFiducials(r))
                     {
                         string[] Members = CellText(JobData_GridView.Rows[r], "JobdataComponentsColumn").Split(',');
-                        if (!Members.Any(m => Def.PanelFids.Any(f => f.Name == m.Trim())))
+                        if (!Members.Any(mem => Def.PanelFids.Any(f => f.Name == mem.Trim())))
                         {
                             // The single board's fiducial copies: kept in the CAD data for the per-board
                             // strategies, never placed, and not the job's fiducials row (skipped rows don't count)
@@ -567,7 +567,7 @@ namespace LitePlacer
             for (int r = 0; r < JobData_GridView.RowCount; r++)
             {
                 string[] Members = CellText(JobData_GridView.Rows[r], "JobdataComponentsColumn").Split(',');
-                if (Members.Any(m => { string d; int rr, cc; return PanelDefinition.ParseCopyName(m.Trim(), out d, out rr, out cc) && (d == OriginalFids[0]); }))
+                if (Members.Any(mem => { string d; int rr, cc; return PanelDefinition.ParseCopyName(mem.Trim(), out d, out rr, out cc) && (d == OriginalFids[0]); }))
                 {
                     FiducialIndex = r;
                     break;
