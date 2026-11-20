@@ -51,9 +51,18 @@ and customer CAD data out of the repo.
   `SetJobRowComponent` / `SetJobRowStep` are the only writers of a row's kind.
 - `.lpj` format "2026": 12 quoted CSV fields per row in the column order above; inherited
   cells saved as "" (checkbox) or "(feeder)" (text). Older formats are refused.
-- Panelize (`PanelizeForm`) replaces CAD data; the single-board rows and fiducial list are kept
-  on `MainForm.SingleBoardCadRows` / `SingleBoardFiducials` so it can be re-run. Job row
-  settings survive the job-grid rebuild via a value+footprint keyed snapshot.
+- Panelize: `PanelDefinition` (`Panel.cs`) is the source of truth — geometry, fiducial mode/table,
+  skipped boards ("r_c"), strategy (Panel/Board/Hybrid), the single-board rows and fiducial list.
+  `MainForm.CurrentPanel` (null = single board) is saved in the `.lpj` as `#PANEL*` lines and
+  applied by `ApplyPanel_m` (regenerates the CAD grid; keeps placed flags and machine coords by
+  name when geometry is unchanged). `PanelizeForm` only collects the definition. Components on
+  skipped boards are left out by `PlaceRow_m` and `JobCheck`. `BuildMachineCoordinateData_m` =
+  `EstimateTransform_m` + `ApplyTransform(filter)`; `PanelBoardTransforms_m` does Board/Hybrid.
+  Job row settings survive the job-grid rebuild via a value+footprint keyed snapshot.
+- Job check (`JobCheck.cs`): nozzle reach is gantry = part + nozzle offset inside the machine
+  limits (the nozzle runs out at the far X/Y edges). Pre-flight in Place All asks "Start anyway".
+- Camera calibration (`CameraCalibration.cs`): three holes on the up cam; the down cam must be
+  square to the table (mirror + Measure) or the result is off by target height × tan(tilt).
 - TinyG accepts `{"zzb",1}` (comma) as well as `{"zzb":1}`; confirmed on the machine.
 - Vision: AForge.NET 2.2.5 binaries are committed; `HomographyEstimation.dll` is closed source.
 

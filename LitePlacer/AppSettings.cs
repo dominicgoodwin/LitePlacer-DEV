@@ -205,6 +205,10 @@ namespace LitePlacer
         public double Nozzles_WarningTreshold { get; set; } = 1.0;
 
         public bool Panel_UseBoardFids { get; set; } = true;
+
+        public string Panel_Strategy { get; set; } = "Hybrid";   // last used panel fiducial strategy
+
+        public double Panel_HybridTolerance { get; set; } = 0.1;
         public double Panel_XFirstOffset { get; set; } = 0;
         public double Panel_XIncrement { get; set; } = 0;
         public int Panel_XRepeats { get; set; } = 0;

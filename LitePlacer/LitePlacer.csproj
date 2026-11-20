@@ -169,6 +169,10 @@
     <Compile Include="AppSettings.cs" />
     <Compile Include="Camera.cs" />
     <Compile Include="HoleFinder.cs" />
+    <Compile Include="Panel.cs">
+      <DependentUpon>MainForm.cs</DependentUpon>
+      <SubType>Form</SubType>
+    </Compile>
     <Compile Include="JobCheck.cs">
       <DependentUpon>MainForm.cs</DependentUpon>
       <SubType>Form</SubType>

@@ -594,6 +594,7 @@
             this.RebuildJobData_button = new System.Windows.Forms.Button();
             this.SaveCadData_button = new System.Windows.Forms.Button();
             this.Panelize_button = new System.Windows.Forms.Button();
+            this.PanelBoards_button = new System.Windows.Forms.Button();
             this.StopDemo_button = new System.Windows.Forms.Button();
             this.Demo_button = new System.Windows.Forms.Button();
             this.ManualNeedeChange_button = new System.Windows.Forms.Button();
@@ -646,6 +647,7 @@
             this.label58 = new System.Windows.Forms.Label();
             this.PlaceAll_button = new System.Windows.Forms.Button();
             this.CheckJob_button = new System.Windows.Forms.Button();
+            this.CheckSelected_button = new System.Windows.Forms.Button();
             this.CheckJobMeasure_checkBox = new System.Windows.Forms.CheckBox();
             this.label89 = new System.Windows.Forms.Label();
             this.label88 = new System.Windows.Forms.Label();
@@ -2013,6 +2015,7 @@
             this.Tapes_dataGridView.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.Id_Column,
             this.SelectButton_Column,
+            this.NextPart_Column,
             this.Source_Column,
             this.Type_Column,
             this.FindFast_Column,
@@ -2020,7 +2023,6 @@
             this.UpCamAlg_Column,
             this.UseUpCam_Column,
             this.ManualAssist_Column,
-            this.NextPart_Column,
             this.Orientation_Column,
             this.Capacity_Column,
             this.TrayID_Column,
@@ -7587,6 +7589,7 @@
             this.RunJob_tabPage.Controls.Add(this.RebuildJobData_button);
             this.RunJob_tabPage.Controls.Add(this.SaveCadData_button);
             this.RunJob_tabPage.Controls.Add(this.Panelize_button);
+            this.RunJob_tabPage.Controls.Add(this.PanelBoards_button);
             this.RunJob_tabPage.Controls.Add(this.StopDemo_button);
             this.RunJob_tabPage.Controls.Add(this.Demo_button);
             this.RunJob_tabPage.Controls.Add(this.ManualNeedeChange_button);
@@ -7790,12 +7793,23 @@
             // 
             this.Panelize_button.Location = new System.Drawing.Point(665, 340);
             this.Panelize_button.Name = "Panelize_button";
-            this.Panelize_button.Size = new System.Drawing.Size(108, 23);
+            this.Panelize_button.Size = new System.Drawing.Size(60, 23);
             this.Panelize_button.TabIndex = 75;
             this.Panelize_button.Tag = "https://liteplacer.com/run-job-page-job-data-section/";
             this.Panelize_button.Text = "Panelize";
             this.Panelize_button.UseVisualStyleBackColor = true;
             this.Panelize_button.Click += new System.EventHandler(this.Panelize_button_Click);
+            // 
+            // PanelBoards_button
+            // 
+            this.PanelBoards_button.Location = new System.Drawing.Point(727, 340);
+            this.PanelBoards_button.Name = "PanelBoards_button";
+            this.PanelBoards_button.Size = new System.Drawing.Size(50, 23);
+            this.PanelBoards_button.TabIndex = 330;
+            this.PanelBoards_button.Text = "Boards";
+            this.toolTip1.SetToolTip(this.PanelBoards_button, "Panel: choose the boards to skip (e.g. place one board as a test, then the rest). No re-panelizing, fiducial measurement stays valid.");
+            this.PanelBoards_button.UseVisualStyleBackColor = true;
+            this.PanelBoards_button.Click += new System.EventHandler(this.PanelBoards_button_Click);
             // 
             // StopDemo_button
             // 
@@ -8119,6 +8133,7 @@
             this.groupBox2.Controls.Add(this.CopyRow_button);
             this.groupBox2.Controls.Add(this.NewRow_button);
             this.groupBox2.Controls.Add(this.PlaceThese_button);
+            this.groupBox2.Controls.Add(this.CheckSelected_button);
             this.groupBox2.Controls.Add(this.DeleteComponentGroup_button);
             this.groupBox2.Controls.Add(this.Down_button);
             this.groupBox2.Controls.Add(this.et3);
@@ -8405,6 +8420,17 @@
             this.toolTip1.SetToolTip(this.CheckJob_button, "Dry run: checks every row for feeder, algorithms, nozzle, stock and whether the nozzle and camera can reach every pickup and placement. Nothing is placed. With \"measure\" ticked it also measures the fiducials and the first and last hole of every tape.");
             this.CheckJob_button.UseVisualStyleBackColor = true;
             this.CheckJob_button.Click += new System.EventHandler(this.CheckJob_button_Click);
+            // 
+            // CheckSelected_button
+            // 
+            this.CheckSelected_button.Location = new System.Drawing.Point(7, 203);
+            this.CheckSelected_button.Name = "CheckSelected_button";
+            this.CheckSelected_button.Size = new System.Drawing.Size(110, 23);
+            this.CheckSelected_button.TabIndex = 322;
+            this.CheckSelected_button.Text = "Check Selected";
+            this.toolTip1.SetToolTip(this.CheckSelected_button, "Check job for the selected rows only.");
+            this.CheckSelected_button.UseVisualStyleBackColor = true;
+            this.CheckSelected_button.Click += new System.EventHandler(this.CheckSelected_button_Click);
             // 
             // CheckJobMeasure_checkBox
             // 
@@ -11965,6 +11991,7 @@
 		private System.Windows.Forms.Label label58;
 		private System.Windows.Forms.Button PlaceAll_button;
         private System.Windows.Forms.Button CheckJob_button;
+        private System.Windows.Forms.Button CheckSelected_button;
         private System.Windows.Forms.CheckBox CheckJobMeasure_checkBox;
 		private System.Windows.Forms.Label label89;
 		private System.Windows.Forms.Label label88;
@@ -12031,6 +12058,7 @@
         private System.Windows.Forms.Button SaveTray_button;
         private System.Windows.Forms.Button ReloadTray_button;
         private System.Windows.Forms.Button Panelize_button;
+        private System.Windows.Forms.Button PanelBoards_button;
         private System.Windows.Forms.Button SaveCadData_button;
         private System.Windows.Forms.GroupBox groupBox12;
         private System.Windows.Forms.Button PasteCadDataRow_button;

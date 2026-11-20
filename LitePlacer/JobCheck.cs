@@ -75,6 +75,10 @@ namespace LitePlacer
         // ==========================================================================================
         // Geometry checks for one row. Returns false on an error (warnings don't count).
 
+        // Parts already claimed from each feeder by earlier rows of the same check (two rows on one feeder)
+        private Dictionary<string, int> JobCheckConsumed = new Dictionary<string, int>(StringComparer.Ordinal);
+        private Dictionary<string, int> JobCheckMeasured = new Dictionary<string, int>(StringComparer.Ordinal);
+
         private bool JobCheckRowGeometry(int Row)
         {
             bool ok = true;
@@ -130,6 +134,7 @@ namespace LitePlacer
             {
                 foreach (string c in cv.ToString().Split(','))
                 {
+                    if ((CurrentPanel != null) && CurrentPanel.IsSkipped(c.Trim())) continue;
                     bool placed = false;
                     if (!AlreadyPlaced_m(c.Trim(), ref placed)) return false;
                     if (!placed) Components.Add(c.Trim());
@@ -149,6 +154,12 @@ namespace LitePlacer
                 JobCheckAdd(Row, JobCheckLevel.Error, "feeder " + TapeID + ": Next is not a number");
                 return false;
             }
+            int Earlier;
+            if (JobCheckConsumed.TryGetValue(TapeID, out Earlier))
+            {
+                Next += Earlier;    // an earlier row of the job takes these parts first
+            }
+            JobCheckConsumed[TapeID] = Earlier + Needed;
             int Capacity;
             // Capacity: parts in the feeder when full; blank or 1 (the old hidden default) = unknown
             if (int.TryParse(TapeCellString(TapeNum, "Capacity_Column"), out Capacity) && (Capacity > 1))
@@ -245,7 +256,8 @@ namespace LitePlacer
             if (ok)
             {
                 JobCheckAdd(Row, JobCheckLevel.OK, "feeder " + TapeID + ", " + Needed.ToString(CultureInfo.InvariantCulture) + " part(s), parts "
-                    + Next.ToString(CultureInfo.InvariantCulture) + "-" + (Next + Needed - 1).ToString(CultureInfo.InvariantCulture) + ", reach OK");
+                    + Next.ToString(CultureInfo.InvariantCulture) + "-" + (Next + Needed - 1).ToString(CultureInfo.InvariantCulture)
+                    + ((Earlier > 0) ? " (after " + Earlier.ToString(CultureInfo.InvariantCulture) + " for earlier rows)" : "") + ", reach OK");
             }
             return ok;
         }
@@ -300,6 +312,7 @@ namespace LitePlacer
             {
                 foreach (string c in cv.ToString().Split(','))
                 {
+                    if ((CurrentPanel != null) && CurrentPanel.IsSkipped(c.Trim())) continue;
                     bool placed = false;
                     if (!AlreadyPlaced_m(c.Trim(), ref placed)) return;
                     if (!placed) Needed++;
@@ -311,8 +324,12 @@ namespace LitePlacer
             if (!double.TryParse(TapeCellString(TapeNum, "Pitch_Column").Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out Pitch)) return;
 
             // PrepareForFastPlacement_m does exactly the measurement we want, including the cut-leader and
-            // short-tape handling, and only touches the Fast* properties.
-            if (!Tapes.PrepareForFastPlacement_m(TapeID, Needed))
+            // short-tape handling, and only touches the Fast* properties. Earlier rows on the same feeder
+            // take their parts first.
+            int Earlier;
+            JobCheckMeasured.TryGetValue(TapeID, out Earlier);
+            JobCheckMeasured[TapeID] = Earlier + Needed;
+            if (!Tapes.PrepareForFastPlacement_m(TapeID, Needed, Earlier))
             {
                 JobCheckAdd(Row, JobCheckLevel.Error, "feeder " + TapeID + ": tape holes not found (see the log)");
                 return;
@@ -350,6 +367,7 @@ namespace LitePlacer
         private bool JobCheckGeometry_m()
         {
             bool ok = true;
+            JobCheckConsumed.Clear();
             for (int i = 0; i < JobData_GridView.RowCount; i++)
             {
                 if (!JobCheckRowGeometry(i)) ok = false;
@@ -358,6 +376,35 @@ namespace LitePlacer
         }
 
         private void CheckJob_button_Click(object sender, EventArgs e)
+        {
+            List<int> Rows = new List<int>();
+            for (int i = 0; i < JobData_GridView.RowCount; i++) Rows.Add(i);
+            CheckJobRows(Rows, "Job check");
+        }
+
+        private void CheckSelected_button_Click(object sender, EventArgs e)
+        {
+            List<int> Rows = new List<int>();
+            for (int i = 0; i < JobData_GridView.RowCount; i++)
+            {
+                foreach (DataGridViewCell c in JobData_GridView.Rows[i].Cells)
+                {
+                    if (c.Selected)
+                    {
+                        Rows.Add(i);
+                        break;
+                    }
+                }
+            }
+            if (Rows.Count == 0)
+            {
+                ShowMessageBox("No rows selected.", "Check selected", MessageBoxButtons.OK);
+                return;
+            }
+            CheckJobRows(Rows, "Job check, " + Rows.Count.ToString(CultureInfo.InvariantCulture) + " selected row(s)");
+        }
+
+        private void CheckJobRows(List<int> Rows, string Title)
         {
             if (JobData_GridView.RowCount < 1)
             {
@@ -375,22 +422,27 @@ namespace LitePlacer
                     DisplayText("Job check: measuring fiducials");
                     if (!BuildMachineCoordinateData_m())
                     {
-                        JobCheckAdd(0, JobCheckLevel.Error, "fiducial measurement failed; placement positions checked with nominal coordinates");
+                        JobCheckAdd(Rows[0], JobCheckLevel.Error, "fiducial measurement failed; placement positions checked with nominal coordinates");
                     }
                 }
             }
             DisplayText("Job check: geometry");
-            JobCheckGeometry_m();
+            JobCheckConsumed.Clear();
+            foreach (int i in Rows)
+            {
+                JobCheckRowGeometry(i);
+            }
             if (Measure)
             {
                 DisplayText("Job check: measuring tapes");
-                for (int i = 0; i < JobData_GridView.RowCount; i++)
+                JobCheckMeasured.Clear();
+                foreach (int i in Rows)
                 {
                     JobCheckRowMeasure(i);
                 }
                 CNC_Park();
             }
-            ShowJobCheckReport(Measure ? "Job check (measured)" : "Job check (geometry only)");
+            ShowJobCheckReport(Title + (Measure ? " (measured)" : " (geometry only)"));
         }
 
         private void ShowJobCheckReport(string Title)
@@ -443,7 +495,7 @@ namespace LitePlacer
                 Button b = new Button();
                 b.Text = AskToStart ? "Start anyway" : "Close";
                 b.Size = new Size(110, 26);
-                b.Location = new Point(AskToStart ? 660 : 780, 3);
+                b.Location = new Point(f.ClientSize.Width - (AskToStart ? 240 : 120), 3);
                 b.DialogResult = DialogResult.OK;
                 p.Controls.Add(b);
                 f.AcceptButton = b;
@@ -452,7 +504,7 @@ namespace LitePlacer
                     Button c = new Button();
                     c.Text = "Cancel";
                     c.Size = new Size(110, 26);
-                    c.Location = new Point(780, 3);
+                    c.Location = new Point(f.ClientSize.Width - 120, 3);
                     c.DialogResult = DialogResult.Cancel;
                     p.Controls.Add(c);
                     f.CancelButton = c;
