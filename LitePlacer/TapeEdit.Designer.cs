@@ -329,10 +329,10 @@
             this.Capacity_textBox.Size = new System.Drawing.Size(48, 20);
             this.Capacity_textBox.TabIndex = 20;
             this.Capacity_textBox.Tag = "https://liteplacer.com/edit-tape-parameters-dialog/";
-            this.Capacity_textBox.Text = "1";
+            this.Capacity_textBox.Text = "";
+            this.toolTip1.SetToolTip(this.Capacity_textBox, "Parts in the feeder when full (Next counts from 1). Blank or 1 = unknown, not checked.");
             this.toolTip1.SetToolTip(this.Capacity_textBox, "How many parts on a strip\r\n0: You are prompted to place a part at the location\r\n<" +
         "0: Infinite (feeder)");
-            this.Capacity_textBox.Visible = false;
             this.Capacity_textBox.TextChanged += new System.EventHandler(this.Capacity_textBox_TextChanged);
             // 
             // label10
@@ -346,7 +346,6 @@
             this.label10.Text = "Capacity";
             this.toolTip1.SetToolTip(this.label10, "How many parts on a strip\r\n0: You are prompted to place a part at the location\r\n<" +
         "0: Infinite (feeder)");
-            this.label10.Visible = false;
             // 
             // Type_comboBox
             // 

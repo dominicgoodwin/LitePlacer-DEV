@@ -151,13 +151,14 @@ namespace LitePlacer
                 TapeOffsetY_textBox.Text = Row.Cells["OffsetY_Column"].Value.ToString();
                 ValidateDouble(TapeOffsetY_textBox); 
             }
-            /*
             if (Row.Cells["Capacity_Column"].Value != null)
             {
                 Capacity_textBox.Text = Row.Cells["Capacity_Column"].Value.ToString();
-
             }
-            */
+            else
+            {
+                Capacity_textBox.Text = "";
+            }
             if (Row.Cells["NextPart_Column"].Value != null)
             {
                 NextPart_textBox.Text = Row.Cells["NextPart_Column"].Value.ToString();
@@ -375,7 +376,7 @@ namespace LitePlacer
             Row.Cells["UseUpCam_Column"].Value = UseUpCam_checkBox.Checked;
             Row.Cells["ManualAssist_Column"].Value = ManualAssist_checkBox.Checked;
             Row.Cells["NextPart_Column"].Value = NextPart_textBox.Text;
-            // Row.Cells["Capacity_Column"].Value = Capacity_textBox.Text;
+            Row.Cells["Capacity_Column"].Value = Capacity_textBox.Text;
             Row.Cells["Width_Column"].Value = TapeWidth_comboBox.Text;
             Row.Cells["Type_Column"].Value = Type_comboBox.Text; 
             Row.Cells["TrayID_Column"].Value = TrayID_textBox.Text;

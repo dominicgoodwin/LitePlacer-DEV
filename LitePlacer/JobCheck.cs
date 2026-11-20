@@ -12,8 +12,8 @@ namespace LitePlacer
     //   Geometry (instant, no movement): feeder exists and its algorithms exist, nozzle number is valid,
     //   enough parts in the feeder (Capacity), and - the one LitePlacer never checked - that the machine can
     //   actually get there. Every move is guarded against the gantry limits, but the nozzle sits a long way
-    //   from the down camera (the nozzle offset), so a part the camera can see near the low-X / low-Y edge
-    //   is out of the nozzle's reach, and vice versa at the far edges. Pickup positions of every part the
+    //   from the down camera (the nozzle offset): the gantry goes to part + offset to pick, so a part the
+    //   camera can see near the far X / far Y edge is out of the nozzle's reach. Pickup positions of every part the
     //   row will use and every placement position are checked for the nozzle (and the holes for the camera).
     //
     //   Measured (moves the machine, optional): fiducials if not yet measured, then for each tape feeder the
@@ -60,10 +60,11 @@ namespace LitePlacer
                 && (Y >= -Math.Abs(Setting.General_NegativeY) + JobCheckMargin) && (Y <= Setting.General_MachineSizeY - JobCheckMargin);
         }
 
-        // The nozzle is at gantry + offset, so to put the nozzle at (X, Y) the gantry goes to (X - offset).
+        // Nozzle.Move_m(X, Y) sends the gantry to (X + offset, Y + offset): the nozzle sits at gantry minus the
+        // offset, so parts near the low X/Y edge are fine and the far edges are where the nozzle runs out.
         private bool NozzleCanReach(double X, double Y)
         {
-            return CameraCanReach(X - Setting.DownCam_NozzleOffsetX, Y - Setting.DownCam_NozzleOffsetY);
+            return CameraCanReach(X + Setting.DownCam_NozzleOffsetX, Y + Setting.DownCam_NozzleOffsetY);
         }
 
         private static string Fmt(double v)
@@ -149,7 +150,8 @@ namespace LitePlacer
                 return false;
             }
             int Capacity;
-            if (int.TryParse(TapeCellString(TapeNum, "Capacity_Column"), out Capacity) && (Capacity > 0))
+            // Capacity: parts in the feeder when full; blank or 1 (the old hidden default) = unknown
+            if (int.TryParse(TapeCellString(TapeNum, "Capacity_Column"), out Capacity) && (Capacity > 1))
             {
                 int Left = Capacity - Next + 1;
                 if (Left < Needed)
@@ -211,7 +213,7 @@ namespace LitePlacer
             {
                 JobCheckAdd(Row, JobCheckLevel.Error, "feeder " + TapeID + ": part " + FirstBad.ToString(CultureInfo.InvariantCulture)
                     + " at " + Fmt(BadX) + ", " + Fmt(BadY) + " is out of reach of the " + (CameraBad ? "camera" : "nozzle")
-                    + (CameraBad ? "" : " (gantry would be at " + Fmt(BadX - Setting.DownCam_NozzleOffsetX) + ", " + Fmt(BadY - Setting.DownCam_NozzleOffsetY) + ")"));
+                    + (CameraBad ? "" : " (gantry would be at " + Fmt(BadX + Setting.DownCam_NozzleOffsetX) + ", " + Fmt(BadY + Setting.DownCam_NozzleOffsetY) + ")"));
                 ok = false;
             }
 
@@ -411,10 +413,10 @@ namespace LitePlacer
             sb.AppendLine("Machine " + Fmt(-Math.Abs(Setting.General_NegativeX)) + ".." + Fmt(Setting.General_MachineSizeX) + " x "
                 + Fmt(-Math.Abs(Setting.General_NegativeY)) + ".." + Fmt(Setting.General_MachineSizeY)
                 + ", nozzle offset " + Fmt(Setting.DownCam_NozzleOffsetX) + ", " + Fmt(Setting.DownCam_NozzleOffsetY)
-                + ": the nozzle reaches X " + Fmt(-Math.Abs(Setting.General_NegativeX) + Setting.DownCam_NozzleOffsetX + JobCheckMargin) + ".."
-                + Fmt(Setting.General_MachineSizeX + Setting.DownCam_NozzleOffsetX - JobCheckMargin)
-                + ", Y " + Fmt(-Math.Abs(Setting.General_NegativeY) + Setting.DownCam_NozzleOffsetY + JobCheckMargin) + ".."
-                + Fmt(Setting.General_MachineSizeY + Setting.DownCam_NozzleOffsetY - JobCheckMargin));
+                + ": the nozzle reaches X " + Fmt(-Math.Abs(Setting.General_NegativeX) - Setting.DownCam_NozzleOffsetX + JobCheckMargin) + ".."
+                + Fmt(Setting.General_MachineSizeX - Setting.DownCam_NozzleOffsetX - JobCheckMargin)
+                + ", Y " + Fmt(-Math.Abs(Setting.General_NegativeY) - Setting.DownCam_NozzleOffsetY + JobCheckMargin) + ".."
+                + Fmt(Setting.General_MachineSizeY - Setting.DownCam_NozzleOffsetY - JobCheckMargin));
             sb.AppendLine();
             foreach (JobCheckItem it in JobCheckItems)
             {
