@@ -647,6 +647,7 @@
             this.label58 = new System.Windows.Forms.Label();
             this.PlaceAll_button = new System.Windows.Forms.Button();
             this.CheckJob_button = new System.Windows.Forms.Button();
+            this.CheckSelected_button = new System.Windows.Forms.Button();
             this.CheckJobMeasure_checkBox = new System.Windows.Forms.CheckBox();
             this.label89 = new System.Windows.Forms.Label();
             this.label88 = new System.Windows.Forms.Label();
@@ -2014,6 +2015,7 @@
             this.Tapes_dataGridView.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
             this.Id_Column,
             this.SelectButton_Column,
+            this.NextPart_Column,
             this.Source_Column,
             this.Type_Column,
             this.FindFast_Column,
@@ -2021,7 +2023,6 @@
             this.UpCamAlg_Column,
             this.UseUpCam_Column,
             this.ManualAssist_Column,
-            this.NextPart_Column,
             this.Orientation_Column,
             this.Capacity_Column,
             this.TrayID_Column,
@@ -8243,6 +8244,7 @@
             this.groupBox1.Controls.Add(this.label58);
             this.groupBox1.Controls.Add(this.PlaceAll_button);
             this.groupBox1.Controls.Add(this.CheckJob_button);
+            this.groupBox1.Controls.Add(this.CheckSelected_button);
             this.groupBox1.Controls.Add(this.CheckJobMeasure_checkBox);
             this.groupBox1.Location = new System.Drawing.Point(6, 491);
             this.groupBox1.Name = "groupBox1";
@@ -8410,14 +8412,25 @@
             // 
             // CheckJob_button
             // 
-            this.CheckJob_button.Location = new System.Drawing.Point(6, 106);
+            this.CheckJob_button.Location = new System.Drawing.Point(6, 104);
             this.CheckJob_button.Name = "CheckJob_button";
-            this.CheckJob_button.Size = new System.Drawing.Size(109, 23);
+            this.CheckJob_button.Size = new System.Drawing.Size(54, 21);
             this.CheckJob_button.TabIndex = 320;
             this.CheckJob_button.Text = "Check job";
             this.toolTip1.SetToolTip(this.CheckJob_button, "Dry run: checks every row for feeder, algorithms, nozzle, stock and whether the nozzle and camera can reach every pickup and placement. Nothing is placed. With \"measure\" ticked it also measures the fiducials and the first and last hole of every tape.");
             this.CheckJob_button.UseVisualStyleBackColor = true;
             this.CheckJob_button.Click += new System.EventHandler(this.CheckJob_button_Click);
+            // 
+            // CheckSelected_button
+            // 
+            this.CheckSelected_button.Location = new System.Drawing.Point(61, 104);
+            this.CheckSelected_button.Name = "CheckSelected_button";
+            this.CheckSelected_button.Size = new System.Drawing.Size(54, 21);
+            this.CheckSelected_button.TabIndex = 322;
+            this.CheckSelected_button.Text = "Check sel.";
+            this.toolTip1.SetToolTip(this.CheckSelected_button, "Check job for the selected rows only.");
+            this.CheckSelected_button.UseVisualStyleBackColor = true;
+            this.CheckSelected_button.Click += new System.EventHandler(this.CheckSelected_button_Click);
             // 
             // CheckJobMeasure_checkBox
             // 
@@ -11978,6 +11991,7 @@
 		private System.Windows.Forms.Label label58;
 		private System.Windows.Forms.Button PlaceAll_button;
         private System.Windows.Forms.Button CheckJob_button;
+        private System.Windows.Forms.Button CheckSelected_button;
         private System.Windows.Forms.CheckBox CheckJobMeasure_checkBox;
 		private System.Windows.Forms.Label label89;
 		private System.Windows.Forms.Label label88;

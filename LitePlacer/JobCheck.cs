@@ -377,6 +377,35 @@ namespace LitePlacer
 
         private void CheckJob_button_Click(object sender, EventArgs e)
         {
+            List<int> Rows = new List<int>();
+            for (int i = 0; i < JobData_GridView.RowCount; i++) Rows.Add(i);
+            CheckJobRows(Rows, "Job check");
+        }
+
+        private void CheckSelected_button_Click(object sender, EventArgs e)
+        {
+            List<int> Rows = new List<int>();
+            for (int i = 0; i < JobData_GridView.RowCount; i++)
+            {
+                foreach (DataGridViewCell c in JobData_GridView.Rows[i].Cells)
+                {
+                    if (c.Selected)
+                    {
+                        Rows.Add(i);
+                        break;
+                    }
+                }
+            }
+            if (Rows.Count == 0)
+            {
+                ShowMessageBox("No rows selected.", "Check selected", MessageBoxButtons.OK);
+                return;
+            }
+            CheckJobRows(Rows, "Job check, " + Rows.Count.ToString(CultureInfo.InvariantCulture) + " selected row(s)");
+        }
+
+        private void CheckJobRows(List<int> Rows, string Title)
+        {
             if (JobData_GridView.RowCount < 1)
             {
                 ShowMessageBox("No Job loaded.", "No Job", MessageBoxButtons.OK);
@@ -393,23 +422,27 @@ namespace LitePlacer
                     DisplayText("Job check: measuring fiducials");
                     if (!BuildMachineCoordinateData_m())
                     {
-                        JobCheckAdd(0, JobCheckLevel.Error, "fiducial measurement failed; placement positions checked with nominal coordinates");
+                        JobCheckAdd(Rows[0], JobCheckLevel.Error, "fiducial measurement failed; placement positions checked with nominal coordinates");
                     }
                 }
             }
             DisplayText("Job check: geometry");
-            JobCheckGeometry_m();
+            JobCheckConsumed.Clear();
+            foreach (int i in Rows)
+            {
+                JobCheckRowGeometry(i);
+            }
             if (Measure)
             {
                 DisplayText("Job check: measuring tapes");
                 JobCheckMeasured.Clear();
-                for (int i = 0; i < JobData_GridView.RowCount; i++)
+                foreach (int i in Rows)
                 {
                     JobCheckRowMeasure(i);
                 }
                 CNC_Park();
             }
-            ShowJobCheckReport(Measure ? "Job check (measured)" : "Job check (geometry only)");
+            ShowJobCheckReport(Title + (Measure ? " (measured)" : " (geometry only)"));
         }
 
         private void ShowJobCheckReport(string Title)
@@ -462,7 +495,7 @@ namespace LitePlacer
                 Button b = new Button();
                 b.Text = AskToStart ? "Start anyway" : "Close";
                 b.Size = new Size(110, 26);
-                b.Location = new Point(AskToStart ? 660 : 780, 3);
+                b.Location = new Point(f.ClientSize.Width - (AskToStart ? 240 : 120), 3);
                 b.DialogResult = DialogResult.OK;
                 p.Controls.Add(b);
                 f.AcceptButton = b;
@@ -471,7 +504,7 @@ namespace LitePlacer
                     Button c = new Button();
                     c.Text = "Cancel";
                     c.Size = new Size(110, 26);
-                    c.Location = new Point(780, 3);
+                    c.Location = new Point(f.ClientSize.Width - 120, 3);
                     c.DialogResult = DialogResult.Cancel;
                     p.Controls.Add(c);
                     f.CancelButton = c;
