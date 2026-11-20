@@ -48,14 +48,24 @@
             this.Designator_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Xpanelize_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Ypanelize_Column = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.Preview_label = new System.Windows.Forms.Label();
+            this.Revert_button = new System.Windows.Forms.Button();
+            this.Strategy_label = new System.Windows.Forms.Label();
+            this.Strategy_comboBox = new System.Windows.Forms.ComboBox();
+            this.Tolerance_label = new System.Windows.Forms.Label();
+            this.Tolerance_textBox = new System.Windows.Forms.TextBox();
+            this.Skip_label = new System.Windows.Forms.Label();
+            this.Skip_dataGridView = new System.Windows.Forms.DataGridView();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.PanelFiducials_dataGridView)).BeginInit();
+            ((System.ComponentModel.ISupportInitialize)(this.Skip_dataGridView)).BeginInit();
             this.SuspendLayout();
             // 
             // XRepeats_textBox
             // 
             this.XRepeats_textBox.Location = new System.Drawing.Point(280, 18);
             this.XRepeats_textBox.Name = "XRepeats_textBox";
+            this.XRepeats_textBox.TextChanged += new System.EventHandler(this.Repeats_TextChanged);
             this.XRepeats_textBox.Size = new System.Drawing.Size(38, 20);
             this.XRepeats_textBox.TabIndex = 3;
             // 
@@ -81,6 +91,7 @@
             // 
             this.YRepeats_textBox.Location = new System.Drawing.Point(280, 44);
             this.YRepeats_textBox.Name = "YRepeats_textBox";
+            this.YRepeats_textBox.TextChanged += new System.EventHandler(this.Repeats_TextChanged);
             this.YRepeats_textBox.Size = new System.Drawing.Size(38, 20);
             this.YRepeats_textBox.TabIndex = 4;
             // 
@@ -97,6 +108,7 @@
             // 
             this.XIncrement_textBox.Location = new System.Drawing.Point(396, 18);
             this.XIncrement_textBox.Name = "XIncrement_textBox";
+            this.XIncrement_textBox.TextChanged += new System.EventHandler(this.Geometry_TextChanged);
             this.XIncrement_textBox.Size = new System.Drawing.Size(38, 20);
             this.XIncrement_textBox.TabIndex = 5;
             // 
@@ -113,6 +125,7 @@
             // 
             this.YIncrement_textBox.Location = new System.Drawing.Point(396, 44);
             this.YIncrement_textBox.Name = "YIncrement_textBox";
+            this.YIncrement_textBox.TextChanged += new System.EventHandler(this.Geometry_TextChanged);
             this.YIncrement_textBox.Size = new System.Drawing.Size(38, 20);
             this.YIncrement_textBox.TabIndex = 6;
             // 
@@ -155,7 +168,7 @@
             // 
             // Cancel_button
             // 
-            this.Cancel_button.Location = new System.Drawing.Point(260, 311);
+            this.Cancel_button.Location = new System.Drawing.Point(540, 318);
             this.Cancel_button.Name = "Cancel_button";
             this.Cancel_button.Size = new System.Drawing.Size(75, 23);
             this.Cancel_button.TabIndex = 9;
@@ -165,7 +178,7 @@
             // 
             // OK_button
             // 
-            this.OK_button.Location = new System.Drawing.Point(359, 311);
+            this.OK_button.Location = new System.Drawing.Point(630, 318);
             this.OK_button.Name = "OK_button";
             this.OK_button.Size = new System.Drawing.Size(75, 23);
             this.OK_button.TabIndex = 8;
@@ -186,6 +199,7 @@
             // 
             this.XFirstOffset_textBox.Location = new System.Drawing.Point(156, 18);
             this.XFirstOffset_textBox.Name = "XFirstOffset_textBox";
+            this.XFirstOffset_textBox.TextChanged += new System.EventHandler(this.Geometry_TextChanged);
             this.XFirstOffset_textBox.Size = new System.Drawing.Size(38, 20);
             this.XFirstOffset_textBox.TabIndex = 1;
             // 
@@ -202,6 +216,7 @@
             // 
             this.YFirstOffset_textBox.Location = new System.Drawing.Point(156, 44);
             this.YFirstOffset_textBox.Name = "YFirstOffset_textBox";
+            this.YFirstOffset_textBox.TextChanged += new System.EventHandler(this.Geometry_TextChanged);
             this.YFirstOffset_textBox.Size = new System.Drawing.Size(38, 20);
             this.YFirstOffset_textBox.TabIndex = 2;
             // 
@@ -227,11 +242,95 @@
             this.Ypanelize_Column.Name = "Ypanelize_Column";
             this.Ypanelize_Column.Width = 80;
             // 
+            // Revert_button
+            // 
+            this.Revert_button.Location = new System.Drawing.Point(15, 318);
+            this.Revert_button.Name = "Revert_button";
+            this.Revert_button.Size = new System.Drawing.Size(130, 23);
+            this.Revert_button.TabIndex = 27;
+            this.Revert_button.Text = "Revert to single board";
+            this.Revert_button.UseVisualStyleBackColor = true;
+            this.Revert_button.Click += new System.EventHandler(this.Revert_button_Click);
+            // 
+            // Preview_label
+            // 
+            this.Preview_label.Location = new System.Drawing.Point(452, 15);
+            this.Preview_label.Name = "Preview_label";
+            this.Preview_label.Size = new System.Drawing.Size(256, 44);
+            this.Preview_label.TabIndex = 20;
+            this.Preview_label.Text = "";
+            // 
+            // Strategy_label
+            // 
+            this.Strategy_label.AutoSize = true;
+            this.Strategy_label.Location = new System.Drawing.Point(452, 73);
+            this.Strategy_label.Name = "Strategy_label";
+            this.Strategy_label.Size = new System.Drawing.Size(93, 13);
+            this.Strategy_label.TabIndex = 21;
+            this.Strategy_label.Text = "Fiducial strategy:";
+            // 
+            // Strategy_comboBox
+            // 
+            this.Strategy_comboBox.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.Strategy_comboBox.FormattingEnabled = true;
+            this.Strategy_comboBox.Location = new System.Drawing.Point(551, 70);
+            this.Strategy_comboBox.Name = "Strategy_comboBox";
+            this.Strategy_comboBox.Size = new System.Drawing.Size(90, 21);
+            this.Strategy_comboBox.TabIndex = 22;
+            this.Strategy_comboBox.SelectedIndexChanged += new System.EventHandler(this.Strategy_comboBox_SelectedIndexChanged);
+            // 
+            // Tolerance_label
+            // 
+            this.Tolerance_label.AutoSize = true;
+            this.Tolerance_label.Location = new System.Drawing.Point(452, 100);
+            this.Tolerance_label.Name = "Tolerance_label";
+            this.Tolerance_label.Size = new System.Drawing.Size(110, 13);
+            this.Tolerance_label.TabIndex = 23;
+            this.Tolerance_label.Text = "Hybrid tolerance, mm:";
+            // 
+            // Tolerance_textBox
+            // 
+            this.Tolerance_textBox.Location = new System.Drawing.Point(568, 97);
+            this.Tolerance_textBox.Name = "Tolerance_textBox";
+            this.Tolerance_textBox.Size = new System.Drawing.Size(45, 20);
+            this.Tolerance_textBox.TabIndex = 24;
+            this.Tolerance_textBox.TextChanged += new System.EventHandler(this.Geometry_TextChanged);
+            // 
+            // Skip_label
+            // 
+            this.Skip_label.AutoSize = true;
+            this.Skip_label.Location = new System.Drawing.Point(452, 128);
+            this.Skip_label.Name = "Skip_label";
+            this.Skip_label.Size = new System.Drawing.Size(200, 13);
+            this.Skip_label.TabIndex = 25;
+            this.Skip_label.Text = "Boards NOT to place (row 1 = lower left):";
+            // 
+            // Skip_dataGridView
+            // 
+            this.Skip_dataGridView.AllowUserToAddRows = false;
+            this.Skip_dataGridView.AllowUserToDeleteRows = false;
+            this.Skip_dataGridView.AllowUserToResizeColumns = false;
+            this.Skip_dataGridView.AllowUserToResizeRows = false;
+            this.Skip_dataGridView.Location = new System.Drawing.Point(452, 146);
+            this.Skip_dataGridView.Name = "Skip_dataGridView";
+            this.Skip_dataGridView.Size = new System.Drawing.Size(256, 158);
+            this.Skip_dataGridView.TabIndex = 26;
+            this.Skip_dataGridView.CellValueChanged += new System.Windows.Forms.DataGridViewCellEventHandler(this.Skip_dataGridView_CellValueChanged);
+            this.Skip_dataGridView.CurrentCellDirtyStateChanged += new System.EventHandler(this.Skip_dataGridView_CurrentCellDirtyStateChanged);
+            // 
             // PanelizeForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(446, 346);
+            this.ClientSize = new System.Drawing.Size(720, 352);
+            this.Controls.Add(this.Preview_label);
+            this.Controls.Add(this.Revert_button);
+            this.Controls.Add(this.Strategy_label);
+            this.Controls.Add(this.Strategy_comboBox);
+            this.Controls.Add(this.Tolerance_label);
+            this.Controls.Add(this.Tolerance_textBox);
+            this.Controls.Add(this.Skip_label);
+            this.Controls.Add(this.Skip_dataGridView);
             this.Controls.Add(this.label6);
             this.Controls.Add(this.YFirstOffset_textBox);
             this.Controls.Add(this.label5);
@@ -249,11 +348,12 @@
             this.Controls.Add(this.XRepeats_textBox);
             this.Name = "PanelizeForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
-            this.Text = "PanelizeForm";
+            this.Text = "Panelize";
             this.Load += new System.EventHandler(this.PanelizeForm_Load);
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.PanelFiducials_dataGridView)).EndInit();
+            ((System.ComponentModel.ISupportInitialize)(this.Skip_dataGridView)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -281,5 +381,13 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn Designator_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn Xpanelize_Column;
         private System.Windows.Forms.DataGridViewTextBoxColumn Ypanelize_Column;
+        private System.Windows.Forms.Label Preview_label;
+        private System.Windows.Forms.Button Revert_button;
+        private System.Windows.Forms.Label Strategy_label;
+        private System.Windows.Forms.ComboBox Strategy_comboBox;
+        private System.Windows.Forms.Label Tolerance_label;
+        private System.Windows.Forms.TextBox Tolerance_textBox;
+        private System.Windows.Forms.Label Skip_label;
+        private System.Windows.Forms.DataGridView Skip_dataGridView;
     }
 }

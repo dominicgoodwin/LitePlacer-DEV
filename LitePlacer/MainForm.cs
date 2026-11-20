@@ -7216,6 +7216,13 @@ namespace LitePlacer
                         MakeJobDataClean();
                     }
                     f.WriteLine(JobdataVersion);  // used in ParseJobData()
+                    if (CurrentPanel != null)
+                    {
+                        foreach (string l in CurrentPanel.ToLines())
+                        {
+                            f.WriteLine(l);
+                        }
+                    }
 
                     // for each row in job datagrid: count, value, footprint, component, step, skip, find fast,
                     // nozzle, use up cam, up cam alg, manual assist, components. Inherited cells are written
@@ -7290,9 +7297,19 @@ namespace LitePlacer
                 return false;
             }
             // format: count, value, footprint, component, step, skip, find fast, nozzle, use up cam, up cam alg, manual assist, components
+            PanelDefinition Panel = null;
             for (int i = 1; i < AllLines.Length; i++)
             {
                 if (AllLines[i].Trim() == "") continue;
+                bool BadPanelLine;
+                if (PanelDefinition.TryParseLine(AllLines[i], (l) => { bool q; List<string> r = SplitCSV(l, ',', out q); return q ? null : r; }, ref Panel, out BadPanelLine))
+                {
+                    if (BadPanelLine)
+                    {
+                        DisplayText("Job file line " + i.ToString() + ": bad panel data, ignored", KnownColor.DarkRed, true);
+                    }
+                    continue;
+                }
                 List<String> Line = SplitCSV(AllLines[i], ',', out quit);
                 if (quit)
                 {
@@ -7321,6 +7338,8 @@ namespace LitePlacer
 
             JobData_GridView.ClearSelection();
             Update_GridView(JobData_GridView);
+            CurrentPanel = Panel;
+            ApplyLoadedPanel();
             if (!StartingUp)
             {
                 CheckJobComponentsExist();
@@ -8308,6 +8327,23 @@ namespace LitePlacer
             {
                 Components = JobData_GridView.Rows[RowNo].Cells["JobdataComponentsColumn"].Value.ToString().Split(',');
             };
+            // Panel: components on skipped boards are not placed
+            if (CurrentPanel != null)
+            {
+                string[] Active = Components.Where(c => !CurrentPanel.IsSkipped(c.Trim())).ToArray();
+                if (Active.Length < Components.Length)
+                {
+                    DisplayText(JobData_GridView.Rows[RowNo].Cells["JobDataValueColumn"].Value.ToString() + ", "
+                        + JobData_GridView.Rows[RowNo].Cells["JobDataFootprintColumn"].Value.ToString() + ": "
+                        + (Components.Length - Active.Length).ToString(CultureInfo.InvariantCulture) + " component(s) on skipped boards left out");
+                    if (Active.Length == 0)
+                    {
+                        PartAboveCam = false;
+                        return true;
+                    }
+                    Components = Active;
+                }
+            }
             bool ReturnValue = true;
 
             // Prepare for placement
@@ -10053,7 +10089,7 @@ namespace LitePlacer
 
             for (int i = 0; i < JobData_GridView.RowCount; i++)
             {
-                if (JobRowIsFiducials(i))
+                if (JobRowIsFiducials(i) && !JobRowSkipped(i))
                 {
                     if (FiducialsFound)
                     {
@@ -10776,24 +10812,20 @@ namespace LitePlacer
         // fiducial indication), PanelizeForm keeps the single-board rows and the original fiducial
         // designators here the first time, and starts from them on later runs.
         // Cleared whenever new CAD data is parsed.
-        public List<object[]> SingleBoardCadRows { get; set; } = null;
-        public string SingleBoardFiducials { get; set; } = null;
-
         private void Panelize_button_Click(object sender, EventArgs e)
         {
+            if (CadData_GridView.RowCount < 1)
+            {
+                ShowMessageBox("No CAD data loaded.", "No data", MessageBoxButtons.OK);
+                return;
+            }
             PanelizeForm PanelizeDialog = new PanelizeForm(this);
-            PanelizeDialog.CadData = CadData_GridView;
-            PanelizeDialog.JobData = JobData_GridView;
             PanelizeDialog.StartPosition = FormStartPosition.CenterParent;
             PanelizeDialog.ShowDialog(this);
             if (PanelizeDialog.OK == true)
             {
                 DisplayText("Panelize ok.");
-                // The CAD data has changed: any fiducial measurement made before is for the single board.
-                // Machine coordinates of the new rows are Nan until the panel is measured.
-                ValidMeasurement_checkBox.Checked = false;
-                Update_GridView(CadData_GridView);
-                Update_GridView(JobData_GridView);
+                MakeJobDataDirty();
             }
         }
 
@@ -11131,8 +11163,7 @@ namespace LitePlacer
 
             // clear and rebuild the data tables
             CadData_GridView.Rows.Clear();
-            SingleBoardCadRows = null;      // new CAD data: any retained pre-panelize copy is stale
-            SingleBoardFiducials = null;
+            CurrentPanel = null;            // new CAD data: a single board until a job with a panel is loaded or Panelize is used
             Update_GridView(CadData_GridView);
             CadDataDelay_label.Text = "Loading...";
             CadDataDelay_label.Visible = true;

@@ -130,6 +130,7 @@ namespace LitePlacer
             {
                 foreach (string c in cv.ToString().Split(','))
                 {
+                    if ((CurrentPanel != null) && CurrentPanel.IsSkipped(c.Trim())) continue;
                     bool placed = false;
                     if (!AlreadyPlaced_m(c.Trim(), ref placed)) return false;
                     if (!placed) Components.Add(c.Trim());
@@ -300,6 +301,7 @@ namespace LitePlacer
             {
                 foreach (string c in cv.ToString().Split(','))
                 {
+                    if ((CurrentPanel != null) && CurrentPanel.IsSkipped(c.Trim())) continue;
                     bool placed = false;
                     if (!AlreadyPlaced_m(c.Trim(), ref placed)) return;
                     if (!placed) Needed++;

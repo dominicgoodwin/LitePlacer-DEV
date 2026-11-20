@@ -594,6 +594,7 @@
             this.RebuildJobData_button = new System.Windows.Forms.Button();
             this.SaveCadData_button = new System.Windows.Forms.Button();
             this.Panelize_button = new System.Windows.Forms.Button();
+            this.PanelBoards_button = new System.Windows.Forms.Button();
             this.StopDemo_button = new System.Windows.Forms.Button();
             this.Demo_button = new System.Windows.Forms.Button();
             this.ManualNeedeChange_button = new System.Windows.Forms.Button();
@@ -7587,6 +7588,7 @@
             this.RunJob_tabPage.Controls.Add(this.RebuildJobData_button);
             this.RunJob_tabPage.Controls.Add(this.SaveCadData_button);
             this.RunJob_tabPage.Controls.Add(this.Panelize_button);
+            this.RunJob_tabPage.Controls.Add(this.PanelBoards_button);
             this.RunJob_tabPage.Controls.Add(this.StopDemo_button);
             this.RunJob_tabPage.Controls.Add(this.Demo_button);
             this.RunJob_tabPage.Controls.Add(this.ManualNeedeChange_button);
@@ -7790,12 +7792,23 @@
             // 
             this.Panelize_button.Location = new System.Drawing.Point(665, 340);
             this.Panelize_button.Name = "Panelize_button";
-            this.Panelize_button.Size = new System.Drawing.Size(108, 23);
+            this.Panelize_button.Size = new System.Drawing.Size(60, 23);
             this.Panelize_button.TabIndex = 75;
             this.Panelize_button.Tag = "https://liteplacer.com/run-job-page-job-data-section/";
             this.Panelize_button.Text = "Panelize";
             this.Panelize_button.UseVisualStyleBackColor = true;
             this.Panelize_button.Click += new System.EventHandler(this.Panelize_button_Click);
+            // 
+            // PanelBoards_button
+            // 
+            this.PanelBoards_button.Location = new System.Drawing.Point(727, 340);
+            this.PanelBoards_button.Name = "PanelBoards_button";
+            this.PanelBoards_button.Size = new System.Drawing.Size(50, 23);
+            this.PanelBoards_button.TabIndex = 330;
+            this.PanelBoards_button.Text = "Boards";
+            this.toolTip1.SetToolTip(this.PanelBoards_button, "Panel: choose the boards to skip (e.g. place one board as a test, then the rest). No re-panelizing, fiducial measurement stays valid.");
+            this.PanelBoards_button.UseVisualStyleBackColor = true;
+            this.PanelBoards_button.Click += new System.EventHandler(this.PanelBoards_button_Click);
             // 
             // StopDemo_button
             // 
@@ -12031,6 +12044,7 @@
         private System.Windows.Forms.Button SaveTray_button;
         private System.Windows.Forms.Button ReloadTray_button;
         private System.Windows.Forms.Button Panelize_button;
+        private System.Windows.Forms.Button PanelBoards_button;
         private System.Windows.Forms.Button SaveCadData_button;
         private System.Windows.Forms.GroupBox groupBox12;
         private System.Windows.Forms.Button PasteCadDataRow_button;
