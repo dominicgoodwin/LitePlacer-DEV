@@ -77,6 +77,7 @@ namespace LitePlacer
 
         // Parts already claimed from each feeder by earlier rows of the same check (two rows on one feeder)
         private Dictionary<string, int> JobCheckConsumed = new Dictionary<string, int>(StringComparer.Ordinal);
+        private Dictionary<string, int> JobCheckMeasured = new Dictionary<string, int>(StringComparer.Ordinal);
 
         private bool JobCheckRowGeometry(int Row)
         {
@@ -323,8 +324,12 @@ namespace LitePlacer
             if (!double.TryParse(TapeCellString(TapeNum, "Pitch_Column").Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out Pitch)) return;
 
             // PrepareForFastPlacement_m does exactly the measurement we want, including the cut-leader and
-            // short-tape handling, and only touches the Fast* properties.
-            if (!Tapes.PrepareForFastPlacement_m(TapeID, Needed))
+            // short-tape handling, and only touches the Fast* properties. Earlier rows on the same feeder
+            // take their parts first.
+            int Earlier;
+            JobCheckMeasured.TryGetValue(TapeID, out Earlier);
+            JobCheckMeasured[TapeID] = Earlier + Needed;
+            if (!Tapes.PrepareForFastPlacement_m(TapeID, Needed, Earlier))
             {
                 JobCheckAdd(Row, JobCheckLevel.Error, "feeder " + TapeID + ": tape holes not found (see the log)");
                 return;
@@ -397,6 +402,7 @@ namespace LitePlacer
             if (Measure)
             {
                 DisplayText("Job check: measuring tapes");
+                JobCheckMeasured.Clear();
                 for (int i = 0; i < JobData_GridView.RowCount; i++)
                 {
                     JobCheckRowMeasure(i);

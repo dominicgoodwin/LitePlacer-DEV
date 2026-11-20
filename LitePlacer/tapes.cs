@@ -118,6 +118,13 @@ namespace LitePlacer
 
         public bool PrepareForFastPlacement_m(string TapeID, int ComponentCount)
         {
+            return PrepareForFastPlacement_m(TapeID, ComponentCount, 0);
+        }
+
+        // SkipParts: parts after Next that belong to earlier rows of the job (job check measures rows in
+        // order without picking anything, so Next does not move between them)
+        public bool PrepareForFastPlacement_m(string TapeID, int ComponentCount, int SkipParts)
+        {
             int TapeNum;
             if (!IdValidates_m(TapeID, out TapeNum))
             {
@@ -156,6 +163,7 @@ namespace LitePlacer
                 return false;
             }
 
+            FirstpartNo += SkipParts;
             int LastPartNo = FirstpartNo + ComponentCount - 1;
 
             double FirstXpos;
