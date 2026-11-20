@@ -8187,6 +8187,26 @@ namespace LitePlacer
         private string TapeExhaustedRow = "";               // set by PlaceRow_m when a short tape cut a row short
         private List<string> TapeExhaustedRows = new List<string>();   // collected over a Place All run
 
+        // The first Keep unplaced components of a row; records the "placed N of M, <why>" note for the Done dialog.
+        private string[] FirstUnplaced(string[] Components, int Keep, int RowNo, int Wanted, string Why)
+        {
+            List<string> Some = new List<string>();
+            foreach (string component in Components)
+            {
+                bool placed = false;
+                if (!AlreadyPlaced_m(component, ref placed)) break;
+                if (placed) continue;
+                if (Some.Count >= Keep) break;
+                Some.Add(component);
+            }
+            TapeExhaustedRow = JobData_GridView.Rows[RowNo].Cells["JobDataValueColumn"].Value.ToString()
+                + ", " + JobData_GridView.Rows[RowNo].Cells["JobDataFootprintColumn"].Value.ToString()
+                + ": placing " + Some.Count.ToString(CultureInfo.InvariantCulture) + " of " + Wanted.ToString(CultureInfo.InvariantCulture)
+                + ", " + Why;
+            DisplayText(TapeExhaustedRow, KnownColor.DarkRed, true);
+            return Some.ToArray();
+        }
+
         // =================================================================================
         // This routine places the [index] row from Job data grid view:
         private bool PlaceRow_m(int RowNo, out bool PartAboveCam)
@@ -8351,50 +8371,39 @@ namespace LitePlacer
             }
 
             bool FirstInRow = true;
-            if (method == "Place Fast")
+            if ((method == "Place") || (method == "Place Fast") || (method == "Place Assisted"))
             {
                 string TapeID = JobRowTapeId(RowNo);
-                int count;
-                if (!int.TryParse(JobData_GridView.Rows[RowNo].Cells["JobdataCountColumn"].Value.ToString(), out count))
+                int count = Components.Length - placedCount;
+                if (count < 1) count = 1;
+                // Parts the nozzle can't get to (feeder too close to the low X/Y edge): place up to the
+                // first unreachable one, leave the rest, carry on with the job (issue #4)
+                int TapeNum;
+                if (Tapes.IdValidates_m(TapeID, out TapeNum))
                 {
-                    ShowMessageBox(
-                        "Bad data at component count",
-                        "Sloppy programmer error",
-                        MessageBoxButtons.OK);
-                    return false;
-                }
-                if (count <= placedCount)
-                {
-                    count = 1;
-                }
-                else
-                {
-                    count -= placedCount;
-                }
-                if (!Tapes.PrepareForFastPlacement_m(TapeID, count))
-                {
-                    return false;
-                }
-                Tapes.FastParametersOk = true;
-                if (Tapes.FastAvailable < count)
-                {
-                    // Short tape: place the parts that exist, leave the rest unplaced and carry on with the job
-                    List<string> Some = new List<string>();
-                    int left = Tapes.FastAvailable;
-                    foreach (string component in Components)
+                    int Reachable = ReachablePickups(TapeNum, count);
+                    if (Reachable < count)
                     {
-                        bool placed = false;
-                        if (!AlreadyPlaced_m(component, ref placed)) return false;
-                        if (placed) continue;
-                        if (left <= 0) break;
-                        Some.Add(component);
-                        left--;
+                        Components = FirstUnplaced(Components, Reachable, RowNo, count, "the rest of feeder " + TapeID + " is out of the nozzle's reach");
+                        count = Reachable;
+                        if (count < 1)
+                        {
+                            return true;    // nothing we can do on this row; the message is logged
+                        }
                     }
-                    TapeExhaustedRow = JobData_GridView.Rows[RowNo].Cells["JobDataValueColumn"].Value.ToString()
-                        + ", " + JobData_GridView.Rows[RowNo].Cells["JobDataFootprintColumn"].Value.ToString()
-                        + ": placed " + Some.Count.ToString(CultureInfo.InvariantCulture) + " of " + count.ToString(CultureInfo.InvariantCulture)
-                        + ", feeder " + TapeID + " exhausted";
-                    Components = Some.ToArray();
+                }
+                if (method == "Place Fast")
+                {
+                    if (!Tapes.PrepareForFastPlacement_m(TapeID, count))
+                    {
+                        return false;
+                    }
+                    Tapes.FastParametersOk = true;
+                    if (Tapes.FastAvailable < count)
+                    {
+                        // Short tape: place the parts that exist, leave the rest unplaced and carry on with the job
+                        Components = FirstUnplaced(Components, Tapes.FastAvailable, RowNo, count, "feeder " + TapeID + " exhausted");
+                    }
                 }
             }
             // Place parts:
@@ -8411,9 +8420,8 @@ namespace LitePlacer
                 FirstInRow = false;
             };
             Tapes.FastParametersOk = false;
-            if (ReturnValue && (TapeExhaustedRow != ""))
+            if (TapeExhaustedRow != "")
             {
-                DisplayText(TapeExhaustedRow, KnownColor.DarkRed, true);
                 TapeExhaustedRows.Add(TapeExhaustedRow);
             }
             TapeExhaustedRow = "";
@@ -8494,8 +8502,8 @@ namespace LitePlacer
                 else
                 {
                     ShowMessageBox(
-                        "Done, but some feeders ran out:" + Environment.NewLine + string.Join(Environment.NewLine, TapeExhaustedRows.ToArray())
-                        + Environment.NewLine + Environment.NewLine + "Reload them and run Place All again to place the rest.",
+                        "Done, but not everything could be placed:" + Environment.NewLine + string.Join(Environment.NewLine, TapeExhaustedRows.ToArray())
+                        + Environment.NewLine + Environment.NewLine + "Reload or move those feeders and run Place All again to place the rest.",
                         "Done, parts missing",
                         MessageBoxButtons.OK);
                 }
@@ -8725,6 +8733,19 @@ namespace LitePlacer
             }
 
             Method = JobRowMethod(GroupRow);
+
+            if (((Method == "Place") || (Method == "Place Assisted") || (Method == "Place Fast")) && !NozzleCanReach(X_machine, Y_machine))
+            {
+                DisplayText(Component + " at " + X_machine.ToString("0.0", CultureInfo.InvariantCulture) + ", " + Y_machine.ToString("0.0", CultureInfo.InvariantCulture)
+                    + " is out of the nozzle's reach, not placed.", KnownColor.DarkRed, true);
+                if (TapeExhaustedRow == "")
+                {
+                    TapeExhaustedRow = JobData_GridView.Rows[GroupRow].Cells["JobDataValueColumn"].Value.ToString()
+                        + ", " + JobData_GridView.Rows[GroupRow].Cells["JobDataFootprintColumn"].Value.ToString()
+                        + ": placement position(s) out of the nozzle's reach (" + Component + ")";
+                }
+                return true;
+            }
 
             // Data is now validated, all variables have values that check out. Place the component.
             // Update "Now placing" labels:

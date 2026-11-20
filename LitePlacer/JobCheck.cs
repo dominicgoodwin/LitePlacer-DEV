@@ -393,6 +393,12 @@ namespace LitePlacer
 
         private void ShowJobCheckReport(string Title)
         {
+            ShowJobCheckReport(Title, false);
+        }
+
+        // With AskToStart, the window has "Start anyway" and "Cancel"; returns true for Start anyway.
+        private bool ShowJobCheckReport(string Title, bool AskToStart)
+        {
             int Errors = 0, Warnings = 0;
             foreach (JobCheckItem it in JobCheckItems)
             {
@@ -401,7 +407,7 @@ namespace LitePlacer
             }
             System.Text.StringBuilder sb = new System.Text.StringBuilder();
             sb.AppendLine(Errors.ToString(CultureInfo.InvariantCulture) + " error(s), " + Warnings.ToString(CultureInfo.InvariantCulture) + " warning(s)"
-                + ((Errors == 0) ? " - the job can run." : " - Place All will refuse to start until the errors are fixed."));
+                + ((Errors == 0) ? " - the job can run." : " - rows with errors place what they can and skip the rest; Place All asks before starting."));
             sb.AppendLine("Machine " + Fmt(-Math.Abs(Setting.General_NegativeX)) + ".." + Fmt(Setting.General_MachineSizeX) + " x "
                 + Fmt(-Math.Abs(Setting.General_NegativeY)) + ".." + Fmt(Setting.General_MachineSizeY)
                 + ", nozzle offset " + Fmt(Setting.DownCam_NozzleOffsetX) + ", " + Fmt(Setting.DownCam_NozzleOffsetY)
@@ -429,20 +435,39 @@ namespace LitePlacer
                 t.Font = new Font("Consolas", 9.0F);
                 t.Dock = DockStyle.Fill;
                 t.Text = sb.ToString();
+                Panel p = new Panel();
+                p.Dock = DockStyle.Bottom;
+                p.Height = 32;
                 Button b = new Button();
-                b.Text = "Close";
-                b.Dock = DockStyle.Bottom;
+                b.Text = AskToStart ? "Start anyway" : "Close";
+                b.Size = new Size(110, 26);
+                b.Location = new Point(AskToStart ? 660 : 780, 3);
                 b.DialogResult = DialogResult.OK;
-                f.Controls.Add(t);
-                f.Controls.Add(b);
+                p.Controls.Add(b);
                 f.AcceptButton = b;
-                f.CancelButton = b;
+                if (AskToStart)
+                {
+                    Button c = new Button();
+                    c.Text = "Cancel";
+                    c.Size = new Size(110, 26);
+                    c.Location = new Point(780, 3);
+                    c.DialogResult = DialogResult.Cancel;
+                    p.Controls.Add(c);
+                    f.CancelButton = c;
+                }
+                else
+                {
+                    f.CancelButton = b;
+                }
+                f.Controls.Add(t);
+                f.Controls.Add(p);
                 t.Select(0, 0);
-                f.ShowDialog(this);
+                return f.ShowDialog(this) == DialogResult.OK;
             }
         }
 
-        // Called by Place All before anything moves. Returns false (after showing the report) on an error.
+        // Called by Place All after the fiducials. With errors, shows the report and asks whether to start
+        // anyway (rows then place what they can and skip the rest). Returns false if the operator cancels.
         private bool JobPreflight_m()
         {
             JobCheckItems.Clear();
@@ -450,9 +475,43 @@ namespace LitePlacer
             {
                 return true;
             }
+            if (ShowJobCheckReport("Job check: problems found - start anyway?", true))
+            {
+                DisplayText("Job check found errors, starting anyway: rows place what they can.", KnownColor.DarkRed, true);
+                return true;
+            }
             DisplayText("Job check found errors, not starting.", KnownColor.DarkRed, true);
-            ShowJobCheckReport("Job check: not starting");
             return false;
+        }
+
+        // ==========================================================================================
+        // Used by the run loop: how many of the parts Next .. Next+Needed-1 of a feeder can be picked
+        // (consecutive from Next; the first unreachable one ends it).
+
+        private int ReachablePickups(int TapeNum, int Needed)
+        {
+            int Next;
+            if (!int.TryParse(TapeCellString(TapeNum, "NextPart_Column"), out Next)) return Needed;
+            for (int p = Next; p < Next + Needed; p++)
+            {
+                double X, Y, A;
+                if (UseCoordinatesDirectly(TapeNum))
+                {
+                    bool inc;
+                    if (!FindPartWithDirectCoordinates_m(TapeNum, p, out X, out Y, out A, out inc)) return Needed;
+                    bool reach = UseNozzleCoordinates(TapeNum) ? CameraCanReach(X, Y) : NozzleCanReach(X, Y);
+                    if (!reach) return p - Next;
+                }
+                else
+                {
+                    double HX, HY;
+                    if (!Tapes.GetPartHoleNominal_m(TapeNum, p, out HX, out HY)) return Needed;
+                    if (!CameraCanReach(HX, HY)) return p - Next;
+                    if (!Tapes.GetPartLocationFromHolePosition_m(TapeNum, HX, HY, p, out X, out Y, out A)) return Needed;
+                    if (!NozzleCanReach(X, Y)) return p - Next;
+                }
+            }
+            return Needed;
         }
     }
 }
