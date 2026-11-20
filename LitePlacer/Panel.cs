@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Globalization;
 using System.Linq;
 using System.Windows.Forms;
+using HomographyEstimation;
 
 namespace LitePlacer
 {
@@ -748,6 +749,167 @@ namespace LitePlacer
             {
                 CurrentPanel = null;
             }
+        }
+
+        // ------------------------------------------------------------------------------------------
+        // Run time: per-board fiducials. Called from BuildMachineCoordinateData_m after the panel transform
+        // has been estimated from the job's fiducials row and applied to every row. The down camera still has
+        // the fiducial algorithm loaded.
+        //   Board:  every board is measured on its own fiducials and gets its own transform.
+        //   Hybrid: one fiducial per board is measured where the panel transform predicts it; if it is further
+        //           off than the tolerance the board is measured fully and gets its own transform.
+
+        private bool PanelBoardTransforms_m(Transform Global)
+        {
+            PanelDefinition Def = CurrentPanel;
+            string[] Fids = Def.SingleBoardFiducials.Split(',').Select(x => x.Trim()).Where(x => x != "").ToArray();
+            if (Fids.Length < 2)
+            {
+                DisplayText("Panel: the single board has fewer than two fiducials, per-board measurement is not possible; the panel transform is used for all boards.", KnownColor.DarkRed, true);
+                return true;
+            }
+            int Boards = 0, Measured = 0, Corrected = 0;
+            double WorstCheck = 0.0;
+            for (int r = 1; r <= Def.YRepeats; r++)
+            {
+                for (int c = 1; c <= Def.XRepeats; c++)
+                {
+                    if (Def.IsSkipped(r, c)) continue;
+                    Boards++;
+                    string Board = PanelDefinition.BoardKey(r, c);
+                    PhysicalComponent[] BoardFids = new PhysicalComponent[Fids.Length];
+                    double[] PredX = new double[Fids.Length];
+                    double[] PredY = new double[Fids.Length];
+                    for (int i = 0; i < Fids.Length; i++)
+                    {
+                        string Name = Def.CopyName(Fids[i], r, c);
+                        DataGridViewRow Row = FindCadRow(Name);
+                        if (Row == null)
+                        {
+                            DisplayText("Panel: fiducial " + Name + " not in the CAD data; panel transform used for board " + Board, KnownColor.DarkRed, true);
+                            BoardFids = null;
+                            break;
+                        }
+                        BoardFids[i] = new PhysicalComponent();
+                        BoardFids[i].Designator = Name;
+                        double v;
+                        if (!double.TryParse(CellText(Row, "CADdataXnominalColumn").Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out v)) { BoardFids = null; break; }
+                        BoardFids[i].X_nominal = v;
+                        if (!double.TryParse(CellText(Row, "CADdataYnominalColumn").Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out v)) { BoardFids = null; break; }
+                        BoardFids[i].Y_nominal = v;
+                        if (!double.TryParse(CellText(Row, "CADdataXmachineColumn").Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out v)) { BoardFids = null; break; }
+                        PredX[i] = v;
+                        if (!double.TryParse(CellText(Row, "CADdataYmachineColumn").Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out v)) { BoardFids = null; break; }
+                        PredY[i] = v;
+                    }
+                    if (BoardFids == null) continue;
+
+                    int rr = r, cc = c;
+                    Func<string, bool> OnBoard = (name) => { string d; int br, bc; return PanelDefinition.ParseCopyName(name, out d, out br, out bc) && (br == rr) && (bc == cc); };
+
+                    bool Full = (Def.Strategy == PanelDefinition.STRATEGY_BOARD);
+                    int First = 0;
+                    if (!Full)
+                    {
+                        // Hybrid: check one fiducial
+                        if (!MeasureFiducialWithRetry_m(ref BoardFids[0], PredX[0], PredY[0])) return false;
+                        Measured++;
+                        double d = Math.Sqrt(Math.Pow(BoardFids[0].X_machine - PredX[0], 2) + Math.Pow(BoardFids[0].Y_machine - PredY[0], 2));
+                        WorstCheck = Math.Max(WorstCheck, d);
+                        if (d <= Def.HybridTolerance)
+                        {
+                            DisplayText("Panel board " + Board + ": " + BoardFids[0].Designator + " is " + d.ToString("0.000", CultureInfo.InvariantCulture)
+                                + " mm from the panel prediction, panel transform kept");
+                            continue;
+                        }
+                        DisplayText("Panel board " + Board + ": " + BoardFids[0].Designator + " is " + d.ToString("0.000", CultureInfo.InvariantCulture)
+                            + " mm from the panel prediction (tolerance " + Def.HybridTolerance.ToString("0.00", CultureInfo.InvariantCulture) + "), measuring the board", KnownColor.DarkRed, true);
+                        First = 1;
+                    }
+                    for (int i = First; i < Fids.Length; i++)
+                    {
+                        if (!MeasureFiducialWithRetry_m(ref BoardFids[i], PredX[i], PredY[i])) return false;
+                        Measured++;
+                    }
+                    Transform T;
+                    double angle;
+                    if (!EstimateTransform_m(BoardFids, out T, out angle)) return false;
+                    ApplyTransform(T, angle, OnBoard);
+                    double Worst;
+                    if (!FiducialsAgree(BoardFids, T, 0.4, out Worst))
+                    {
+                        DisplayText("Panel board " + Board + ": its own fiducials disagree by " + Worst.ToString("0.000", CultureInfo.InvariantCulture) + " mm, check them", KnownColor.DarkRed, true);
+                    }
+                    Corrected++;
+                    DisplayText("Panel board " + Board + ": own transform from " + Fids.Length.ToString(CultureInfo.InvariantCulture) + " fiducials");
+                }
+            }
+            DisplayText("Panel: " + Boards.ToString(CultureInfo.InvariantCulture) + " board(s), " + Measured.ToString(CultureInfo.InvariantCulture) + " fiducials measured, "
+                + Corrected.ToString(CultureInfo.InvariantCulture) + " board(s) with their own transform"
+                + ((Def.Strategy == PanelDefinition.STRATEGY_HYBRID) ? ", largest check deviation " + WorstCheck.ToString("0.000", CultureInfo.InvariantCulture) + " mm" : ""));
+            Update_GridView(CadData_GridView);
+            return true;
+        }
+
+        private DataGridViewRow FindCadRow(string Component)
+        {
+            foreach (DataGridViewRow Row in CadData_GridView.Rows)
+            {
+                if (Row.IsNewRow) continue;
+                if (CellText(Row, "CADdataComponentColumn") == Component) return Row;
+            }
+            return null;
+        }
+
+        // Measure a fiducial starting the search at a known machine position (the panel prediction), with
+        // the same retry / confirmation handling as the job's fiducial measurement.
+        private bool MeasureFiducialWithRetry_m(ref PhysicalComponent fid, double StartX, double StartY)
+        {
+            bool ok;
+            do
+            {
+                ok = true;
+                if (AbortPlacement)
+                {
+                    StopOperation();
+                    return false;
+                }
+                if (!CNC_XYA_m(StartX, StartY, Cnc.CurrentA))
+                {
+                    return false;
+                }
+                double X, Y, A;
+                if (GoToFeatureLocation_m(0.1, out X, out Y, out A))
+                {
+                    fid.X_machine = Cnc.CurrentX + X;
+                    fid.Y_machine = Cnc.CurrentY + Y;
+                }
+                else
+                {
+                    ok = false;
+                    string nl = Environment.NewLine;
+                    string answer = NonModalMessageBox(
+                        "Fiducial " + fid.Designator + " not found." + nl +
+                        "Jog machine to position and/or tune the algorithm." + nl +
+                        "Click \"Retry\" to try again," + nl +
+                        "click \"Cancel\" to stop", "Fiducial not found",
+                        "Retry", "", "Cancel");
+                    if (answer == "Cancel")
+                    {
+                        return false;
+                    }
+                    StartX = Cnc.CurrentX;   // the operator may have jogged
+                    StartY = Cnc.CurrentY;
+                }
+            } while (!ok);
+            if (Setting.Placement_FiducialConfirmation)
+            {
+                if (ShowMessageBox("Fiducial location OK?", "Confirm Fiducial", MessageBoxButtons.OKCancel) == DialogResult.Cancel)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 }

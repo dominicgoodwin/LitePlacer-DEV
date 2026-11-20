@@ -10234,6 +10234,149 @@ namespace LitePlacer
 
         // =================================================================================
         // BuildMachineCoordinateData_m():
+        // Transform from a set of measured fiducials (2 fiducials: a third is made up to pin the rotation)
+        private bool EstimateTransform_m(PhysicalComponent[] Fiducials, out Transform transform, out double angle)
+        {
+            angle = 0.0;
+            transform = new Transform();
+            int num_corr_points = Fiducials.Length;
+            // Special case for 2 fiducials: Inject 3rd bogus fiducal, see below
+            if (Fiducials.Length == 2)
+            {
+                num_corr_points = 3;
+            }
+            HomographyEstimation.Point[] nominals = new HomographyEstimation.Point[num_corr_points];
+            HomographyEstimation.Point[] measured = new HomographyEstimation.Point[num_corr_points];
+            // build point data arrays:
+            for (int i = 0; i < Fiducials.Length; i++)
+            {
+                nominals[i].X = Fiducials[i].X_nominal;
+                nominals[i].Y = Fiducials[i].Y_nominal;
+                nominals[i].W = 1.0;
+                measured[i].X = Fiducials[i].X_machine;
+                measured[i].Y = Fiducials[i].Y_machine;
+                measured[i].W = 1.0;
+            }
+
+            // Special case for 2 fiducials: Inject 3rd bogus fiducal
+            // The 3rd fiducial is simply the 2nd fiducial rotated +90 degrees around the 1st fiducial
+            // This should imply a shear and inversion free transformation, hence collapsing a full affine
+            // solution space to a similarity transform
+            if (Fiducials.Length == 2)
+            {
+                double deltaXnominal = nominals[1].X - nominals[0].X;
+                double deltaYnominal = nominals[1].Y - nominals[0].Y;
+                nominals[2].X = nominals[0].X - deltaYnominal;
+                nominals[2].Y = nominals[0].Y + deltaXnominal;
+                nominals[2].W = 1.0;
+
+                double deltaXmeasured = measured[1].X - measured[0].X;
+                double deltaYmeasured = measured[1].Y - measured[0].Y;
+                measured[2].X = measured[0].X - deltaYmeasured;
+                measured[2].Y = measured[0].Y + deltaXmeasured;
+                measured[2].W = 1.0;
+            }
+
+            // find the tranformation
+            bool res = transform.Estimate(nominals, measured, ErrorMetric.Transfer, 1450, 1450);  // the PCBs are smaller than 1450mm
+            if (!res)
+            {
+                ShowMessageBox(
+                    "Transform estimation failed.",
+                    "Data error",
+                    MessageBoxButtons.OK);
+                return false;
+            }
+            // Analyze the transform: Displacement is for debug. We could also calculate X & Y stretch and shear, but why bother.
+            // Find out the displacement in the transform (where nominal origin ends up):
+            HomographyEstimation.Point Loc, Loc2;
+            Loc.X = 0.0;
+            Loc.Y = 0.0;
+            Loc.W = 1.0;
+            Loc = transform.TransformPoint(Loc);
+            Loc = Loc.NormalizeHomogeneous();
+            DisplayText("Transform results:");
+            DisplayText("Xorigin= " + (Loc.X).ToString(CultureInfo.InvariantCulture));
+            DisplayText("Yorigin= " + Loc.Y.ToString(CultureInfo.InvariantCulture));
+            // We do need rotation. Find out by rotatíng a unit vector:
+            Loc2.X = 1.0;
+            Loc2.Y = 0.0;
+            Loc2.W = 1.0;
+            Loc2 = transform.TransformPoint(Loc2);
+            Loc2 = Loc2.NormalizeHomogeneous();
+            // DisplayText("dX= " + Loc2.X.ToString(CultureInfo.InvariantCulture));
+            // DisplayText("dY= " + Loc2.Y.ToString(CultureInfo.InvariantCulture));
+            angle = Math.Asin(Loc2.Y - Loc.Y) * 180.0 / Math.PI; // in degrees
+            DisplayText("angle= " + angle.ToString(CultureInfo.InvariantCulture));
+
+            return true;
+        }
+
+        // Applies a transform to the CAD rows accepted by Filter (null = all)
+        private void ApplyTransform(Transform transform, double angle, Func<string, bool> Filter)
+        {
+            HomographyEstimation.Point Loc;
+            Loc.W = 1.0;
+            // Calculate machine coordinates of all components:
+            foreach (DataGridViewRow Row in CadData_GridView.Rows)
+            {
+                if ((Filter != null) && !Filter(CellText(Row, "CADdataComponentColumn"))) continue;
+                // build a point from CAD data values
+                Loc.X = 0.0;
+                if (double.TryParse(Row.Cells["CADdataXnominalColumn"].Value.ToString().Replace(',', '.'), out double tempD))
+                {
+                    Loc.X = tempD;
+                }
+                Loc.Y = 0.0;
+                if (double.TryParse(Row.Cells["CADdataYnominalColumn"].Value.ToString().Replace(',', '.'), out tempD))
+                {
+                    Loc.Y = tempD;
+                }
+                Loc.W = 1;
+                // transform it
+                Loc = transform.TransformPoint(Loc);
+                Loc = Loc.NormalizeHomogeneous();
+                // store calculated location values
+                Row.Cells["CADdataXmachineColumn"].Value = Loc.X.ToString("0.000", CultureInfo.InvariantCulture);
+                Row.Cells["CADdataYmachineColumn"].Value = Loc.Y.ToString("0.000", CultureInfo.InvariantCulture);
+                // handle rotation
+                double rot = 0.0;
+                if (double.TryParse(Row.Cells["CADdataRotationNominalColumn"].Value.ToString().Replace(',', '.'), out rot))
+                {
+                    rot += angle;
+                }
+                NormalizeRotation(ref rot);
+                Row.Cells["CADdataRotationMachineColumn"].Value = rot.ToString("0.0000", CultureInfo.InvariantCulture);
+
+            }
+        }
+
+        // Fiducial check against a transform: how far each measured fiducial is from where the transform puts it
+        private bool FiducialsAgree(PhysicalComponent[] Fiducials, Transform transform, double Limit, out double Worst)
+        {
+            Worst = 0.0;
+            foreach (PhysicalComponent f in Fiducials)
+            {
+                HomographyEstimation.Point Loc;
+                Loc.X = f.X_nominal;
+                Loc.Y = f.Y_nominal;
+                Loc.W = 1.0;
+                Loc = transform.TransformPoint(Loc);
+                Loc = Loc.NormalizeHomogeneous();
+                double dx = Math.Abs(Loc.X - f.X_machine);
+                double dy = Math.Abs(Loc.Y - f.Y_machine);
+                DisplayText(f.Designator +
+                    ": x_meas= " + f.X_machine.ToString("0.000", CultureInfo.InvariantCulture) +
+                    ", x_calc= " + Loc.X.ToString("0.000", CultureInfo.InvariantCulture) +
+                    ", dx= " + dx.ToString("0.000", CultureInfo.InvariantCulture) +
+                    ": y_meas= " + f.Y_machine.ToString("0.000", CultureInfo.InvariantCulture) +
+                    ", y_calc= " + Loc.Y.ToString("0.000", CultureInfo.InvariantCulture) +
+                    ", dy= " + dy.ToString("0.000", CultureInfo.InvariantCulture));
+                Worst = Math.Max(Worst, Math.Max(dx, dy));
+            }
+            return Worst <= Limit;
+        }
+
         private bool BuildMachineCoordinateData_m()
         {
             double X_nom = 0;
@@ -10379,138 +10522,20 @@ namespace LitePlacer
 
             // Find the homographic tranformation from CAD data (fiducials.nominal) to measured machine coordinates
             // (fiducials.machine):
-            Transform transform = new Transform();
-            int num_corr_points = Fiducials.Length;
-            // Special case for 2 fiducials: Inject 3rd bogus fiducal, see below
-            if (Fiducials.Length == 2)
+            Transform transform;
+            double angle;
+            if (!EstimateTransform_m(Fiducials, out transform, out angle))
             {
-                num_corr_points = 3;
-            }
-            HomographyEstimation.Point[] nominals = new HomographyEstimation.Point[num_corr_points];
-            HomographyEstimation.Point[] measured = new HomographyEstimation.Point[num_corr_points];
-            // build point data arrays:
-            for (int i = 0; i < Fiducials.Length; i++)
-            {
-                nominals[i].X = Fiducials[i].X_nominal;
-                nominals[i].Y = Fiducials[i].Y_nominal;
-                nominals[i].W = 1.0;
-                measured[i].X = Fiducials[i].X_machine;
-                measured[i].Y = Fiducials[i].Y_machine;
-                measured[i].W = 1.0;
-            }
-
-            // Special case for 2 fiducials: Inject 3rd bogus fiducal
-            // The 3rd fiducial is simply the 2nd fiducial rotated +90 degrees around the 1st fiducial
-            // This should imply a shear and inversion free transformation, hence collapsing a full affine
-            // solution space to a similarity transform
-            if (Fiducials.Length == 2)
-            {
-                double deltaXnominal = nominals[1].X - nominals[0].X;
-                double deltaYnominal = nominals[1].Y - nominals[0].Y;
-                nominals[2].X = nominals[0].X - deltaYnominal;
-                nominals[2].Y = nominals[0].Y + deltaXnominal;
-                nominals[2].W = 1.0;
-
-                double deltaXmeasured = measured[1].X - measured[0].X;
-                double deltaYmeasured = measured[1].Y - measured[0].Y;
-                measured[2].X = measured[0].X - deltaYmeasured;
-                measured[2].Y = measured[0].Y + deltaXmeasured;
-                measured[2].W = 1.0;
-            }
-
-            // find the tranformation
-            bool res = transform.Estimate(nominals, measured, ErrorMetric.Transfer, 1450, 1450);  // the PCBs are smaller than 1450mm
-            if (!res)
-            {
-                ShowMessageBox(
-                    "Transform estimation failed.",
-                    "Data error",
-                    MessageBoxButtons.OK);
                 return false;
             }
-            // Analyze the transform: Displacement is for debug. We could also calculate X & Y stretch and shear, but why bother.
-            // Find out the displacement in the transform (where nominal origin ends up):
-            HomographyEstimation.Point Loc, Loc2;
-            Loc.X = 0.0;
-            Loc.Y = 0.0;
-            Loc.W = 1.0;
-            Loc = transform.TransformPoint(Loc);
-            Loc = Loc.NormalizeHomogeneous();
-            DisplayText("Transform results:");
-            DisplayText("Xorigin= " + (Loc.X).ToString(CultureInfo.InvariantCulture));
-            DisplayText("Yorigin= " + Loc.Y.ToString(CultureInfo.InvariantCulture));
-            // We do need rotation. Find out by rotatíng a unit vector:
-            Loc2.X = 1.0;
-            Loc2.Y = 0.0;
-            Loc2.W = 1.0;
-            Loc2 = transform.TransformPoint(Loc2);
-            Loc2 = Loc2.NormalizeHomogeneous();
-            // DisplayText("dX= " + Loc2.X.ToString(CultureInfo.InvariantCulture));
-            // DisplayText("dY= " + Loc2.Y.ToString(CultureInfo.InvariantCulture));
-            double angle = Math.Asin(Loc2.Y - Loc.Y) * 180.0 / Math.PI; // in degrees
-            DisplayText("angle= " + angle.ToString(CultureInfo.InvariantCulture));
-
-            // Calculate machine coordinates of all components:
-            foreach (DataGridViewRow Row in CadData_GridView.Rows)
-            {
-                // build a point from CAD data values
-                Loc.X = 0.0;
-                if (double.TryParse(Row.Cells["CADdataXnominalColumn"].Value.ToString().Replace(',', '.'), out double tempD))
-                {
-                    Loc.X = tempD;
-                }
-                Loc.Y = 0.0;
-                if (double.TryParse(Row.Cells["CADdataYnominalColumn"].Value.ToString().Replace(',', '.'), out tempD))
-                {
-                    Loc.Y = tempD;
-                }
-                Loc.W = 1;
-                // transform it
-                Loc = transform.TransformPoint(Loc);
-                Loc = Loc.NormalizeHomogeneous();
-                // store calculated location values
-                Row.Cells["CADdataXmachineColumn"].Value = Loc.X.ToString("0.000", CultureInfo.InvariantCulture);
-                Row.Cells["CADdataYmachineColumn"].Value = Loc.Y.ToString("0.000", CultureInfo.InvariantCulture);
-                // handle rotation
-                double rot = 0.0;
-                if (double.TryParse(Row.Cells["CADdataRotationNominalColumn"].Value.ToString().Replace(',', '.'), out rot))
-                {
-                    rot += angle;
-                }
-                NormalizeRotation(ref rot);
-                Row.Cells["CADdataRotationMachineColumn"].Value = rot.ToString("0.0000", CultureInfo.InvariantCulture);
-
-            }
+            ApplyTransform(transform, angle, null);
             // Refresh UI:
             Update_GridView(CadData_GridView);
 
-            // For debug, compare fiducials true measured locations and the locations.
-            // Also, if a fiducials moves more than 0.5mm, something is off (maybe there
-            // was a via too close to a fid, and we picked that for a measurement). Warn the user!
-            bool DataOk = true;
-            double dx, dy;
-            for (int i = 0; i < Fiducials.Length; i++)
-            {
-                Loc.X = Fiducials[i].X_nominal;
-                Loc.Y = Fiducials[i].Y_nominal;
-                Loc.W = 1.0;
-                Loc = transform.TransformPoint(Loc);
-                Loc = Loc.NormalizeHomogeneous();
-                dx = Math.Abs(Loc.X - Fiducials[i].X_machine);
-                dy = Math.Abs(Loc.Y - Fiducials[i].Y_machine);
-                DisplayText(Fiducials[i].Designator +
-                    ": x_meas= " + Fiducials[i].X_machine.ToString("0.000", CultureInfo.InvariantCulture) +
-                    ", x_calc= " + Loc.X.ToString("0.000", CultureInfo.InvariantCulture) +
-                    ", dx= " + dx.ToString("0.000", CultureInfo.InvariantCulture) +
-                    ": y_meas= " + Fiducials[i].Y_machine.ToString("0.000", CultureInfo.InvariantCulture) +
-                    ", y_calc= " + Loc.Y.ToString("0.000", CultureInfo.InvariantCulture) +
-                    ", dy= " + dy.ToString("0.000", CultureInfo.InvariantCulture));
-                if ((Math.Abs(dx) > 0.4) || (Math.Abs(dy) > 0.4))
-                {
-                    DataOk = false;
-                }
-            };
-            if (!DataOk)
+            // If a fiducial moves more than 0.4mm when the transform is applied to it, something is off
+            // (maybe there was a via too close to a fid, and we picked that for a measurement). Warn the user!
+            double Worst;
+            if (!FiducialsAgree(Fiducials, transform, 0.4, out Worst))
             {
                 DisplayText(" ** A fiducial moved more than 0.4mm from its measured location");
                 DisplayText(" ** when applied the same calculations than regular components.");
@@ -10526,6 +10551,16 @@ namespace LitePlacer
                     return false;
                 }
             }
+
+            // Panel: per-board fiducials
+            if ((CurrentPanel != null) && (CurrentPanel.Strategy != PanelDefinition.STRATEGY_PANEL))
+            {
+                if (!PanelBoardTransforms_m(transform))
+                {
+                    return false;
+                }
+            }
+
             // Done! 
             ValidMeasurement_checkBox.Checked = true;
             return true;
