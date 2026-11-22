@@ -148,6 +148,11 @@ namespace LitePlacer
                     for (int i = 0; i < Math.Min(Pins, keep.Count); i++) areas.Add(keep[i].Area);
                     double refArea = Median(areas);
                     keep.RemoveAll(b => b.Area > 1.8 * refArea);
+                    // Nor may specks (a dot on the body, nozzle crust) grow a cluster: they lie nearer the seed
+                    // than the far pins of a sparse part (SOT-23: three pins, two of them 2 mm from the third),
+                    // so every cluster absorbed them before the span was complete and the clean span was never
+                    // emitted at any threshold. Knees of gull-wing leads are about half a foot and stay.
+                    keep.RemoveAll(b => b.Area < 0.25 * refArea);
                 }
                 HashSet<string> seen = new HashSet<string>();
                 if (Pins == 2)
@@ -262,10 +267,15 @@ namespace LitePlacer
                 {
                     float otsu = OtsuInRect(img, W, H, g.Cx, g.Cy, g.L * 1.1, g.W * 1.1, g.Angle);
                     // Pins are read at the brighter of Otsu and the middle of the levels this rectangle was
-                    // found at, so a dim speck touching a pin at low levels is not part of the pin
-                    List<double> mthr = new List<double>();
-                    foreach (Cand c in g.Members) mthr.Add(c.Thr);
-                    float pinThr = Math.Max(otsu, (float)Median(mthr));
+                    // found at, so a dim speck touching a pin at low levels is not part of the pin. Where the
+                    // cluster had exactly the expected number of blobs at some levels, the middle of those is
+                    // taken: a gull-wing foot and its knee are one blob there, so no knee can pass for a pin
+                    // (on the two-pin row of a SOT-23 the knee touches the side like the foot), and the lone
+                    // pin is not read joined to its knee while the pair is read split, which would shift the
+                    // centre across the rows by half a knee.
+                    List<double> mthr = new List<double>(), mthrN = new List<double>();
+                    foreach (Cand c in g.Members) { mthr.Add(c.Thr); if (c.NBlobs == Pins) mthrN.Add(c.Thr); }
+                    float pinThr = Math.Max(otsu, (float)Median(mthrN.Count > 0 ? mthrN : mthr));
                     double sym, rowAngle;
                     int outsidePins;
                     int npins = PinEvidence(img, W, H, g, pinThr, Pins, out sym, out rowAngle, out outsidePins);
