@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -1296,6 +1296,49 @@ namespace LitePlacer
                         double su2 = 0, sv2 = 0;
                         foreach (double[] q in blobs[k]) { double dx = q[0] - g.Cx, dy = q[1] - g.Cy; su2 += dx * ux + dy * uy; sv2 += -dx * uy + dy * ux; }
                         cen.Add(new double[] { su2 / blobs[k].Count, sv2 / blobs[k].Count });
+                    }
+                }
+            }
+            // Row tilt from the pin centroids. The rectangle angle comes from the minimum-area rectangle of the
+            // blob hull at working resolution, so it is quantised to about one working pixel over the span
+            // (0.6 deg for a SOIC at 5x downsampling, and it flips between frames). The centroids are
+            // sub-pixel: fit a line through each row's pin centres and turn the frame onto it.
+            if (cen.Count >= 4)
+            {
+                double sxx = 0, sxy = 0;
+                int nfit = 0;
+                foreach (int side in new int[] { -1, 1 })
+                {
+                    List<double> al = new List<double>(), ac = new List<double>();
+                    foreach (double[] c in cen)
+                    {
+                        double along = rowsAlongU ? c[0] : c[1], across = rowsAlongU ? c[1] : c[0];
+                        if ((side < 0 && across < 0) || (side > 0 && across >= 0)) { al.Add(along); ac.Add(across); }
+                    }
+                    if (al.Count < 2) continue;
+                    double ma = 0, mc = 0;
+                    for (int i = 0; i < al.Count; i++) { ma += al[i]; mc += ac[i]; }
+                    ma /= al.Count; mc /= ac.Count;
+                    for (int i = 0; i < al.Count; i++) { sxx += (al[i] - ma) * (al[i] - ma); sxy += (al[i] - ma) * (ac[i] - mc); }
+                    nfit += al.Count;
+                }
+                if (nfit >= 4 && sxx > 0)
+                {
+                    double slope = sxy / sxx;
+                    double t = Math.Atan(slope) * (rowsAlongU ? 1 : -1);
+                    if (Math.Abs(t) < 5 * Math.PI / 180)
+                    {
+                        double ct = Math.Cos(t), st = Math.Sin(t);
+                        foreach (double[] c in cen) { double u0 = c[0], v0 = c[1]; c[0] = u0 * ct + v0 * st; c[1] = -u0 * st + v0 * ct; }
+                        double newAngle = g.Angle + t * 180.0 / Math.PI;
+                        g.Angle = NormAngle(newAngle);
+                        if (Math.Abs(g.Angle - newAngle) > 90)
+                        {
+                            // normalising wrapped the frame by 180 degrees: keep the pin coordinates in step
+                            foreach (double[] c in cen) { c[0] = -c[0]; c[1] = -c[1]; }
+                        }
+                        rowAngle = NormAngle(rowAngle + t * 180.0 / Math.PI);
+                        a = g.Angle * Math.PI / 180.0; ux = Math.Cos(a); uy = Math.Sin(a);
                     }
                 }
             }
