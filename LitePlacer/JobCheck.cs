@@ -329,6 +329,21 @@ namespace LitePlacer
             int Earlier;
             JobCheckMeasured.TryGetValue(TapeID, out Earlier);
             JobCheckMeasured[TapeID] = Earlier + Needed;
+            // Only holes the camera can reach are measured; the nominal position of a far part on a long tape
+            // can lie outside the machine, and the camera move would stop the check with a limits error.
+            // The geometry pass has already reported the parts that are out of reach.
+            int Reachable = ReachableHoles(TapeNum, Earlier, Needed);
+            if (Reachable < Needed)
+            {
+                if (Reachable <= 0)
+                {
+                    JobCheckAdd(Row, JobCheckLevel.Error, "feeder " + TapeID + ": no holes within camera reach, not measured");
+                    return;
+                }
+                JobCheckAdd(Row, JobCheckLevel.Warning, "feeder " + TapeID + ": only the first " + Reachable.ToString(CultureInfo.InvariantCulture)
+                    + " of " + Needed.ToString(CultureInfo.InvariantCulture) + " parts are within camera reach; measuring those");
+                Needed = Reachable;
+            }
             if (!Tapes.PrepareForFastPlacement_m(TapeID, Needed, Earlier))
             {
                 JobCheckAdd(Row, JobCheckLevel.Error, "feeder " + TapeID + ": tape holes not found (see the log)");
@@ -541,6 +556,32 @@ namespace LitePlacer
         // ==========================================================================================
         // Used by the run loop: how many of the parts Next .. Next+Needed-1 of a feeder can be picked
         // (consecutive from Next; the first unreachable one ends it).
+
+        // How many of the parts Next+Skip .. Next+Skip+Count-1 of a tape have their hole within camera reach
+        // (consecutive; the first unreachable one ends it). Holes 1-3 are needed too when the count starts
+        // at part 1 (cut-leader extrapolation).
+        private int ReachableHoles(int TapeNum, int Skip, int Count)
+        {
+            int Next;
+            if (!int.TryParse(TapeCellString(TapeNum, "NextPart_Column"), out Next)) return Count;
+            int From = Next + Skip;
+            if (From == 1)
+            {
+                for (int p = 1; p <= 3; p++)
+                {
+                    double HX, HY;
+                    if (!Tapes.GetPartHoleNominal_m(TapeNum, p, out HX, out HY)) return Count;
+                    if (!CameraCanReach(HX, HY)) return 0;
+                }
+            }
+            for (int p = From; p < From + Count; p++)
+            {
+                double HX, HY;
+                if (!Tapes.GetPartHoleNominal_m(TapeNum, p, out HX, out HY)) return Count;
+                if (!CameraCanReach(HX, HY)) return p - From;
+            }
+            return Count;
+        }
 
         private int ReachablePickups(int TapeNum, int Needed)
         {
