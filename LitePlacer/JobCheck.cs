@@ -449,12 +449,25 @@ namespace LitePlacer
             }
             if (Measure)
             {
-                DisplayText("Job check: measuring tapes");
+                DisplayText("Job check: measuring tapes (Esc aborts)");
                 JobCheckMeasured.Clear();
+                AbortPlacement = false;
+                AbortPlacementShown = false;
                 foreach (int i in Rows)
                 {
+                    // Esc sets AbortPlacement; a move that saw it has already shown "Operation aborted"
+                    // (AbortPlacementShown) and cleared the flag
+                    if (AbortPlacement || AbortPlacementShown)
+                    {
+                        AbortPlacement = false;
+                        JobCheckAdd(i, JobCheckLevel.Error, "check aborted by operator; this and the following rows were not measured");
+                        DisplayText("Job check aborted by operator", KnownColor.DarkRed, true);
+                        break;
+                    }
                     JobCheckRowMeasure(i);
                 }
+                AbortPlacement = false;
+                AbortPlacementShown = false;
                 CNC_Park();
             }
             ShowJobCheckReport(Title + (Measure ? " (measured)" : " (geometry only)"));
