@@ -278,7 +278,44 @@ namespace LitePlacer
                     float pinThr = Math.Max(otsu, (float)Median(mthrN.Count > 0 ? mthrN : mthr));
                     double sym, rowAngle;
                     int outsidePins;
+                    double gCx = g.Cx, gCy = g.Cy, gL = g.L, gW = g.W, gAngle = g.Angle;
                     int npins = PinEvidence(img, W, H, g, pinThr, Pins, out sym, out rowAngle, out outsidePins);
+                    if (Pins > 2)
+                    {
+                        // The merged level is not always among the levels the rectangle was found at (a strong
+                        // bend line keeps foot and knee apart down to where the pins start merging with other
+                        // things), and Otsu may sit above it; then knees pass for pins (SOT-23 on its side:
+                        // "4 pins" on the two-pin row), or one pin is read joined to its knee while the others
+                        // are read split, which shifts the centre across the rows by half a knee. Look for the
+                        // merged level directly: from the chosen level downwards, the band where the span holds
+                        // exactly `Pins` blobs of similar size; read the pins again in the middle of that band
+                        // and keep that reading when it has the expected pins (TSSOP/SOIC/DFN read the same
+                        // either way; it changes the SOT-23 on its side from 1 in 20 to every frame).
+                        // (the first reading has re-fitted g; count on the rectangle as it was found)
+                        Group g2 = new Group() { Cx = gCx, Cy = gCy, L = gL, W = gW, Angle = gAngle, NLevels = g.NLevels, Geom = g.Geom };
+                        int top = -1, bottom = -1;
+                        int start = (int)pinThr - 5;
+                        double minThr = mthr[0];
+                        foreach (double mt in mthr) if (mt < minThr) minThr = mt;
+                        int floor = Math.Max(30, (int)minThr - 60);
+                        for (int t = start; t >= floor; t -= 5)
+                        {
+                            int n = CountPinBlobs(img, W, H, g2, t, Pins);
+                            if (n == Pins) { if (top < 0) top = t; bottom = t; }
+                            else if (top >= 0) break;
+                        }
+                        if (top >= 0)
+                        {
+                            double sym2, rowAngle2;
+                            int outsidePins2;
+                            int npins2 = PinEvidence(img, W, H, g2, (top + bottom) / 2, Pins, out sym2, out rowAngle2, out outsidePins2);
+                            if (npins2 == Pins || Math.Abs(npins2 - Pins) < Math.Abs(npins - Pins))
+                            {
+                                g.Cx = g2.Cx; g.Cy = g2.Cy; g.L = g2.L; g.W = g2.W; g.Angle = g2.Angle;
+                                npins = npins2; sym = sym2; rowAngle = rowAngle2; outsidePins = outsidePins2;
+                            }
+                        }
+                    }
                     g.PinCount = npins;
                     g.OutsidePins = outsidePins;
                     g.RowAngle = rowAngle;
@@ -1058,6 +1095,69 @@ namespace LitePlacer
             g.Cx += du * ux; g.Cy += du * uy;
             g.L = tipPos - tipNeg;
             return alike;
+        }
+
+        // Bright blobs of at least a quarter of a pin inside the span (1.08x rectangle) at threshold thr;
+        // the pin size is the median area of the `pins` largest blobs.
+        static int CountPinBlobs(float[] img, int W, int H, Group g, float thr, int pins)
+        {
+            double a = g.Angle * Math.PI / 180.0;
+            double ux = Math.Cos(a), uy = Math.Sin(a);
+            double L1 = g.L * 1.08, W1 = g.W * 1.08;
+            double R = Hypot(L1, W1) / 2 + 2;
+            int x0 = Math.Max(1, (int)(g.Cx - R)), x1 = Math.Min(W - 2, (int)(g.Cx + R) + 1);
+            int y0 = Math.Max(1, (int)(g.Cy - R)), y1 = Math.Min(H - 2, (int)(g.Cy + R) + 1);
+            int bw = x1 - x0 + 1, bh = y1 - y0 + 1;
+            if (bw < 3 || bh < 3) return 0;
+            int[] lab = new int[bw * bh];
+            List<int> parent = new List<int>(); parent.Add(0);
+            for (int y = 0; y < bh; y++)
+                for (int x = 0; x < bw; x++)
+                {
+                    int gxp = x + x0, gyp = y + y0;
+                    if (img[gyp * W + gxp] <= thr || !InRect(gxp, gyp, g.Cx, g.Cy, L1, W1, ux, uy)) continue;
+                    int i = y * bw + x;
+                    int best = 0; int[] nb = new int[4]; int nn = 0;
+                    if (x > 0 && lab[i - 1] > 0) nb[nn++] = lab[i - 1];
+                    if (y > 0)
+                    {
+                        if (x > 0 && lab[i - bw - 1] > 0) nb[nn++] = lab[i - bw - 1];
+                        if (lab[i - bw] > 0) nb[nn++] = lab[i - bw];
+                        if (x < bw - 1 && lab[i - bw + 1] > 0) nb[nn++] = lab[i - bw + 1];
+                    }
+                    if (nn == 0) { parent.Add(parent.Count); best = parent.Count - 1; }
+                    else
+                    {
+                        best = nb[0];
+                        for (int k = 1; k < nn; k++) if (nb[k] < best) best = nb[k];
+                        for (int k = 0; k < nn; k++) Union(parent, best, nb[k]);
+                    }
+                    lab[i] = best;
+                }
+            Dictionary<int, int> areas = new Dictionary<int, int>();
+            for (int i = 0; i < bw * bh; i++)
+            {
+                if (lab[i] == 0) continue;
+                int root = FindRoot(parent, lab[i]);
+                int n;
+                areas.TryGetValue(root, out n);
+                areas[root] = n + 1;
+            }
+            if (areas.Count == 0) return 0;
+            List<double> sorted = new List<double>();
+            foreach (int n in areas.Values) sorted.Add(n);
+            sorted.Sort((p1, p2) => p2.CompareTo(p1));
+            double refArea = Median(sorted.GetRange(0, Math.Min(pins, sorted.Count)));
+            int count = 0, big = 0, small = int.MaxValue;
+            foreach (int n in areas.Values)
+            {
+                if (n < 4 || n < 0.25 * refArea) continue;
+                count++;
+                if (n > big) big = n;
+                if (n < small) small = n;
+            }
+            if (count > 0 && big > 3 * small) return -1;   // not pins of one kind (a merged lump and specks)
+            return count;
         }
 
         static int PinEvidence(float[] img, int W, int H, Group g, float thr, int pins, out double sym, out double rowAngle, out int outsidePins)
